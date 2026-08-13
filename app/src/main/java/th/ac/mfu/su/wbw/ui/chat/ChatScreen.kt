@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,12 +32,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +57,9 @@ import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
+import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 /**
  * Group chat — a placeholder, not a client.
@@ -65,7 +81,24 @@ import th.ac.mfu.su.wbw.ui.theme.wbwColors
 @Composable
 fun ChatScreen(contentPadding: PaddingValues) {
     val colors = wbwColors
-    val rows = remember { groupMessages(SampleMessages) }
+    // Local only. Messages live for as long as the screen does — there is no repository
+    // to put them in and inventing one would be pretending the wire exists.
+    val messages = remember { mutableStateListOf<ChatMessageStub>().also { it.addAll(SampleMessages) } }
+    val rows = remember(messages.size) { groupMessages(messages) }
+    var draft by rememberSaveable { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    fun send() {
+        val body = draft.trim()
+        if (body.isEmpty()) return
+        messages.add(ChatMessageStub(author = "You", time = nowLabel(), body = body))
+        draft = ""
+        // Jump to the message just sent. Without this it lands below the fold and the
+        // send reads as having done nothing.
+        scope.launch { listState.animateScrollToItem((rows.size + 1).coerceAtLeast(0)) }
+    }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         // Channel header. Named like a Discord channel because the group *is* the
@@ -101,10 +134,11 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
-                .glass(RoundedCornerShape(PanelCorner), fill = GlassClear),
+                .glass(RoundedCornerShape(PanelCorner), fill = GlassClear, elevation = 0.dp),
         ) {
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
+                state = listState,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
@@ -118,8 +152,9 @@ fun ChatScreen(contentPadding: PaddingValues) {
         }
         Spacer(Modifier.height(10.dp))
 
-        // Composer. Disabled on purpose — a box you can type into but that cannot send
-        // would be a worse lie than one that plainly is not ready.
+        // A real composer: it takes text and the button posts it into the thread above.
+        // Local only, but a field you can actually type in is the thing that tells you
+        // whether the layout works — a painted-on placeholder never does.
         Row(
             Modifier
                 .fillMaxWidth()
@@ -130,8 +165,8 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Row(
                 Modifier
                     .weight(1f)
-                    .glass(RoundedCornerShape(24.dp), fill = GlassClear)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .glass(RoundedCornerShape(24.dp), fill = GlassClear, elevation = 0.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
@@ -141,30 +176,53 @@ fun ChatScreen(contentPadding: PaddingValues) {
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.chat_composer_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onBackdropMuted,
-                )
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (draft.isEmpty()) {
+                        Text(
+                            stringResource(R.string.chat_composer_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.onBackdropMuted,
+                        )
+                    }
+                    // BasicTextField, not a Material TextField: the Material ones bring
+                    // their own container, indicator line and padding, all of which would
+                    // paint a background back onto a pane that is deliberately clear.
+                    BasicTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onBackdrop),
+                        cursorBrush = SolidColor(colors.onBackdrop),
+                        maxLines = 4,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { send(); keyboard?.hide() }),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
             Spacer(Modifier.width(10.dp))
+            val canSend = draft.isNotBlank()
             Box(
                 Modifier
                     .size(46.dp)
-                    .glass(CircleShape, fill = GlassClear)
-                    .clickableTap {},
+                    .glass(CircleShape, fill = GlassClear, elevation = 0.dp)
+                    .clickableTap { send(); keyboard?.hide() },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.Send,
                     stringResource(R.string.chat_send),
-                    tint = colors.onBackdrop,
+                    // Dimmed until there is something to send — the only state the button
+                    // has, and cheaper to read than a disabled fill.
+                    tint = colors.onBackdrop.copy(alpha = if (canSend) 1f else 0.35f),
                     modifier = Modifier.size(19.dp),
                 )
             }
         }
     }
 }
+
+/** Wall-clock label for a message sent right now, matching the stubs' HH:mm. */
+private fun nowLabel(): String = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
 
 @Composable
 private fun DayDivider(label: String) {
