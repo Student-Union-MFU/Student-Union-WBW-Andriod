@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -31,6 +33,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import th.ac.mfu.su.wbw.R
 import kotlin.math.PI
 import kotlin.math.cos
@@ -68,38 +73,48 @@ fun ForestBackground(
     content: @Composable () -> Unit,
 ) {
     val colors = wbwColors
+    // The layer the app's glass refracts. It wraps the wallpaper and *only* the
+    // wallpaper: panes may not sample a layer they are drawn inside, so the content
+    // below sits outside it. Getting this wrong does not fail loudly — the panes smear
+    // themselves, which reads as a rendering glitch rather than a structural mistake.
+    val wallpaper = rememberLayerBackdrop()
+
     Box(modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(R.drawable.bg_backdrop),
-            contentDescription = null,
-            // ContentScale.Crop is SwiftUI's scaledToFill: fill the frame, clip the rest.
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    // A near-nothing settle under the content. Never enough to re-tint
-                    // the artwork — that is the whole point of having it.
-                    drawRect(colors.backdropWash)
-                    // Head-and-foot scrim, much lighter than the iOS original — see the
-                    // note above on why the darker artwork does not need more. Applied in
-                    // both themes: the image is the same dark forest either way.
-                    drawRect(
-                        Brush.verticalGradient(
-                            0.00f to Color.Black.copy(alpha = 0.22f),
-                            0.18f to Color.Transparent,
-                            0.84f to Color.Transparent,
-                            1.00f to Color.Black.copy(alpha = 0.22f),
-                        ),
-                    )
-                    // An even dim over the whole frame, if one is ever wanted. Zero
-                    // with this artwork: it is already dark enough to carry light text.
-                    if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))
-                },
-        )
-        content()
+        Box(Modifier.fillMaxSize().layerBackdrop(wallpaper)) {
+            Image(
+                painter = painterResource(R.drawable.bg_backdrop),
+                contentDescription = null,
+                // ContentScale.Crop is SwiftUI's scaledToFill: fill the frame, clip the rest.
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        // A near-nothing settle under the content. Never enough to
+                        // re-tint the artwork — that is the whole point of having it.
+                        drawRect(colors.backdropWash)
+                        // Head-and-foot scrim, much lighter than the iOS original — see
+                        // the note above on why the darker artwork does not need more.
+                        // Both themes: the image is the same dark forest either way.
+                        drawRect(
+                            Brush.verticalGradient(
+                                0.00f to Color.Black.copy(alpha = 0.22f),
+                                0.18f to Color.Transparent,
+                                0.84f to Color.Transparent,
+                                1.00f to Color.Black.copy(alpha = 0.22f),
+                            ),
+                        )
+                        // An even dim over the whole frame, if one is ever wanted. Zero
+                        // with this artwork: already dark enough to carry light text.
+                        if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))
+                    },
+            )
+        }
+        // Inside the provider but outside the layer — so every pane on this screen can
+        // refract the wallpaper without any screen having to thread a Backdrop through.
+        CompositionLocalProvider(LocalBackdrop provides wallpaper) { content() }
     }
 }
 
@@ -215,7 +230,37 @@ private fun DrawScope.hill(w: Float, h: Float, y0: Float, y1: Float, y2: Float, 
         lineTo(w, h); lineTo(0f, h); close()
     }
 
-/** Rounded glass surface: soft drop shadow, near-solid fill, hairline border. */
+/**
+ * The wallpaper layer every glass surface in the app refracts.
+ *
+ * Null means "no layer available here", and the panes fall back to an opaque fill. That
+ * is not a rare edge case worth ignoring — a pane may only sample a layer it is drawn
+ * *outside* of, so any screen that has not set one up must degrade rather than sample
+ * itself and smear.
+ *
+ * [ForestBackground] provides it, which is why glass works on every screen that sits on
+ * the backdrop without any of them having to know about it.
+ */
+val LocalBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+
+/**
+ * How much of the pane's own colour sits over the refraction.
+ *
+ * Below this the cards stop reading as surfaces and text on them loses its ground;
+ * above it the refraction is buried and the whole thing is just a tinted rectangle
+ * again. Dark panes need more because the wallpaper is already dark and a translucent
+ * dark pane over it disappears.
+ */
+private const val GlassTintDark = 0.72f
+private const val GlassTintLight = 0.80f
+
+/**
+ * Rounded glass surface: refracts the wallpaper, tinted by the theme, hairline border.
+ *
+ * The same material as the nav bar, from the same library. Where there is no backdrop
+ * layer in scope it degrades to the previous opaque fill, so nothing depends on the
+ * shader being available.
+ */
 fun Modifier.glass(
     shape: RoundedCornerShape,
     fill: Color? = null,
@@ -223,10 +268,24 @@ fun Modifier.glass(
     elevation: Dp = 8.dp,
 ): Modifier = composed {
     val colors = wbwColors
-    shadow(elevation, shape, clip = false, spotColor = Color.Black.copy(alpha = 0.5f), ambientColor = Color.Black.copy(alpha = 0.32f))
-        .clip(shape)
-        .background(fill ?: colors.glass)
-        .border(1.dp, border ?: colors.glassBorder, shape)
+    val backdrop = LocalBackdrop.current
+    val tint = fill ?: colors.glass.copy(alpha = if (colors.isDark) GlassTintDark else GlassTintLight)
+    val base = shadow(
+        elevation, shape, clip = false,
+        spotColor = Color.Black.copy(alpha = 0.5f),
+        ambientColor = Color.Black.copy(alpha = 0.32f),
+    )
+    if (backdrop != null) {
+        base
+            .liquidGlass(backdrop, shape, surface = tint, highlight = null)
+            .clip(shape)
+            .border(1.dp, border ?: colors.glassBorder, shape)
+    } else {
+        base
+            .clip(shape)
+            .background(fill ?: colors.glass)
+            .border(1.dp, border ?: colors.glassBorder, shape)
+    }
 }
 
 @Composable
@@ -237,13 +296,9 @@ fun GlassCard(
     fill: Color? = null,
     content: @Composable () -> Unit,
 ) {
-    val colors = wbwColors
     Box(
         modifier
-            .shadow(16.dp, shape, clip = false, spotColor = Color.Black.copy(alpha = 0.5f), ambientColor = Color.Black.copy(alpha = 0.32f))
-            .clip(shape)
-            .background(fill ?: colors.glass)
-            .border(1.dp, colors.glassBorder, shape)
+            .glass(shape, fill = fill, elevation = 16.dp)
             .padding(contentPadding),
     ) { content() }
 }

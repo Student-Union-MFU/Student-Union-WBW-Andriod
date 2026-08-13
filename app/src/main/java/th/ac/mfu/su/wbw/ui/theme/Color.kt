@@ -15,12 +15,17 @@ import androidx.compose.ui.graphics.Color
  * assumed a bright cream photograph (`wbwBg` #FAF7F0). Against a dark green backdrop
  * their warm neutrals read as grey and their mustard gold went muddy.
  *
+ * Tuned toward forest rather than toward neutral: the surfaces carry a trace of moss
+ * and bark instead of grey, the light card is birch parchment rather than white, and
+ * gold reads as sunlight through canopy rather than as brass.
+ *
  * Two rules hold the set together:
  *
- *  1. **One ground, two exposures.** The backdrop is a single image, so light mode
- *     cannot swap it — it washes it (see [WbwColors.backdropWash]). Light mode is that
- *     image in daylight; dark mode is the same image at dusk. That is what stops the
- *     app looking like two unrelated designs depending on the theme.
+ *  1. **One ground, both themes.** The backdrop image is shown as supplied and the
+ *     theme never re-tints it — an earlier attempt to wash it lighter for light mode
+ *     simply erased the artwork. What the theme changes is what sits *on* the ground:
+ *     cards and their text. Which means the ground is dark either way, and text placed
+ *     straight on it uses [WbwColors.onBackdrop], not [WbwColors.textPrimary].
  *  2. **Gold is tuned, not flipped.** It stays the same hue in both themes and only
  *     moves in lightness, because bright gold on a near-white card is unreadable and
  *     deep gold on a dark card is invisible. Same colour, correct exposure.
@@ -29,38 +34,38 @@ import androidx.compose.ui.graphics.Color
 // ===== Brand =====
 
 /** Event gold. Hue ~38 — far enough from the backdrop's green to read as an accent. */
-val WbwGoldDark = Color(0xFFE2A63C)   // on dark grounds
-val WbwGoldLight = Color(0xFFB07C16)  // on light grounds — same hue, dropped in lightness
+val WbwGoldDark = Color(0xFFE5A93F)   // on dark grounds
+val WbwGoldLight = Color(0xFFA87516)  // on light grounds — same hue, dropped in lightness
 
 /** The soft, sandy gold used for headings and de-emphasised accents. */
-val WbwGoldSoftDark = Color(0xFFF2DCA8)
-val WbwGoldSoftLight = Color(0xFFC08F2E)
+val WbwGoldSoftDark = Color(0xFFF0DFB3)
+val WbwGoldSoftLight = Color(0xFFB98A2C)
 
 /** Leaf green for "on" states and progress. Lifted well clear of the backdrop's range. */
-val WbwGreenDark = Color(0xFF6FBF8B)
-val WbwGreenLight = Color(0xFF35835A)
+val WbwGreenDark = Color(0xFF63B283)
+val WbwGreenLight = Color(0xFF35784F)
 
 /** Fixed scene backdrop for anything that has to sit behind the image itself. */
 val WbwForestVoid = Color(0xFF0B140E)
 
 // ===== Surfaces — dark =====
 
-val WbwBgDark = Color(0xFF101711)       // flat screens with no backdrop
-val WbwSurfaceDark = Color(0xFF18211A)  // cards, chat bubbles, fields
-val WbwInkDark = Color(0xFFE7EEE3)      // primary text
-val WbwMutedDark = Color(0xFF9EAE9C)    // secondary text
-val WbwLineDark = Color(0xFF2C3A2D)     // hairlines
+val WbwBgDark = Color(0xFF0F1610)       // flat screens with no backdrop
+val WbwSurfaceDark = Color(0xFF1A2318)  // cards, chat bubbles, fields
+val WbwInkDark = Color(0xFFE9EEE0)      // primary text
+val WbwMutedDark = Color(0xFFA2AF98)    // secondary text
+val WbwLineDark = Color(0xFF2F3B2B)     // hairlines
 
 // ===== Surfaces — light =====
 //
 // Warm off-whites carrying a trace of the same green, not pure white. Pure white on a
 // forest ground reads as a hole punched in the page.
 
-val WbwBgLight = Color(0xFFEEF1E8)
-val WbwSurfaceLight = Color(0xFFF8FAF4)
-val WbwInkLight = Color(0xFF1C2A1E)
-val WbwMutedLight = Color(0xFF5A6A59)
-val WbwLineLight = Color(0xFFDDE3D6)
+val WbwBgLight = Color(0xFFEDF0E5)
+val WbwSurfaceLight = Color(0xFFF5F4E9)
+val WbwInkLight = Color(0xFF1B2A1B)
+val WbwMutedLight = Color(0xFF58684F)
+val WbwLineLight = Color(0xFFDBDFCB)
 
 // ===== Fixed-design colours =====
 //

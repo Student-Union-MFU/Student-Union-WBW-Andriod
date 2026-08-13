@@ -74,11 +74,6 @@ private fun HomeContent(
 ) {
     val colors = wbwColors
     val morning = remember2()
-    // Tapping a phase chip highlights that stage; otherwise the real one is shown.
-    // This used to drive the 3D plant as well — with the plant gone it only moves the
-    // highlight, so the chips read as a legend you can point at rather than a preview.
-    var previewStage by remember { mutableStateOf<Int?>(null) }
-    val activeOrdinal = previewStage ?: model.phase.ordinal
     Column(
         Modifier
             .fillMaxSize()
@@ -123,65 +118,16 @@ private fun HomeContent(
             }
         }
 
-        // The 3D plant hero used to sit here, filling half the screen. Removed on
-        // request — the backdrop is already a forest, so a tree drawn on top of it was
-        // competing with the artwork rather than adding to it. `PlantHero`, `Plant3D`
-        // and the growth-stage models are all still in the package, so putting it back
-        // is one call.
-        Spacer(Modifier.height(8.dp))
-
-        // The "Checked in N / M bases" line and the "N more bases to reach …" hint sat
-        // here. Removed on request — the phase track below already says where you are,
-        // and both lines were bare text on the backdrop, which is where this screen's
-        // contrast problems live.
-
-        // growth phase track
-        Row(
-            Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner)).padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            GrowthPhase.entries.forEach { phase ->
-                PhaseChip(
-                    phase = phase,
-                    activeOrdinal = activeOrdinal,
-                    onClick = { previewStage = phase.ordinal },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        // The "next base" card sat here (name, distance, Navigate → the map tab).
-        // Removed on request. `model.nextBaseName`/`nextBaseDistance` are still on the
-        // ui model and still populated, so nothing had to be unpicked upstream.
+        // Home has been emptied deliberately, one piece at a time: the 3D plant hero,
+        // the "Checked in N / M bases" line and its hint, the "next base" card, and now
+        // the Seed→Grown phase track. Only the greeting and the profile button are left.
+        //
+        // Little of what fed them was unpicked — `PlantHero`/`Plant3D`, the
+        // `GrowthPhase` enum with its `PhaseTree` drawing, and
+        // `nextBaseName`/`nextBaseDistance` on the ui model are all still here and still
+        // populated, so this can be rebuilt from parts rather than from scratch. Only
+        // `PhaseChip` went, since it had no caller left.
         Spacer(Modifier.height(4.dp))
-    }
-}
-
-@Composable
-private fun PhaseChip(phase: GrowthPhase, activeOrdinal: Int, onClick: () -> Unit, modifier: Modifier) {
-    val colors = wbwColors
-    val reached = phase.ordinal <= activeOrdinal
-    val active = phase.ordinal == activeOrdinal
-    val shape = RoundedCornerShape(13.dp)
-    Column(
-        modifier.clip(shape).clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Box(
-            Modifier.fillMaxWidth().aspectRatio(1f).clip(shape)
-                .background(if (active) colors.gold.copy(alpha = 0.24f) else colors.gold.copy(alpha = if (reached) 0.12f else 0f))
-                .border(if (active) 2.dp else 1.dp, if (active) colors.gold else colors.glassBorder, shape),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            PhaseTree(phase, Modifier.padding(bottom = 3.dp).fillMaxSize(0.62f), muted = !reached)
-        }
-        Text(
-            stringResource(phase.labelRes),
-            fontSize = 8.5.sp, maxLines = 1,
-            color = if (active) colors.textPrimary else if (reached) colors.gold else colors.textMuted,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-        )
     }
 }
 

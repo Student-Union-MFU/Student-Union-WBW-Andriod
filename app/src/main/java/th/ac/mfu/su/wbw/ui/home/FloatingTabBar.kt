@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import kotlinx.coroutines.launch
+import th.ac.mfu.su.wbw.ui.theme.LocalBackdrop
 import th.ac.mfu.su.wbw.ui.theme.liquidGlass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 import kotlin.math.roundToInt
@@ -78,7 +79,6 @@ fun FloatingTabBar(
     items: List<TabItem>,
     currentRoute: String?,
     onSelect: (String) -> Unit,
-    backdrop: Backdrop,
     qrSelected: Boolean,
     onSelectQr: () -> Unit,
     qrIcon: ImageVector,
@@ -87,6 +87,9 @@ fun FloatingTabBar(
 ) {
     val selected = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val colors = wbwColors
+    // Same wallpaper layer the cards refract, taken from the ambient provider rather
+    // than passed in — the bar is one more pane of the app's glass, not a special case.
+    val backdrop = LocalBackdrop.current
     // The bar is glass over the backdrop, and that backdrop is the same dark forest in
     // both themes — so the bar does not follow the card palette. Everything here is
     // pitched against the artwork, not against the theme.
@@ -107,7 +110,10 @@ fun FloatingTabBar(
                 // outline, and on a shape this wide the ramp reads as a gradient
                 // painted onto the bar rather than light catching an edge. An even
                 // hairline instead — also the only edge a pre-API-33 phone can draw.
-                .liquidGlass(backdrop, PillShape, surface = barSurface, highlight = null)
+                .then(
+                    if (backdrop != null) Modifier.liquidGlass(backdrop, PillShape, surface = barSurface, highlight = null)
+                    else Modifier.background(colors.glass, PillShape),
+                )
                 .border(1.dp, edge, PillShape),
         ) {
             val slotWidthPx = constraints.maxWidth.toFloat() / items.size
@@ -222,13 +228,13 @@ fun FloatingTabBar(
         Box(Modifier.width(BarGap))
 
         QrButton(
+            backdrop = backdrop,
             surface = barSurface,
             edge = edge,
             idle = idle,
             accent = colors.gold,
             selected = qrSelected,
             onClick = onSelectQr,
-            backdrop = backdrop,
             icon = qrIcon,
             contentDescription = qrContentDescription,
         )
@@ -346,13 +352,13 @@ private fun NavBarItem(
  */
 @Composable
 private fun QrButton(
+    backdrop: Backdrop?,
     surface: Color,
     edge: Color,
     idle: Color,
     accent: Color,
     selected: Boolean,
     onClick: () -> Unit,
-    backdrop: Backdrop,
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
@@ -371,7 +377,10 @@ private fun QrButton(
             // Matched to the bar beside it — two pieces of the same material a gap
             // apart, edged two different ways, is worse than either choice made
             // consistently.
-            .liquidGlass(backdrop, CircleShape, surface = surface, highlight = null)
+            .then(
+                if (backdrop != null) Modifier.liquidGlass(backdrop, CircleShape, surface = surface, highlight = null)
+                else Modifier.background(surface, CircleShape),
+            )
             .clip(CircleShape)
             .background(accent.copy(alpha = 0.28f * emphasis))
             // After the fill, not before: the selected state washes gold across the

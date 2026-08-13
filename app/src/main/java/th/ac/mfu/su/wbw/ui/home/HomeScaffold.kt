@@ -32,8 +32,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.ui.activities.ActivitiesScreen
@@ -82,17 +80,16 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
     val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val contentPadding = PaddingValues(bottom = navInset + 96.dp)
 
-    // What the nav bar's liquid glass refracts. Captured into a graphics layer by
-    // `layerBackdrop` below and sampled by `drawBackdrop` in the bar — so the layer
-    // has to wrap everything the bar should see through itself and nothing it
-    // shouldn't. The bar is deliberately outside it: a pane sampling a layer it is
-    // drawn inside is sampling itself.
-    val backdrop = rememberLayerBackdrop()
-
-    Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-            ForestBackground {
-                NavHost(
+    // The bar sits inside ForestBackground rather than beside it, so it refracts the
+    // same wallpaper layer the cards do (ForestBackground provides it via LocalBackdrop).
+    //
+    // It used to sample its own layer wrapping the whole scene, which meant it refracted
+    // the screen content scrolling underneath it. That reads well over plain cards and
+    // badly over glass ones: with both translucent, the bar was smearing panes that were
+    // themselves already refracting the wallpaper. One material, one source.
+    ForestBackground {
+        Box(Modifier.fillMaxSize()) {
+            NavHost(
                     nav,
                     startDestination = "home",
                     modifier = Modifier.fillMaxSize(),
@@ -131,30 +128,28 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     }
                     composable(QrRoute) { ComingSoonScreen(R.string.home_scan_qr, Icons.Outlined.QrCodeScanner, contentPadding) }
                 }
-            }
-        }
 
-        // Outside the backdrop layer above — see [backdrop].
-        FloatingTabBar(
-            items = tabs,
-            currentRoute = currentRoute,
-            onSelect = { route -> navigateTab(nav, route) },
-            backdrop = backdrop,
-            // QR is always present, not only on Home. It used to be a FAB that
-            // appeared on one screen; on iOS it is a permanent tab, and a checkpoint
-            // is the last place to make someone navigate home first.
-            qrSelected = currentRoute == QrRoute,
-            onSelectQr = { navigateTab(nav, QrRoute) },
-            qrIcon = Icons.Outlined.QrCode2,
-            qrContentDescription = stringResource(R.string.home_scan_qr),
-            // Insets measured off the iOS screenshot: the pill clears the screen edge
-            // by about 20dp and floats well above the gesture bar rather than sitting
-            // on it.
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 20.dp)
-                .padding(bottom = navInset + 18.dp),
-        )
+            // Inside the Box so it can align to the bottom, and inside ForestBackground
+            // so LocalBackdrop reaches it.
+            FloatingTabBar(
+                items = tabs,
+                currentRoute = currentRoute,
+                onSelect = { route -> navigateTab(nav, route) },
+                // QR is always present, not only on Home. It used to be a FAB that
+                // appeared on one screen; on iOS it is a permanent tab, and a checkpoint
+                // is the last place to make someone navigate home first.
+                qrSelected = currentRoute == QrRoute,
+                onSelectQr = { navigateTab(nav, QrRoute) },
+                qrIcon = Icons.Outlined.QrCode2,
+                qrContentDescription = stringResource(R.string.home_scan_qr),
+                // Insets measured off the iOS screenshot: the pill clears the screen
+                // edge by about 20dp and floats well above the gesture bar.
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = navInset + 18.dp),
+            )
+        }
     }
 }
 
