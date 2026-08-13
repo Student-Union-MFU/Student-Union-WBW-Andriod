@@ -16,42 +16,65 @@ enum class ThemeMode { LIGHT, DARK, AUTO }
  * Extended palette that Material's [androidx.compose.material3.ColorScheme] can't hold:
  * gold accents, the frosted-glass panel tokens, and the forest-sky gradient stops.
  * Read it anywhere via [wbwColors].
+ *
+ * The token set mirrors the iOS `Color` extension in `Config.swift` one-for-one, so a
+ * screen ported from SwiftUI can be translated token-by-token instead of by eye:
+ *
+ *   iOS wbwBg → [background]   wbwSurface → [glass]   wbwInk → [textPrimary]
+ *   wbwMuted  → [textMuted]    wbwLine    → [line]    wbwGold → [gold]
+ *   wbwCream  → [goldSoft]     wbwGreen   → [green]
  */
 data class WbwColors(
     val isDark: Boolean,
     val gold: Color,
     val goldSoft: Color,
+    val green: Color,
     val textPrimary: Color,
     val textMuted: Color,
+    /** iOS `wbwBg` — the flat screen background. */
+    val background: Color,
+    /** iOS `wbwSurface`. Named "glass" for continuity with existing call sites. */
     val glass: Color,
     val glassBorder: Color,
     val glassHighlight: Color,
+    /** iOS `wbwLine` — hairline dividers. */
+    val line: Color,
+    /** iOS `wbwForestVoid` — fixed in both themes; a scene backdrop, not a surface. */
+    val forestVoid: Color,
     val skyStops: List<Color>,
     val danger: Color,
 )
 
 val LightWbwColors = WbwColors(
     isDark = false,
-    gold = GoldDark,
-    goldSoft = Gold,
-    textPrimary = DeepText,
-    textMuted = DeepMuted,
+    gold = WbwGold,
+    goldSoft = WbwCream,
+    green = WbwGreen,
+    textPrimary = WbwInkLight,
+    textMuted = WbwMutedLight,
+    background = WbwBgLight,
     glass = GlassLight,
     glassBorder = GlassLightBorder,
     glassHighlight = GlassLightHighlight,
+    line = WbwLineLight,
+    forestVoid = WbwForestVoid,
     skyStops = listOf(DaySky1, DaySky2, DaySky3, DaySky4),
     danger = Color(0xFFB5462F),
 )
 
 val DarkWbwColors = WbwColors(
     isDark = true,
-    gold = GoldLight,
-    goldSoft = Gold,
-    textPrimary = CreamText,
-    textMuted = CreamMuted,
+    gold = WbwGold,
+    goldSoft = WbwCream,
+    green = WbwGreen,
+    textPrimary = WbwInkDark,
+    textMuted = WbwMutedDark,
+    background = WbwBgDark,
     glass = GlassDark,
     glassBorder = GlassDarkBorder,
     glassHighlight = GlassDarkHighlight,
+    line = WbwLineDark,
+    forestVoid = WbwForestVoid,
     skyStops = listOf(NightSky1, NightSky2, NightSky3, NightSky4, NightSky5),
     danger = Danger,
 )
@@ -62,27 +85,33 @@ val LocalWbwColors = staticCompositionLocalOf { DarkWbwColors }
 val wbwColors: WbwColors
     @Composable @ReadOnlyComposable get() = LocalWbwColors.current
 
+// Material's own scheme, kept in step with the iOS tokens above so that any stock
+// Material component (dialogs, snackbars, ripples) lands on the same palette as the
+// hand-styled screens. Gold is primary in BOTH themes — on iOS it is a brand colour
+// that does not flip, so the previous Forest-in-light / gold-in-dark split is gone.
 private val LightColors = lightColorScheme(
-    primary = Forest,
-    onPrimary = Cream,
-    secondary = Leaf,
-    tertiary = GoldDark,
-    background = DaySky3,
-    onBackground = DeepText,
-    surface = Cream,
-    onSurface = DeepText,
+    primary = WbwGold,
+    onPrimary = WbwInkLight,
+    secondary = WbwGreen,
+    tertiary = WbwCream,
+    background = WbwBgLight,
+    onBackground = WbwInkLight,
+    surface = WbwSurfaceLight,
+    onSurface = WbwInkLight,
+    outline = WbwLineLight,
     error = Color(0xFFB5462F),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = GoldLight,
-    onPrimary = Ink,
-    secondary = Leaf,
-    tertiary = Gold,
-    background = NightSky5,
-    onBackground = CreamText,
-    surface = DeepForest,
-    onSurface = CreamText,
+    primary = WbwGold,
+    onPrimary = WbwInkLight,
+    secondary = WbwGreen,
+    tertiary = WbwCream,
+    background = WbwBgDark,
+    onBackground = WbwInkDark,
+    surface = WbwSurfaceDark,
+    onSurface = WbwInkDark,
+    outline = WbwLineDark,
     error = Danger,
 )
 

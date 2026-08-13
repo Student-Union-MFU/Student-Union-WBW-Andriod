@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -26,20 +27,74 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import th.ac.mfu.su.wbw.R
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * The living forest sky. A soft radial gradient (day or night) with a starfield
- * at night and a layered hill silhouette at the foot. Frosted-glass panels are
- * meant to float over this — the softness is why translucency alone reads as glass.
+ * The app-wide backdrop, ported from iOS `AppBackdrop.swift`.
+ *
+ * iOS draws one full-bleed forest photograph under everything and dims only the top
+ * and bottom of it. That dimming is not decoration: the screens over this backdrop
+ * were designed when the background was the flat #0A1610, so their text and icons
+ * are all white. Against the bright photo they became nearly unreadable — iOS
+ * confirmed that from real screenshots before adding the scrim. Covering the whole
+ * frame would fix it too but would waste the photo, so only the head and foot (where
+ * the header and tab bar actually sit) are dimmed and the middle stays clear.
+ *
+ * The source image is 1440×2880 (1:2), chosen to sit near the geometric middle of the
+ * widest and tallest handsets so cropping stays under ~11% on either axis.
+ *
+ * The previous procedural sky is kept as [ProceduralSkyBackground] — it is not part
+ * of the iOS design, but it is this app's own work and worth not throwing away.
  */
 @Composable
 fun ForestBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_backdrop),
+            contentDescription = null,
+            // ContentScale.Crop is SwiftUI's scaledToFill: fill the frame, clip the rest.
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(
+                        Brush.verticalGradient(
+                            0.00f to Color.Black.copy(alpha = 0.45f),
+                            0.28f to Color.Transparent,
+                            0.76f to Color.Transparent,
+                            1.00f to Color.Black.copy(alpha = 0.40f),
+                        ),
+                    )
+                },
+        )
+        content()
+    }
+}
+
+/**
+ * The living forest sky. A soft radial gradient (day or night) with a starfield
+ * at night and a layered hill silhouette at the foot. Frosted-glass panels are
+ * meant to float over this — the softness is why translucency alone reads as glass.
+ *
+ * Not used while the app matches iOS, which uses a photographic backdrop instead
+ * (see [ForestBackground]). Swap the call sites back to this to restore it.
+ */
+@Composable
+fun ProceduralSkyBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -165,8 +220,13 @@ fun GlassCard(
     ) { content() }
 }
 
-/** Gold accent brush used on primary actions / the FAB (light top → deep bottom). */
-fun goldBrush(): Brush = Brush.verticalGradient(listOf(GoldLight, GoldDark))
+/**
+ * Gold accent brush used on primary actions / the FAB (light top → deep bottom).
+ *
+ * Runs iOS cream → iOS gold. The old stops (GoldLight → GoldDark) now both resolve to
+ * the single iOS gold, which would have flattened this into a solid fill.
+ */
+fun goldBrush(): Brush = Brush.verticalGradient(listOf(WbwCream, WbwGold))
 
 val CardCorner: Dp = 26.dp
 val PanelCorner: Dp = 22.dp

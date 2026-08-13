@@ -28,8 +28,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // TODO: point at the production API host before shipping.
-            buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/wbw/\"")
+            // The live SUS backend — same host the shipping iOS build points at
+            // (`Backend.susProd` in wbw-ios-fontend/WBW/Config.swift). The trailing
+            // slash matters: Retrofit resolves the @GET paths relative to it, and
+            // without it the last segment is replaced instead of appended.
+            buildConfigField("String", "API_BASE_URL", "\"https://api.studentunion.social/wbw/\"")
         }
     }
 
