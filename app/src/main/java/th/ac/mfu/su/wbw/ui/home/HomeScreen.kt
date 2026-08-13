@@ -128,17 +128,10 @@ private fun HomeContent(
         // is one call.
         Spacer(Modifier.height(8.dp))
 
-        Text(
-            stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases),
-            style = MaterialTheme.typography.titleMedium, color = colors.textPrimary,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-        )
-        val remaining = (model.totalBases - model.checkedInBases).coerceAtLeast(0)
-        Text(
-            stringResource(R.string.home_phase_hint, remaining, stringResource(model.phase.labelRes)),
-            style = MaterialTheme.typography.bodySmall, color = colors.textMuted,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-        )
+        // The "Checked in N / M bases" line and the "N more bases to reach …" hint sat
+        // here. Removed on request — the phase track below already says where you are,
+        // and both lines were bare text on the backdrop, which is where this screen's
+        // contrast problems live.
 
         // growth phase track
         Row(

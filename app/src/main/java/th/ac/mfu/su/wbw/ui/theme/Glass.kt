@@ -71,6 +71,7 @@ fun ForestBackground(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
+                    // iOS's head-and-foot scrim, ported as-is.
                     drawRect(
                         Brush.verticalGradient(
                             0.00f to Color.Black.copy(alpha = 0.45f),
@@ -79,6 +80,11 @@ fun ForestBackground(
                             1.00f to Color.Black.copy(alpha = 0.40f),
                         ),
                     )
+                    // An even dim on top of it. iOS can leave the middle of the frame
+                    // clear because everything it puts there sits on a surface; this
+                    // app writes text straight onto the backdrop in several places, and
+                    // the photograph is at its brightest exactly through the middle.
+                    if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))
                 },
         )
         content()
@@ -177,6 +183,16 @@ fun ProceduralSkyBackground(
             },
     ) { content() }
 }
+
+/**
+ * How far the whole backdrop is dimmed, on top of the head-and-foot scrim.
+ *
+ * One knob, deliberately: the artwork stays untouched and the ground it provides for
+ * text is tuned by a single number, so this is trivial to walk back or re-tune later.
+ *
+ * 0.00 is the literal iOS treatment.
+ */
+private const val BackdropDim = 0.00f
 
 /** A hill silhouette path: two quadratic humps across the width, filled to the bottom. */
 private fun DrawScope.hill(w: Float, h: Float, y0: Float, y1: Float, y2: Float, y3: Float, y4: Float): Path =
