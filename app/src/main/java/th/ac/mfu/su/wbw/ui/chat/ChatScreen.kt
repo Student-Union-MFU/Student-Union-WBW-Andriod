@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
-import th.ac.mfu.su.wbw.ui.theme.GlassSheer
+import th.ac.mfu.su.wbw.ui.theme.GlassClear
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
@@ -86,11 +86,12 @@ fun ChatScreen(contentPadding: PaddingValues) {
         // The conversation sits on one glass pane rather than loose on the backdrop —
         // but a *sheer* one, so the forest still reads through the thread.
         //
-        // The themed card fill was tried here and is wrong for this screen: in light mode
-        // it is parchment at 0.86, which over a dark photograph is a white slab with a
-        // conversation printed on it. This is a surface you look *through*, so it takes
-        // GlassSheer and the text on it commits to light ink in both themes, exactly like
-        // the participant pass.
+        // Two fills were tried here and both were too much surface. The themed card fill
+        // is parchment at 0.86 in light mode, which over a dark photograph is a white slab
+        // with a conversation printed on it. GlassSheer's 12% white is subtler but still
+        // washes a pane this large into a pale rectangle. So: nothing painted at all —
+        // refraction and a hairline, and the text commits to light ink in both themes,
+        // exactly like the participant pass.
         //
         // One pane for the whole thread, not one per message: Discord's column reads as a
         // continuous surface people are talking on, and bubbling each message would undo
@@ -100,7 +101,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
-                .glass(RoundedCornerShape(PanelCorner), fill = GlassSheer),
+                .glass(RoundedCornerShape(PanelCorner), fill = GlassClear),
         ) {
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
@@ -129,7 +130,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Row(
                 Modifier
                     .weight(1f)
-                    .glass(RoundedCornerShape(24.dp), fill = GlassSheer)
+                    .glass(RoundedCornerShape(24.dp), fill = GlassClear)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -150,7 +151,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Box(
                 Modifier
                     .size(46.dp)
-                    .glass(CircleShape, fill = GlassSheer)
+                    .glass(CircleShape, fill = GlassClear)
                     .clickableTap {},
                 contentAlignment = Alignment.Center,
             ) {

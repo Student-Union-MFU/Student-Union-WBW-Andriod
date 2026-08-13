@@ -169,6 +169,18 @@ val GlassLightBorder = Color(0x12000000)
  */
 val GlassSheer = Color(0x1FFFFFFF)
 
+/**
+ * No pane at all: refraction and a hairline, nothing painted on top.
+ *
+ * [GlassSheer]'s 12% white is still a wash — enough to lighten a large surface into a
+ * pale rectangle even though the backdrop shows through it. This paints nothing, so the
+ * shape is defined purely by how the glass bends what is behind it and by its edge.
+ *
+ * Only usable where the content can survive on the raw backdrop, since there is no
+ * ground being added underneath it.
+ */
+val GlassClear = Color.Transparent
+
 // ===== Sky gradient =====
 //
 // Only used by [ProceduralSkyBackground], which the app no longer draws. Re-anchored on
