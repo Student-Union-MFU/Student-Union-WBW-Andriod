@@ -5,108 +5,114 @@ import androidx.compose.ui.graphics.Color
 /**
  * "Walk Beyond the Wild" palette.
  *
- * Source of truth is the iOS app (`wbw-ios-fontend/WBW/Config.swift`, the `Color`
- * extension). This file previously tracked the *website* palette, which is a
- * different design: its gold was #DDA15E and its ink #22271F, so the screens that
- * exist in both apps rendered in visibly different colours.
+ * Derived from the backdrop rather than from another product. Sampling `bg.jpg` gives
+ * a desaturated forest green — hue 110–146 (centre ~130), saturation 15–22%, luminance
+ * 16–38%. Every surface below is built on that hue, so cards read as cut from the same
+ * material as the ground behind them instead of being dropped onto it.
  *
- * iOS splits its palette in two, and so do we:
+ * The two palettes this replaced both failed for the same reason: they were designed
+ * for a different ground. The website palette assumed a mesh gradient; the iOS palette
+ * assumed a bright cream photograph (`wbwBg` #FAF7F0). Against a dark green backdrop
+ * their warm neutrals read as grey and their mustard gold went muddy.
  *
- *  - Brand colours are FIXED in both themes. Gold and green are the identity of
- *    the event, not surface treatment — flipping them per theme makes the app
- *    look like a different product in dark mode.
- *  - Surface colours ADAPT. iOS builds those with `UIColor(dynamicProvider:)`;
- *    the Compose equivalent is choosing the pair in [WbwColors] (see Theme.kt).
+ * Two rules hold the set together:
  *
- * Legacy names (Forest, Deep, Body, the sky stops …) are kept because screens
- * outside this package reference them directly; where iOS has a counterpart the
- * VALUE now points at iOS, so the restyle propagates without touching call sites.
+ *  1. **One ground, two exposures.** The backdrop is a single image, so light mode
+ *     cannot swap it — it washes it (see [WbwColors.backdropWash]). Light mode is that
+ *     image in daylight; dark mode is the same image at dusk. That is what stops the
+ *     app looking like two unrelated designs depending on the theme.
+ *  2. **Gold is tuned, not flipped.** It stays the same hue in both themes and only
+ *     moves in lightness, because bright gold on a near-white card is unreadable and
+ *     deep gold on a dark card is invisible. Same colour, correct exposure.
  */
 
-// ===== Brand — identical in light and dark, straight from iOS =====
+// ===== Brand =====
 
-/** iOS `wbwGold` #C99A1F. The accent: active tabs, links, primary buttons. */
-val WbwGold = Color(0xFFC99A1F)
+/** Event gold. Hue ~38 — far enough from the backdrop's green to read as an accent. */
+val WbwGoldDark = Color(0xFFE2A63C)   // on dark grounds
+val WbwGoldLight = Color(0xFFB07C16)  // on light grounds — same hue, dropped in lightness
 
-/** iOS `wbwCream` #DEC684. The soft gold — headings and de-emphasised accents. */
-val WbwCream = Color(0xFFDEC684)
+/** The soft, sandy gold used for headings and de-emphasised accents. */
+val WbwGoldSoftDark = Color(0xFFF2DCA8)
+val WbwGoldSoftLight = Color(0xFFC08F2E)
 
-/** iOS `wbwGreen` #40916C. Forest green, used for "on" states. */
-val WbwGreen = Color(0xFF40916C)
+/** Leaf green for "on" states and progress. Lifted well clear of the backdrop's range. */
+val WbwGreenDark = Color(0xFF6FBF8B)
+val WbwGreenLight = Color(0xFF35835A)
 
-/** iOS `wbwForestVoid` #0A1610. Flat backdrop that replaced the 3D forest scene. */
-val WbwForestVoid = Color(0xFF0A1610)
+/** Fixed scene backdrop for anything that has to sit behind the image itself. */
+val WbwForestVoid = Color(0xFF0B140E)
 
-/** iOS `wbwTicketBG` #1A1A1A. The ticket screen is a fixed design, not a surface. */
-val WbwTicketBg = Color(0xFF1A1A1A)
+// ===== Surfaces — dark =====
 
-/** iOS `wbwMedical` #421717. Oxblood tint behind the Medical ID button. */
+val WbwBgDark = Color(0xFF101711)       // flat screens with no backdrop
+val WbwSurfaceDark = Color(0xFF18211A)  // cards, chat bubbles, fields
+val WbwInkDark = Color(0xFFE7EEE3)      // primary text
+val WbwMutedDark = Color(0xFF9EAE9C)    // secondary text
+val WbwLineDark = Color(0xFF2C3A2D)     // hairlines
+
+// ===== Surfaces — light =====
+//
+// Warm off-whites carrying a trace of the same green, not pure white. Pure white on a
+// forest ground reads as a hole punched in the page.
+
+val WbwBgLight = Color(0xFFEEF1E8)
+val WbwSurfaceLight = Color(0xFFF8FAF4)
+val WbwInkLight = Color(0xFF1C2A1E)
+val WbwMutedLight = Color(0xFF5A6A59)
+val WbwLineLight = Color(0xFFDDE3D6)
+
+// ===== Fixed-design colours =====
+//
+// The Participant Pass is a printed-ticket design, not a themed surface — it looks the
+// same in both modes on purpose, exactly as iOS pins its ticket screen. These are the
+// pieces of it that the rest of the palette has to stay in step with.
+
+val TicketDeep = Color(0xFF14301F)
+val TicketGreen = Color(0xFF2D6A4F)
+val TicketCreamPaper = Color(0xFFFBF8EF)
+
+/** Oxblood behind the Medical ID button (iOS `wbwMedical`). */
 val WbwMedical = Color(0xFF421717)
 
-// ===== Surfaces — the adaptive pairs (light, dark) =====
+// ===== Status =====
 
-/** iOS `wbwBg` — the screen behind everything. */
-val WbwBgLight = Color(0xFFFAF7F0)
-val WbwBgDark = Color(0xFF14120F)
+val DangerDark = Color(0xFFE88B7A)
+val DangerLight = Color(0xFFC0503A)
 
-/** iOS `wbwSurface` — cards, chat bubbles, text fields. */
-val WbwSurfaceLight = Color(0xFFFFFFFF)
-val WbwSurfaceDark = Color(0xFF211F1B)
-
-/** iOS `wbwInk` — primary text and dark strokes. The widest-reaching token. */
-val WbwInkLight = Color(0xFF2B2B2B)
-val WbwInkDark = Color(0xFFEFEBE3)
-
-/** iOS `wbwMuted` — secondary text. */
-val WbwMutedLight = Color(0xFF8F8A80)
-val WbwMutedDark = Color(0xFFA8A196)
-
-/** iOS `wbwLine` — hairline dividers. */
-val WbwLineLight = Color(0xFFECE6DA)
-val WbwLineDark = Color(0xFF332F29)
-
-// ===== Legacy names, repointed at iOS =====
+// ===== Legacy names =====
 //
-// Kept as aliases so the ~30 call sites outside this package keep compiling.
-// Prefer the Wbw* names above in new code.
+// Screens outside this package reference these directly. Kept as aliases pointing at
+// the new set so the restyle propagates without touching call sites; prefer the tokens
+// on [WbwColors] in new code.
 
-val Cream = WbwBgLight               // was #FAF7F0 — already matched iOS wbwBg
-val Gold = WbwCream                  // the "soft gold" role → iOS cream #DEC684
-val GoldLight = WbwGold              // iOS gold is one value in both themes …
-val GoldDark = WbwGold               // … so both ends collapse onto #C99A1F
-val Leaf = WbwGreen                  // already #40916C — the one exact match
+val Cream = WbwBgLight
+val Gold = WbwGoldDark
+val GoldLight = WbwGoldDark
+val GoldDark = WbwGoldLight
+val Leaf = WbwGreenDark
+val LeafLight = Color(0xFF8FD3A6)
 val Line = WbwLineLight
-
-val CreamText = WbwInkDark           // ink-on-dark
-val CreamMuted = WbwMutedDark
-val DeepText = WbwInkLight           // ink-on-light
-val DeepMuted = WbwMutedLight
-
-/** iOS has no red of its own — `StaffScanView` uses the system red. */
-val Danger = Color(0xFFE08A8A)
-
-// Structural greens with no iOS counterpart. iOS carries its green in exactly one
-// token (wbwGreen); these extra shades exist only for this app's own chrome, so
-// they are left as-is rather than invented against iOS.
-val Forest = Color(0xFF2D6A4F)
-val Deep = Color(0xFF1B4332)
-val DeepForest = Color(0xFF173D2C)
-val LeafLight = Color(0xFF4FA77D)
-val Ink = Color(0xFF22271F)          // a dark SURFACE here, unlike iOS wbwInk (text)
+val Forest = TicketGreen
+val Deep = TicketDeep
+val DeepForest = Color(0xFF102A1B)
+val Ink = WbwSurfaceDark          // a dark SURFACE here, unlike wbwInk (text)
 val Body = WbwInkDark
+val Danger = DangerDark
+val CreamText = WbwInkDark
+val CreamMuted = WbwMutedDark
+val DeepText = WbwInkLight
+val DeepMuted = WbwMutedLight
 
 // ===== Glass =====
 //
-// iOS uses the real iOS 26 `.glassEffect` (see GlassSurface.swift); Android has no
-// equivalent, so these approximate it with a near-solid surface. The values now
-// come from iOS `wbwSurface`/`wbwLine` instead of the website's card tokens.
-//
-// Kept fully opaque to match iOS, where a card sits on a flat background rather
-// than a moving one. If the animated sky survives, these want alpha back.
+// Android has no real Liquid Glass, so the frosted panes approximate it with a surface
+// plus a hairline. Values come from the surface/line tokens above so a card and a
+// glass panel are the same material.
 
 val GlassDark = WbwSurfaceDark
 val GlassDarkBorder = WbwLineDark
-val GlassDarkHighlight = Color(0x21FFFFFF)
+val GlassDarkHighlight = Color(0x1FFFFFFF)
 
 val GlassLight = WbwSurfaceLight
 val GlassLightBorder = WbwLineLight
@@ -114,17 +120,16 @@ val GlassLightHighlight = Color(0xCCFFFFFF)
 
 // ===== Sky gradient =====
 //
-// NOT an iOS design — iOS draws a flat background (wbwBg) and has its 3D forest
-// switched off. Whether this animated sky survives the visual match is still an
-// open decision, so the stops are left exactly as they were.
+// Only used by [ProceduralSkyBackground], which the app no longer draws. Re-anchored on
+// the same green so it does not clash if it is ever switched back on.
 
-val NightSky1 = Color(0xFF3A6D84)
-val NightSky2 = Color(0xFF24506A)
-val NightSky3 = Color(0xFF173A3A)
-val NightSky4 = Color(0xFF0F2A1E)
-val NightSky5 = Color(0xFF0A1C14)
+val NightSky1 = Color(0xFF2C4A44)
+val NightSky2 = Color(0xFF223B34)
+val NightSky3 = Color(0xFF1A2E26)
+val NightSky4 = Color(0xFF13221A)
+val NightSky5 = Color(0xFF0D1812)
 
-val DaySky1 = Color(0xFFBFE2F0)
-val DaySky2 = Color(0xFFD7ECDF)
-val DaySky3 = Color(0xFFC3DDC0)
-val DaySky4 = Color(0xFF9FC4A2)
+val DaySky1 = Color(0xFFCBDFD0)
+val DaySky2 = Color(0xFFBCD5C0)
+val DaySky3 = Color(0xFFA9C6AE)
+val DaySky4 = Color(0xFF8FB196)

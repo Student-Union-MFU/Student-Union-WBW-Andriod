@@ -51,9 +51,12 @@ import kotlin.random.Random
  * is left is a gentle darkening at the very top and bottom, where the status bar and
  * gesture bar sit and the system draws its own glyphs over us.
  *
- * The consequence to keep in mind: this backdrop is dark in **both** themes, so
- * anything drawn straight onto it must use [WbwColors.onBackdrop], never
- * `textPrimary` — the latter flips to near-black in light theme and disappears here.
+ * One asset serves both themes, so light mode cannot swap the image for a brighter
+ * one — [WbwColors.backdropWash] re-exposes it instead. Light mode is this forest in
+ * daylight, dark mode the same forest at dusk. Anything drawn straight onto it should
+ * still use [WbwColors.onBackdrop] rather than `textPrimary`: they track each other
+ * today, and keeping them apart is what lets the backdrop be retuned without dragging
+ * every card's text along with it.
  *
  * The previous procedural sky is kept as [ProceduralSkyBackground] — it is not part
  * of the iOS design, but it is this app's own work and worth not throwing away.
@@ -63,6 +66,7 @@ fun ForestBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val colors = wbwColors
     Box(modifier.fillMaxSize()) {
         Image(
             painter = painterResource(R.drawable.bg_backdrop),
@@ -75,16 +79,23 @@ fun ForestBackground(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
+                    // Exposure first: light theme washes the image toward daylight,
+                    // dark theme barely touches it. Everything below is layered on the
+                    // washed image, not the raw one.
+                    drawRect(colors.backdropWash)
                     // Head-and-foot scrim, much lighter than the iOS original — see
-                    // the note above on why the darker artwork does not need it.
-                    drawRect(
-                        Brush.verticalGradient(
-                            0.00f to Color.Black.copy(alpha = 0.22f),
-                            0.18f to Color.Transparent,
-                            0.84f to Color.Transparent,
-                            1.00f to Color.Black.copy(alpha = 0.22f),
-                        ),
-                    )
+                    // the note above on why the darker artwork does not need it. Skipped
+                    // in light theme, where a black scrim would just bruise the wash.
+                    if (colors.isDark) {
+                        drawRect(
+                            Brush.verticalGradient(
+                                0.00f to Color.Black.copy(alpha = 0.22f),
+                                0.18f to Color.Transparent,
+                                0.84f to Color.Transparent,
+                                1.00f to Color.Black.copy(alpha = 0.22f),
+                            ),
+                        )
+                    }
                     // An even dim over the whole frame, if one is ever wanted. Zero
                     // with this artwork: it is already dark enough to carry light text.
                     if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))
@@ -238,14 +249,6 @@ fun GlassCard(
             .padding(contentPadding),
     ) { content() }
 }
-
-/**
- * Gold accent brush used on primary actions / the FAB (light top → deep bottom).
- *
- * Runs iOS cream → iOS gold. The old stops (GoldLight → GoldDark) now both resolve to
- * the single iOS gold, which would have flattened this into a solid fill.
- */
-fun goldBrush(): Brush = Brush.verticalGradient(listOf(WbwCream, WbwGold))
 
 val CardCorner: Dp = 26.dp
 val PanelCorner: Dp = 22.dp

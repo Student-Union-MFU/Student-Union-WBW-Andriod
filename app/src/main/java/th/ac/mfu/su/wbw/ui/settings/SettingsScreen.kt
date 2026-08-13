@@ -58,7 +58,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.WbwApplication
 import th.ac.mfu.su.wbw.data.local.AppSettings
-import th.ac.mfu.su.wbw.ui.theme.Ink
+import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
+import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.ThemeMode
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -166,7 +167,12 @@ private fun LangSegment(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier.clip(RoundedCornerShape(9.dp)).background(if (selected) colors.gold else Color.Transparent).clickableTap(onClick).padding(horizontal = 15.dp, vertical = 5.dp),
     ) {
-        Text(label, color = if (selected) Ink else colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        // Sits on the gold pill when selected, and gold is deliberately not the same
+        // lightness in both themes — dark ink reads on the bright dusk gold, cream on
+        // the deeper daylight one. One fixed colour loses whichever theme it wasn't
+        // picked for.
+        val onGold = if (colors.isDark) WbwInkLight else TicketCreamPaper
+        Text(label, color = if (selected) onGold else colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     }
 }
 

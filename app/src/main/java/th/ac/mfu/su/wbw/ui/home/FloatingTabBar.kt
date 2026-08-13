@@ -46,9 +46,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import kotlinx.coroutines.launch
-import th.ac.mfu.su.wbw.ui.theme.WbwGold
-import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.liquidGlass
+import th.ac.mfu.su.wbw.ui.theme.wbwColors
 import kotlin.math.roundToInt
 
 data class TabItem(
@@ -69,11 +68,10 @@ data class TabItem(
  * checkpoint, and mixing an action in with the destinations makes it look like
  * another page.
  *
- * Icons are dark rather than light, which looks inverted next to the app's dark theme
- * until you see why: the pane is real glass over the forest photograph, and that
- * photograph is bright. The bar takes its lightness from what is behind it, in both
- * themes, so dark ink is what stays legible on it — the same reason the iOS bar looks
- * cream even in dark mode.
+ * The bar has no colour of its own worth speaking of: it is glass, so it shows whatever
+ * the backdrop is doing. That means its icons follow the backdrop's exposure rather than
+ * the card palette — ink over the daylight wash, cream over the dusk one. Pinning them
+ * to one or the other is what made them disappear the first time round.
  */
 @Composable
 fun FloatingTabBar(
@@ -88,6 +86,15 @@ fun FloatingTabBar(
     modifier: Modifier = Modifier,
 ) {
     val selected = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    val colors = wbwColors
+    // The pane borrows its lightness from the backdrop, which now tracks the theme, so
+    // the icons have to as well: ink on the daylight wash, cream on the dusk one.
+    val barSurface = if (colors.isDark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.42f)
+    val idle = if (colors.isDark) colors.onBackdrop else colors.textPrimary
+    // Edge and indicator ride the same logic: a white hairline is invisible on the
+    // daylight wash, and a dark one looks drawn-on at dusk.
+    val edge = if (colors.isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.10f)
+    val indicatorFill = if (colors.isDark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.62f)
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -101,8 +108,8 @@ fun FloatingTabBar(
                 // outline, and on a shape this wide the ramp reads as a gradient
                 // painted onto the bar rather than light catching an edge. An even
                 // hairline instead — also the only edge a pre-API-33 phone can draw.
-                .liquidGlass(backdrop, PillShape, surface = BarSurface, highlight = null)
-                .border(1.dp, EdgeColor, PillShape),
+                .liquidGlass(backdrop, PillShape, surface = barSurface, highlight = null)
+                .border(1.dp, edge, PillShape),
         ) {
             val slotWidthPx = constraints.maxWidth.toFloat() / items.size
             val slotWidth = maxWidth / items.size
@@ -163,7 +170,7 @@ fun FloatingTabBar(
                     .fillMaxHeight()
                     .padding(IndicatorInset)
                     .clip(PillShape)
-                    .background(IndicatorColor),
+                    .background(indicatorFill),
             )
 
             Row(
@@ -201,6 +208,8 @@ fun FloatingTabBar(
                 items.forEachIndexed { index, item ->
                     NavBarItem(
                         item = item,
+                        idle = idle,
+                        accent = colors.gold,
                         selected = index == highlighted,
                         onClick = { onSelect(item.route) },
                         modifier = Modifier
@@ -214,6 +223,10 @@ fun FloatingTabBar(
         Box(Modifier.width(BarGap))
 
         QrButton(
+            surface = barSurface,
+            edge = edge,
+            idle = idle,
+            accent = colors.gold,
             selected = qrSelected,
             onClick = onSelectQr,
             backdrop = backdrop,
@@ -240,39 +253,8 @@ private fun slotIndexAt(x: Float, slotWidth: Float, count: Int): Int =
 private val PillShape = RoundedCornerShape(50)
 private val BarHeight = 62.dp
 
-/**
- * The pane's own lightness, over and above what it refracts.
- *
- * Much heavier than clubfair's 0.06, and the difference is the icon colour. That bar
- * draws its icons white, so it can afford to be nearly clear and let whatever passes
- * underneath show through. This one draws them in ink to match iOS, and ink needs a
- * light pane to sit on — with a near-clear surface the icons vanished the moment a
- * dark card scrolled under the bar (Home's "next base" panel did exactly that).
- *
- * So the pane carries its own light rather than borrowing all of it from behind,
- * which is also what iOS's `.regular` glass does: it lightens what it covers instead
- * of merely transmitting it. Refraction and blur still come through — this only sets
- * the floor.
- */
-private val BarSurface = Color.White.copy(alpha = 0.55f)
-
 /** The gap that separates the action from the destinations. */
 private val BarGap = 12.dp
-
-/**
- * The hairline round the bar and the QR button.
- *
- * Dimmer than a drawn outline would be: the bar floats over content that scrolls
- * underneath it, and an edge bright enough to read as an outline turns it into a box
- * sitting on the page instead of a pane the page passes behind.
- */
-private val EdgeColor = Color.White.copy(alpha = 0.30f)
-
-/**
- * The lit slot behind the selected tab. Brighter than clubfair's 0.16 because this
- * bar sits over a bright photograph rather than a dark mesh, where 0.16 vanishes.
- */
-private val IndicatorColor = Color.White.copy(alpha = 0.38f)
 
 /** How far the sliding indicator sits inside the bar, so it reads as within the glass. */
 private val IndicatorInset = 6.dp
@@ -310,6 +292,8 @@ private suspend fun Animatable<Float, *>.bounce() {
 @Composable
 private fun NavBarItem(
     item: TabItem,
+    idle: Color,
+    accent: Color,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -339,7 +323,7 @@ private fun NavBarItem(
             contentDescription = item.contentDescription,
             // Gold when selected, ink otherwise — iOS tints its TabView `.wbwGold`
             // and leaves the rest dark against the bright pane.
-            tint = lerp(WbwInkLight, WbwGold, emphasis),
+            tint = lerp(idle, accent, emphasis),
             // graphicsLayer, not a size change: scaling the layer costs no relayout,
             // so the bounce can't shove neighbouring tabs around while it runs. The
             // fade rides in the same layer rather than in the tint, because a tint is
@@ -363,6 +347,10 @@ private fun NavBarItem(
  */
 @Composable
 private fun QrButton(
+    surface: Color,
+    edge: Color,
+    idle: Color,
+    accent: Color,
     selected: Boolean,
     onClick: () -> Unit,
     backdrop: Backdrop,
@@ -384,13 +372,13 @@ private fun QrButton(
             // Matched to the bar beside it — two pieces of the same material a gap
             // apart, edged two different ways, is worse than either choice made
             // consistently.
-            .liquidGlass(backdrop, CircleShape, surface = BarSurface, highlight = null)
+            .liquidGlass(backdrop, CircleShape, surface = surface, highlight = null)
             .clip(CircleShape)
-            .background(WbwGold.copy(alpha = 0.28f * emphasis))
+            .background(accent.copy(alpha = 0.28f * emphasis))
             // After the fill, not before: the selected state washes gold across the
             // whole face, and a hairline underneath comes out tinted when selected
             // and white everywhere else.
-            .border(1.dp, EdgeColor, CircleShape)
+            .border(1.dp, edge, CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -403,7 +391,7 @@ private fun QrButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = lerp(WbwInkLight, WbwGold, emphasis),
+            tint = lerp(idle, accent, emphasis),
             // The glyph bounces, not the button: scaling the whole pill would pump
             // the blur behind it, which reads as the glass wobbling.
             modifier = Modifier

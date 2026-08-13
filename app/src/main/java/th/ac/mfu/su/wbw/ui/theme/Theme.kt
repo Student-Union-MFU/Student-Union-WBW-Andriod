@@ -34,14 +34,22 @@ data class WbwColors(
     /**
      * Text drawn straight onto the backdrop rather than onto a card.
      *
-     * Fixed light in BOTH themes, unlike [textPrimary]. The backdrop is one dark image
-     * that does not change with the theme, so a token that flips to near-black takes
-     * screen titles and the Home greeting with it and they vanish into the artwork.
-     * iOS does the same thing — the greeting over its backdrop is white regardless of
-     * the theme, and only cards follow it.
+     * Distinct from [textPrimary] because the two sit on different grounds — this one
+     * has the washed backdrop under it, [textPrimary] has a card. They happen to track
+     * each other now that [backdropWash] keeps the backdrop's exposure in step with the
+     * theme; keeping them separate is what lets the backdrop be retuned later without
+     * dragging every card's text along with it.
      */
     val onBackdrop: Color,
     val onBackdropMuted: Color,
+    /**
+     * Painted over the backdrop image to set its exposure for this theme.
+     *
+     * The backdrop is a single asset, so light mode cannot swap it for a brighter one —
+     * it washes it toward daylight instead. Without this, light mode put near-white
+     * cards on a dusk-dark forest and read as two designs fighting.
+     */
+    val backdropWash: Color,
     /** iOS `wbwBg` — the flat screen background. */
     val background: Color,
     /** iOS `wbwSurface`. Named "glass" for continuity with existing call sites. */
@@ -58,13 +66,16 @@ data class WbwColors(
 
 val LightWbwColors = WbwColors(
     isDark = false,
-    gold = WbwGold,
-    goldSoft = WbwCream,
-    green = WbwGreen,
+    gold = WbwGoldLight,
+    goldSoft = WbwGoldSoftLight,
+    green = WbwGreenLight,
     textPrimary = WbwInkLight,
     textMuted = WbwMutedLight,
-    onBackdrop = WbwInkDark,
-    onBackdropMuted = WbwMutedDark,
+    onBackdrop = WbwInkLight,
+    onBackdropMuted = WbwMutedLight,
+    // Washes the one backdrop image to daylight, so light mode is the same forest at a
+    // different hour rather than white cards dropped onto a night scene.
+    backdropWash = Color.White.copy(alpha = 0.66f),
     background = WbwBgLight,
     glass = GlassLight,
     glassBorder = GlassLightBorder,
@@ -72,18 +83,21 @@ val LightWbwColors = WbwColors(
     line = WbwLineLight,
     forestVoid = WbwForestVoid,
     skyStops = listOf(DaySky1, DaySky2, DaySky3, DaySky4),
-    danger = Color(0xFFB5462F),
+    danger = DangerLight,
 )
 
 val DarkWbwColors = WbwColors(
     isDark = true,
-    gold = WbwGold,
-    goldSoft = WbwCream,
-    green = WbwGreen,
+    gold = WbwGoldDark,
+    goldSoft = WbwGoldSoftDark,
+    green = WbwGreenDark,
     textPrimary = WbwInkDark,
     textMuted = WbwMutedDark,
     onBackdrop = WbwInkDark,
     onBackdropMuted = WbwMutedDark,
+    // Barely there: the artwork is already dusk. Just enough to settle it under the
+    // brighter cards and keep gold the brightest thing on screen.
+    backdropWash = Color.Black.copy(alpha = 0.12f),
     background = WbwBgDark,
     glass = GlassDark,
     glassBorder = GlassDarkBorder,
@@ -91,7 +105,7 @@ val DarkWbwColors = WbwColors(
     line = WbwLineDark,
     forestVoid = WbwForestVoid,
     skyStops = listOf(NightSky1, NightSky2, NightSky3, NightSky4, NightSky5),
-    danger = Danger,
+    danger = DangerDark,
 )
 
 val LocalWbwColors = staticCompositionLocalOf { DarkWbwColors }
@@ -105,29 +119,29 @@ val wbwColors: WbwColors
 // hand-styled screens. Gold is primary in BOTH themes — on iOS it is a brand colour
 // that does not flip, so the previous Forest-in-light / gold-in-dark split is gone.
 private val LightColors = lightColorScheme(
-    primary = WbwGold,
-    onPrimary = WbwInkLight,
-    secondary = WbwGreen,
-    tertiary = WbwCream,
+    primary = WbwGoldLight,
+    onPrimary = TicketCreamPaper,
+    secondary = WbwGreenLight,
+    tertiary = WbwGoldSoftLight,
     background = WbwBgLight,
     onBackground = WbwInkLight,
     surface = WbwSurfaceLight,
     onSurface = WbwInkLight,
     outline = WbwLineLight,
-    error = Color(0xFFB5462F),
+    error = DangerLight,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = WbwGold,
+    primary = WbwGoldDark,
     onPrimary = WbwInkLight,
-    secondary = WbwGreen,
-    tertiary = WbwCream,
+    secondary = WbwGreenDark,
+    tertiary = WbwGoldSoftDark,
     background = WbwBgDark,
     onBackground = WbwInkDark,
     surface = WbwSurfaceDark,
     onSurface = WbwInkDark,
     outline = WbwLineDark,
-    error = Danger,
+    error = DangerDark,
 )
 
 @Composable

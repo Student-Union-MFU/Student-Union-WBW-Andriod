@@ -146,9 +146,9 @@ private fun accentFor(item: Notification): Pair<Color, ImageVector> {
         "emergency" -> colors.danger to Icons.Outlined.WarningAmber
         "warning" -> colors.gold to Icons.Outlined.Place
         else -> when (item.type) {
-            "growth", "tree" -> Color(0xFF8FD0A8) to Icons.Outlined.Park
+            "growth", "tree" -> colors.green to Icons.Outlined.Park
             "schedule", "event" -> colors.gold to Icons.Outlined.CalendarMonth
-            else -> Color(0xFF8FD0A8) to Icons.Outlined.Campaign
+            else -> colors.green to Icons.Outlined.Campaign
         }
     }
 }
