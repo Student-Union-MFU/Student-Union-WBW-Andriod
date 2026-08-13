@@ -51,12 +51,13 @@ import kotlin.random.Random
  * is left is a gentle darkening at the very top and bottom, where the status bar and
  * gesture bar sit and the system draws its own glyphs over us.
  *
- * One asset serves both themes, so light mode cannot swap the image for a brighter
- * one — [WbwColors.backdropWash] re-exposes it instead. Light mode is this forest in
- * daylight, dark mode the same forest at dusk. Anything drawn straight onto it should
- * still use [WbwColors.onBackdrop] rather than `textPrimary`: they track each other
- * today, and keeping them apart is what lets the backdrop be retuned without dragging
- * every card's text along with it.
+ * The image is shown as supplied in both themes — it is the app's strongest visual and
+ * re-tinting it per theme only destroys it. What the theme changes is what sits *on*
+ * it: cards, and their text.
+ *
+ * The consequence: this ground is dark in both themes, so anything drawn straight onto
+ * it must use [WbwColors.onBackdrop], never `textPrimary` — the latter goes near-black
+ * in light theme and disappears into the artwork.
  *
  * The previous procedural sky is kept as [ProceduralSkyBackground] — it is not part
  * of the iOS design, but it is this app's own work and worth not throwing away.
@@ -79,23 +80,20 @@ fun ForestBackground(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    // Exposure first: light theme washes the image toward daylight,
-                    // dark theme barely touches it. Everything below is layered on the
-                    // washed image, not the raw one.
+                    // A near-nothing settle under the content. Never enough to re-tint
+                    // the artwork — that is the whole point of having it.
                     drawRect(colors.backdropWash)
-                    // Head-and-foot scrim, much lighter than the iOS original — see
-                    // the note above on why the darker artwork does not need it. Skipped
-                    // in light theme, where a black scrim would just bruise the wash.
-                    if (colors.isDark) {
-                        drawRect(
-                            Brush.verticalGradient(
-                                0.00f to Color.Black.copy(alpha = 0.22f),
-                                0.18f to Color.Transparent,
-                                0.84f to Color.Transparent,
-                                1.00f to Color.Black.copy(alpha = 0.22f),
-                            ),
-                        )
-                    }
+                    // Head-and-foot scrim, much lighter than the iOS original — see the
+                    // note above on why the darker artwork does not need more. Applied in
+                    // both themes: the image is the same dark forest either way.
+                    drawRect(
+                        Brush.verticalGradient(
+                            0.00f to Color.Black.copy(alpha = 0.22f),
+                            0.18f to Color.Transparent,
+                            0.84f to Color.Transparent,
+                            1.00f to Color.Black.copy(alpha = 0.22f),
+                        ),
+                    )
                     // An even dim over the whole frame, if one is ever wanted. Zero
                     // with this artwork: it is already dark enough to carry light text.
                     if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))

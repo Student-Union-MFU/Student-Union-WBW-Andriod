@@ -87,14 +87,13 @@ fun FloatingTabBar(
 ) {
     val selected = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val colors = wbwColors
-    // The pane borrows its lightness from the backdrop, which now tracks the theme, so
-    // the icons have to as well: ink on the daylight wash, cream on the dusk one.
-    val barSurface = if (colors.isDark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.42f)
-    val idle = if (colors.isDark) colors.onBackdrop else colors.textPrimary
-    // Edge and indicator ride the same logic: a white hairline is invisible on the
-    // daylight wash, and a dark one looks drawn-on at dusk.
-    val edge = if (colors.isDark) Color.White.copy(alpha = 0.24f) else Color.Black.copy(alpha = 0.10f)
-    val indicatorFill = if (colors.isDark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.62f)
+    // The bar is glass over the backdrop, and that backdrop is the same dark forest in
+    // both themes — so the bar does not follow the card palette. Everything here is
+    // pitched against the artwork, not against the theme.
+    val barSurface = Color.White.copy(alpha = 0.12f)
+    val idle = colors.onBackdrop
+    val edge = Color.White.copy(alpha = 0.24f)
+    val indicatorFill = Color.White.copy(alpha = 0.18f)
 
     Row(
         modifier = modifier.fillMaxWidth(),

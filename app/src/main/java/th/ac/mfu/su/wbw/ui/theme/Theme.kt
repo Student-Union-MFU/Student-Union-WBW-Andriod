@@ -34,20 +34,18 @@ data class WbwColors(
     /**
      * Text drawn straight onto the backdrop rather than onto a card.
      *
-     * Distinct from [textPrimary] because the two sit on different grounds — this one
-     * has the washed backdrop under it, [textPrimary] has a card. They happen to track
-     * each other now that [backdropWash] keeps the backdrop's exposure in step with the
-     * theme; keeping them separate is what lets the backdrop be retuned later without
-     * dragging every card's text along with it.
+     * Light in both themes, unlike [textPrimary]. The two sit on different grounds: a
+     * card follows the theme, the backdrop does not — it is one dark image either way.
+     * Using [textPrimary] here is what makes a title vanish in light mode.
      */
     val onBackdrop: Color,
     val onBackdropMuted: Color,
     /**
-     * Painted over the backdrop image to set its exposure for this theme.
+     * Painted over the backdrop image to settle it under the content.
      *
-     * The backdrop is a single asset, so light mode cannot swap it for a brighter one —
-     * it washes it toward daylight instead. Without this, light mode put near-white
-     * cards on a dusk-dark forest and read as two designs fighting.
+     * Deliberately near-nothing. The backdrop is the supplied artwork and the app's
+     * strongest visual; anything heavy enough to visibly re-tint it is destroying the
+     * thing it is meant to support.
      */
     val backdropWash: Color,
     /** iOS `wbwBg` — the flat screen background. */
@@ -71,11 +69,14 @@ val LightWbwColors = WbwColors(
     green = WbwGreenLight,
     textPrimary = WbwInkLight,
     textMuted = WbwMutedLight,
-    onBackdrop = WbwInkLight,
-    onBackdropMuted = WbwMutedLight,
-    // Washes the one backdrop image to daylight, so light mode is the same forest at a
-    // different hour rather than white cards dropped onto a night scene.
-    backdropWash = Color.White.copy(alpha = 0.66f),
+    // Light in BOTH themes: the backdrop is one dark image and stays dark, so text on
+    // it cannot follow the card palette. This is the one place the two themes agree.
+    onBackdrop = WbwInkDark,
+    onBackdropMuted = WbwMutedDark,
+    // Transparent. An earlier version washed the image white here to fake a daylight
+    // version of it — which flattened the artwork into near-grey and lost the reason
+    // for having a backdrop at all. The image is the design; it is shown, not tinted.
+    backdropWash = Color.Transparent,
     background = WbwBgLight,
     glass = GlassLight,
     glassBorder = GlassLightBorder,
@@ -95,8 +96,8 @@ val DarkWbwColors = WbwColors(
     textMuted = WbwMutedDark,
     onBackdrop = WbwInkDark,
     onBackdropMuted = WbwMutedDark,
-    // Barely there: the artwork is already dusk. Just enough to settle it under the
-    // brighter cards and keep gold the brightest thing on screen.
+    // Barely there: just enough to settle the image under the cards and keep gold the
+    // brightest thing on screen.
     backdropWash = Color.Black.copy(alpha = 0.12f),
     background = WbwBgDark,
     glass = GlassDark,
