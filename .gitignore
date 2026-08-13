@@ -1,0 +1,29 @@
+### Android / Gradle ###
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+build/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+
+# Kotlin
+.kotlin/
+
+# Android Studio / IntelliJ
+*.hprof
+.navigation/
+out/
+
+### VS Code ###
+.vscode/
+
+### Secrets — keep firebase/service configs out of git ###
+google-services.json

@@ -1,0 +1,149 @@
+<resources>
+    <!-- Common -->
+    <string name="action_retry">ลองใหม่</string>
+    <string name="action_back">ย้อนกลับ</string>
+
+    <!-- Network / error fallbacks (see core/network/ApiResult.kt) -->
+    <string name="error_http">เกิดข้อผิดพลาด (%1$d)</string>
+    <string name="error_network">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ต</string>
+    <string name="error_unknown">เกิดข้อผิดพลาดที่ไม่รู้จัก</string>
+
+    <!-- Login -->
+    <string name="login_tagline">เดินรอบดอย · เข้าสู่ระบบผู้เข้าร่วม</string>
+    <string name="login_field_username">รหัสนักศึกษา / ชื่อผู้ใช้</string>
+    <string name="login_field_password">รหัสผ่าน</string>
+    <string name="login_action_submit">เข้าสู่ระบบ</string>
+    <string name="login_link_register">ยังไม่มีบัญชี? ลงทะเบียน</string>
+
+    <!-- Register -->
+    <string name="register_title">ลงทะเบียน</string>
+    <string name="register_field_student_id">รหัสนักศึกษา (10 หลัก ขึ้นต้น 693)</string>
+    <string name="register_field_password">รหัสผ่าน (อย่างน้อย 8 ตัว)</string>
+    <string name="register_field_first_name">ชื่อ</string>
+    <string name="register_field_last_name">นามสกุล</string>
+    <string name="register_label_sex">เพศ</string>
+    <string name="register_sex_male">ชาย</string>
+    <string name="register_sex_female">หญิง</string>
+    <string name="register_sex_other">อื่นๆ</string>
+    <string name="register_field_contact_phone">เบอร์โทรติดต่อ (ไม่บังคับ)</string>
+    <string name="register_field_school">สำนักวิชา (ไม่บังคับ)</string>
+    <string name="register_consent_waiver">ยอมรับข้อตกลงและเงื่อนไขการเข้าร่วม *</string>
+    <string name="register_consent_health">ยินยอมให้เก็บข้อมูลสุขภาพ</string>
+    <string name="register_consent_emergency">ยินยอมให้รักษาพยาบาลกรณีฉุกเฉิน</string>
+
+    <!-- Notifications -->
+    <string name="notifications_title">ประกาศ</string>
+    <string name="notifications_empty">ยังไม่มีประกาศ</string>
+
+    <!-- Profile -->
+    <string name="profile_title">โปรไฟล์</string>
+    <string name="profile_avatar_content_desc">รูปโปรไฟล์</string>
+    <string name="profile_checked_in">เช็คอินแล้ว</string>
+    <string name="profile_not_checked_in">ยังไม่เช็คอิน</string>
+    <string name="profile_section_participant">ข้อมูลผู้เข้าร่วม</string>
+    <string name="profile_row_group">กลุ่ม</string>
+    <string name="profile_group_value">กลุ่ม %1$s</string>
+    <string name="profile_row_school">สำนักวิชา</string>
+    <string name="profile_row_major">สาขา</string>
+    <string name="profile_row_sex">เพศ</string>
+    <string name="profile_row_contact_phone">เบอร์ติดต่อ</string>
+    <string name="profile_section_health">ข้อมูลสุขภาพ</string>
+    <string name="profile_row_blood_type">กรุ๊ปเลือด</string>
+    <string name="profile_row_weight">น้ำหนัก</string>
+    <string name="profile_weight_value">%1$s กก.</string>
+    <string name="profile_row_height">ส่วนสูง</string>
+    <string name="profile_height_value">%1$s ซม.</string>
+    <string name="profile_section_emergency">ผู้ติดต่อฉุกเฉิน</string>
+    <string name="profile_row_name">ชื่อ</string>
+    <string name="profile_row_phone">เบอร์</string>
+    <string name="profile_action_logout">ออกจากระบบ</string>
+
+    <!-- Growth phases -->
+    <string name="phase_seed">เมล็ด</string>
+    <string name="phase_sprout">ต้นอ่อน</string>
+    <string name="phase_sapling">ต้นกล้า</string>
+    <string name="phase_young">ไม้หนุ่ม</string>
+    <string name="phase_grown">ไม้ใหญ่</string>
+
+    <!-- Home -->
+    <string name="home_good_morning">อรุณสวัสดิ์</string>
+    <string name="home_good_evening">สวัสดียามเย็น</string>
+    <string name="home_greeting">สวัสดี, %1$s</string>
+    <string name="home_checked_in">เช็คอินแล้ว %1$d / %2$d ฐาน</string>
+    <string name="home_phase_hint">อีก %1$d ฐานเพื่อไปถึงระดับ “%2$s”</string>
+    <string name="home_next_base">ฐานถัดไป</string>
+    <string name="home_base_distance">ห่างจากคุณ %1$s</string>
+    <string name="home_navigate">นำทาง</string>
+    <string name="home_scan_qr">สแกน QR ฐาน</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">หน้าหลัก</string>
+    <string name="tab_map">แผนที่</string>
+    <string name="tab_activity">กิจกรรม</string>
+    <string name="tab_steps">ก้าว</string>
+    <string name="tab_activities">กิจกรรม</string>
+
+    <!-- Activities / events -->
+    <string name="activities_title">กิจกรรม</string>
+    <string name="activities_subtitle">อีเวนต์บนเส้นทางเดิน</string>
+    <string name="event_status_upcoming">เร็ว ๆ นี้</string>
+    <string name="event_status_live">กำลังจัด</string>
+    <string name="event_details">ดูรายละเอียด</string>
+    <string name="event_step_comp_title">แข่งนับก้าว</string>
+    <string name="event_step_comp_date">1–14 ส.ค. 2569</string>
+    <string name="event_step_comp_desc">สะสมก้าวให้ได้มากที่สุดในสองสัปดาห์ แล้วไต่อันดับกระดานผู้นำ ทุกก้าวบนเส้นทางมีความหมาย</string>
+    <string name="event_wbw_title">Walk Beyond the Wild</string>
+    <string name="event_wbw_date">16 ส.ค. 2569</string>
+    <string name="event_wbw_desc">อีเวนต์หลักของเส้นทาง — ออกเดินสำรวจธรรมชาติ เช็กอินทุกฐาน แล้วปลูกต้นไม้ของคุณให้เติบโตเต็มที่</string>
+
+    <!-- Coming soon / stubs -->
+    <string name="coming_soon">เร็ว ๆ นี้</string>
+    <string name="coming_soon_desc">ส่วนนี้ของเส้นทางกำลังจัดทำอยู่</string>
+
+    <!-- Notifications -->
+    <string name="notifications_mark_all_read">อ่านทั้งหมด</string>
+    <string name="notif_today">วันนี้</string>
+    <string name="notif_earlier">ก่อนหน้า</string>
+
+    <!-- Settings -->
+    <string name="settings_title">ตั้งค่า</string>
+    <string name="settings_language">ภาษา</string>
+    <string name="settings_display_language">ภาษาที่แสดง</string>
+    <string name="settings_lang_english">English</string>
+    <string name="settings_lang_thai">ไทย</string>
+    <string name="settings_appearance">ธีม</string>
+    <string name="settings_theme_light">สว่าง</string>
+    <string name="settings_theme_dark">มืด</string>
+    <string name="settings_theme_auto">อัตโนมัติ</string>
+    <string name="settings_appearance_hint">อัตโนมัติจะปรับตามช่วงเวลาของกิจกรรม — สว่างตอนกลางวัน มืดตอนกลางคืน</string>
+    <string name="settings_notifications">การแจ้งเตือน</string>
+    <string name="settings_noti_announcements">ประกาศ</string>
+    <string name="settings_noti_announcements_desc">ประกาศของกิจกรรม</string>
+    <string name="settings_noti_nearby">แจ้งเตือนฐานใกล้เคียง</string>
+    <string name="settings_noti_nearby_desc">แจ้งเตือนฐานใกล้เคียง</string>
+    <string name="settings_noti_chat">แชทกลุ่ม</string>
+    <string name="settings_noti_chat_desc">แชทกลุ่ม</string>
+    <string name="settings_noti_daily">สรุปกิจกรรมประจำวัน</string>
+    <string name="settings_noti_daily_desc">สรุปกิจกรรมประจำวัน</string>
+    <string name="settings_general">ทั่วไป</string>
+    <string name="settings_about">เกี่ยวกับกิจกรรม</string>
+    <string name="settings_help">ช่วยเหลือและติดต่อ</string>
+    <string name="settings_edit">แก้ไข</string>
+    <string name="settings_account_label">บัญชี</string>
+
+    <!-- Profile ticket -->
+    <string name="profile_pass_kicker">โปรไฟล์</string>
+    <string name="profile_pass_title">บัตรผู้เข้าร่วม</string>
+    <string name="profile_event_name">Walk Beyond the Wild</string>
+    <string name="profile_official">ทางการ</string>
+    <string name="profile_bib_number">หมายเลขบิบ</string>
+    <string name="profile_trail_stamps">แสตมป์เส้นทาง</string>
+    <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>
+    <string name="profile_label_group">กลุ่ม</string>
+    <string name="profile_label_blood">เลือด</string>
+    <string name="profile_label_rank">อันดับ</string>
+    <string name="profile_row_height_weight">ส่วนสูง / น้ำหนัก</string>
+    <string name="profile_hw_value">%1$s ซม. · %2$s กก.</string>
+    <string name="profile_label_student_id">รหัสนักศึกษา</string>
+    <string name="profile_checkin_status">เช็คอินแล้ว</string>
+</resources>

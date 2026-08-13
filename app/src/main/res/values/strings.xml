@@ -1,0 +1,151 @@
+<resources>
+    <string name="app_name">WBW</string>
+
+    <!-- Common -->
+    <string name="action_retry">Retry</string>
+    <string name="action_back">Back</string>
+
+    <!-- Network / error fallbacks (see core/network/ApiResult.kt) -->
+    <string name="error_http">Something went wrong (%1$d)</string>
+    <string name="error_network">Can\'t reach the server. Check your internet connection.</string>
+    <string name="error_unknown">An unknown error occurred</string>
+
+    <!-- Login -->
+    <string name="login_tagline">Walk Around the Doi · Participant sign-in</string>
+    <string name="login_field_username">Student ID / Username</string>
+    <string name="login_field_password">Password</string>
+    <string name="login_action_submit">Sign in</string>
+    <string name="login_link_register">No account yet? Register</string>
+
+    <!-- Register -->
+    <string name="register_title">Register</string>
+    <string name="register_field_student_id">Student ID (10 digits, starts with 693)</string>
+    <string name="register_field_password">Password (at least 8 characters)</string>
+    <string name="register_field_first_name">First name</string>
+    <string name="register_field_last_name">Last name</string>
+    <string name="register_label_sex">Sex</string>
+    <string name="register_sex_male">Male</string>
+    <string name="register_sex_female">Female</string>
+    <string name="register_sex_other">Other</string>
+    <string name="register_field_contact_phone">Contact phone (optional)</string>
+    <string name="register_field_school">School (optional)</string>
+    <string name="register_consent_waiver">I accept the participation terms and conditions *</string>
+    <string name="register_consent_health">I consent to the collection of health data</string>
+    <string name="register_consent_emergency">I consent to emergency medical treatment</string>
+
+    <!-- Notifications -->
+    <string name="notifications_title">Announcements</string>
+    <string name="notifications_empty">No announcements yet</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_avatar_content_desc">Profile photo</string>
+    <string name="profile_checked_in">Checked in</string>
+    <string name="profile_not_checked_in">Not checked in</string>
+    <string name="profile_section_participant">Participant info</string>
+    <string name="profile_row_group">Group</string>
+    <string name="profile_group_value">Group %1$s</string>
+    <string name="profile_row_school">School</string>
+    <string name="profile_row_major">Major</string>
+    <string name="profile_row_sex">Sex</string>
+    <string name="profile_row_contact_phone">Contact phone</string>
+    <string name="profile_section_health">Health info</string>
+    <string name="profile_row_blood_type">Blood type</string>
+    <string name="profile_row_weight">Weight</string>
+    <string name="profile_weight_value">%1$s kg</string>
+    <string name="profile_row_height">Height</string>
+    <string name="profile_height_value">%1$s cm</string>
+    <string name="profile_section_emergency">Emergency contact</string>
+    <string name="profile_row_name">Name</string>
+    <string name="profile_row_phone">Phone</string>
+    <string name="profile_action_logout">Log out</string>
+
+    <!-- Growth phases -->
+    <string name="phase_seed">Seed</string>
+    <string name="phase_sprout">Sprout</string>
+    <string name="phase_sapling">Sapling</string>
+    <string name="phase_young">Young</string>
+    <string name="phase_grown">Grown</string>
+
+    <!-- Home -->
+    <string name="home_good_morning">GOOD MORNING</string>
+    <string name="home_good_evening">GOOD EVENING</string>
+    <string name="home_greeting">Hi, %1$s</string>
+    <string name="home_checked_in">Checked in %1$d / %2$d bases</string>
+    <string name="home_phase_hint">%1$d more bases to reach the “%2$s” stage</string>
+    <string name="home_next_base">NEXT BASE</string>
+    <string name="home_base_distance">%1$s from your location</string>
+    <string name="home_navigate">Navigate</string>
+    <string name="home_scan_qr">Scan base QR</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_map">Map</string>
+    <string name="tab_activity">Activity</string>
+    <string name="tab_steps">Steps</string>
+    <string name="tab_activities">Activities</string>
+
+    <!-- Activities / events -->
+    <string name="activities_title">Activities</string>
+    <string name="activities_subtitle">Events happening on the trail</string>
+    <string name="event_status_upcoming">Upcoming</string>
+    <string name="event_status_live">Live now</string>
+    <string name="event_details">View details</string>
+    <string name="event_step_comp_title">Step Competition</string>
+    <string name="event_step_comp_date">1–14 Aug 2026</string>
+    <string name="event_step_comp_desc">Log the most steps over two weeks and climb the leaderboard. Every step on the trail counts.</string>
+    <string name="event_wbw_title">Walk Beyond the Wild</string>
+    <string name="event_wbw_date">16 Aug 2026</string>
+    <string name="event_wbw_desc">The main trail event — walk the wild, check in at every base, and grow your tree to full bloom.</string>
+
+    <!-- Coming soon / stubs -->
+    <string name="coming_soon">Coming soon</string>
+    <string name="coming_soon_desc">This part of the trail is still being built.</string>
+
+    <!-- Notifications -->
+    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notif_today">Today</string>
+    <string name="notif_earlier">Earlier</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">LANGUAGE</string>
+    <string name="settings_display_language">Display language</string>
+    <string name="settings_lang_english">English</string>
+    <string name="settings_lang_thai">ไทย</string>
+    <string name="settings_appearance">APPEARANCE</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_auto">Auto</string>
+    <string name="settings_appearance_hint">Auto follows the event’s day cycle — light by day, dark at night</string>
+    <string name="settings_notifications">NOTIFICATIONS</string>
+    <string name="settings_noti_announcements">Announcements</string>
+    <string name="settings_noti_announcements_desc">event announcements</string>
+    <string name="settings_noti_nearby">Nearby base alerts</string>
+    <string name="settings_noti_nearby_desc">nearby base alerts</string>
+    <string name="settings_noti_chat">Group chat</string>
+    <string name="settings_noti_chat_desc">group chat</string>
+    <string name="settings_noti_daily">Daily activity summary</string>
+    <string name="settings_noti_daily_desc">daily activity summary</string>
+    <string name="settings_general">GENERAL</string>
+    <string name="settings_about">About the event</string>
+    <string name="settings_help">Help &amp; contact</string>
+    <string name="settings_edit">Edit</string>
+    <string name="settings_account_label">ACCOUNT</string>
+
+    <!-- Profile ticket -->
+    <string name="profile_pass_kicker">PROFILE</string>
+    <string name="profile_pass_title">Participant Pass</string>
+    <string name="profile_event_name">Walk Beyond the Wild</string>
+    <string name="profile_official">OFFICIAL</string>
+    <string name="profile_bib_number">Bib number</string>
+    <string name="profile_trail_stamps">TRAIL STAMPS</string>
+    <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>
+    <string name="profile_label_group">Group</string>
+    <string name="profile_label_blood">Blood</string>
+    <string name="profile_label_rank">Rank</string>
+    <string name="profile_row_height_weight">Height / Weight</string>
+    <string name="profile_hw_value">%1$s cm · %2$s kg</string>
+    <string name="profile_label_student_id">STUDENT ID</string>
+    <string name="profile_checkin_status">Checked in</string>
+</resources>

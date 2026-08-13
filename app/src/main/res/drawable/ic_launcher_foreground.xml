@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Walk Beyond the Wild" mark: a pine-forest peak with a snow cap, a winding trail,
+     a rising sun and pine trees. Kept inside the adaptive safe zone (scaled about centre). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.82"
+        android:scaleY="0.82">
+        <!-- sun -->
+        <path
+            android:pathData="M75,26 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 Z"
+            android:fillColor="#DDA15E" />
+        <!-- back peak -->
+        <path
+            android:pathData="M40,32 L12,86 L64,86 Z"
+            android:fillColor="#1B4332" />
+        <!-- front peak, shadowed face -->
+        <path
+            android:pathData="M66,22 L98,86 L34,86 Z"
+            android:fillColor="#2D6A4F" />
+        <!-- front peak, lit face -->
+        <path
+            android:pathData="M66,22 L34,86 L66,86 Z"
+            android:fillColor="#3E8462" />
+        <!-- snow cap -->
+        <path
+            android:pathData="M66,22 L75,40 L66,37 L60,41 L57,40 Z"
+            android:fillColor="#F4EDDD" />
+        <!-- trail -->
+        <path
+            android:pathData="M60,85 L64,74 L56,66 L64,58 L61,50"
+            android:strokeColor="#F4EDDD"
+            android:strokeWidth="2.6"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- left pine -->
+        <path android:pathData="M24.5,80 h3.5 v6.5 h-3.5 Z" android:fillColor="#3A2A1E" />
+        <path android:pathData="M16,80 L36,80 L26,66 Z" android:fillColor="#1E4A32" />
+        <path android:pathData="M19,70.5 L33,70.5 L26,58 Z" android:fillColor="#2A6042" />
+        <!-- right pine -->
+        <path android:pathData="M84,82 h3 v5 h-3 Z" android:fillColor="#3A2A1E" />
+        <path android:pathData="M79,82 L91.5,82 L85.5,71 Z" android:fillColor="#1E4A32" />
+        <path android:pathData="M81,74 L90,74 L85.5,64 Z" android:fillColor="#2A6042" />
+    </group>
+</vector>

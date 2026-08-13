@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme is a no-action-bar shell; Compose draws everything. -->
+    <style name="Theme.Wbw" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+      Launch theme via the AndroidX SplashScreen compat library (works API 26+).
+      installSplashScreen() in MainActivity swaps to Theme.Wbw once content loads.
+    -->
+    <style name="Theme.Wbw.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_forest</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Wbw</item>
+    </style>
+</resources>
