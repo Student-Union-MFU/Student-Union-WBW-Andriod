@@ -117,7 +117,7 @@ fun LoginScreen(
             )
 
             TextButton(onClick = onNavigateToRegister, modifier = Modifier.padding(top = 8.dp)) {
-                Text(stringResource(R.string.login_link_register), color = colors.gold)
+                Text(stringResource(R.string.login_link_register), color = colors.accent)
             }
         }
     }

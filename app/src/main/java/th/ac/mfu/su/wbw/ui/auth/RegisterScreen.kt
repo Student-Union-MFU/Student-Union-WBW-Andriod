@@ -183,7 +183,7 @@ private fun SexOption(label: String, value: String, selected: String, onSelect: 
         onClick = { onSelect(value) },
         label = { Text(label) },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = colors.gold,
+            selectedContainerColor = colors.accent,
             selectedLabelColor = Ink,
             labelColor = colors.textPrimary,
         ),
@@ -228,7 +228,7 @@ private fun ConsentRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit, lab
         Checkbox(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            colors = CheckboxDefaults.colors(checkedColor = colors.gold, checkmarkColor = Ink, uncheckedColor = colors.textMuted),
+            colors = CheckboxDefaults.colors(checkedColor = colors.accent, checkmarkColor = Ink, uncheckedColor = colors.textMuted),
         )
         Text(label, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary)
     }

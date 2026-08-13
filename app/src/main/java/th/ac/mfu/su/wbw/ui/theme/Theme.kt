@@ -14,20 +14,17 @@ enum class ThemeMode { LIGHT, DARK, AUTO }
 
 /**
  * Extended palette that Material's [androidx.compose.material3.ColorScheme] can't hold:
- * gold accents, the frosted-glass panel tokens, and the forest-sky gradient stops.
- * Read it anywhere via [wbwColors].
+ * the accent pair, the frosted-glass panel tokens, the backdrop tokens, and the
+ * forest-sky gradient stops. Read it anywhere via [wbwColors].
  *
- * The token set mirrors the iOS `Color` extension in `Config.swift` one-for-one, so a
- * screen ported from SwiftUI can be translated token-by-token instead of by eye:
- *
- *   iOS wbwBg → [background]   wbwSurface → [glass]   wbwInk → [textPrimary]
- *   wbwMuted  → [textMuted]    wbwLine    → [line]    wbwGold → [gold]
- *   wbwCream  → [goldSoft]     wbwGreen   → [green]
+ * [accent] is the app's one highlight colour — a leaf green. It was gold until the
+ * palette was re-derived from the backdrop; the token was renamed off "gold" at the same
+ * time so the name cannot outlive the colour it describes.
  */
 data class WbwColors(
     val isDark: Boolean,
-    val gold: Color,
-    val goldSoft: Color,
+    val accent: Color,
+    val accentSoft: Color,
     val green: Color,
     val textPrimary: Color,
     val textMuted: Color,
@@ -64,8 +61,8 @@ data class WbwColors(
 
 val LightWbwColors = WbwColors(
     isDark = false,
-    gold = WbwGoldLight,
-    goldSoft = WbwGoldSoftLight,
+    accent = WbwAccentLight,
+    accentSoft = WbwAccentSoftLight,
     green = WbwGreenLight,
     textPrimary = WbwInkLight,
     textMuted = WbwMutedLight,
@@ -89,15 +86,15 @@ val LightWbwColors = WbwColors(
 
 val DarkWbwColors = WbwColors(
     isDark = true,
-    gold = WbwGoldDark,
-    goldSoft = WbwGoldSoftDark,
+    accent = WbwAccentDark,
+    accentSoft = WbwAccentSoftDark,
     green = WbwGreenDark,
     textPrimary = WbwInkDark,
     textMuted = WbwMutedDark,
     onBackdrop = WbwInkDark,
     onBackdropMuted = WbwMutedDark,
-    // Barely there: just enough to settle the image under the cards and keep gold the
-    // brightest thing on screen.
+    // Barely there: just enough to settle the image under the cards and keep the accent
+    // the brightest thing on screen.
     backdropWash = Color.Black.copy(alpha = 0.12f),
     background = WbwBgDark,
     glass = GlassDark,
@@ -111,19 +108,18 @@ val DarkWbwColors = WbwColors(
 
 val LocalWbwColors = staticCompositionLocalOf { DarkWbwColors }
 
-/** Convenient accessor: `wbwColors.gold`, `wbwColors.glass`, … */
+/** Convenient accessor: `wbwColors.accent`, `wbwColors.glass`, … */
 val wbwColors: WbwColors
     @Composable @ReadOnlyComposable get() = LocalWbwColors.current
 
-// Material's own scheme, kept in step with the iOS tokens above so that any stock
-// Material component (dialogs, snackbars, ripples) lands on the same palette as the
-// hand-styled screens. Gold is primary in BOTH themes — on iOS it is a brand colour
-// that does not flip, so the previous Forest-in-light / gold-in-dark split is gone.
+// Material's own scheme, kept in step with the tokens above so that any stock Material
+// component (dialogs, snackbars, ripples) lands on the same palette as the hand-styled
+// screens.
 private val LightColors = lightColorScheme(
-    primary = WbwGoldLight,
+    primary = WbwAccentLight,
     onPrimary = TicketCreamPaper,
     secondary = WbwGreenLight,
-    tertiary = WbwGoldSoftLight,
+    tertiary = WbwAccentSoftLight,
     background = WbwBgLight,
     onBackground = WbwInkLight,
     surface = WbwSurfaceLight,
@@ -133,10 +129,10 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = WbwGoldDark,
+    primary = WbwAccentDark,
     onPrimary = WbwInkLight,
     secondary = WbwGreenDark,
-    tertiary = WbwGoldSoftDark,
+    tertiary = WbwAccentSoftDark,
     background = WbwBgDark,
     onBackground = WbwInkDark,
     surface = WbwSurfaceDark,

@@ -23,7 +23,7 @@ private val PillShape = RoundedCornerShape(percent = 50)
 
 /**
  * Primary action, matching the su-wbw-website: a fully-rounded pill — cream on the
- * dark forest scene, forest-green on light — with a soft lift shadow. Gold is kept
+ * dark forest scene, forest-green on light — with a soft lift shadow. The accent is kept
  * for accents (eyebrows, active states, rings), not fills.
  */
 @Composable

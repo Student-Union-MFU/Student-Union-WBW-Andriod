@@ -83,24 +83,15 @@ private fun HomeContent(
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp),
     ) {
-        // greeting
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(if (morning) R.string.home_good_morning else R.string.home_good_evening),
-                    color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp,
-                )
-                Text(
-                    stringResource(R.string.home_greeting, model.displayName),
-                    // onBackdrop, not textPrimary: this sits on the dark backdrop image
-                    // in both themes, and textPrimary goes near-black in light theme.
-                    style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop,
-                )
-            }
-            // Profile lives here rather than in the nav bar. It isn't somewhere you
-            // move back and forth between while walking the trail — you open it to
-            // check a detail or sign out — and iOS reaches it the same way, from the
-            // avatar in this header.
+        // The top strip carries the profile button and nothing else. The greeting moved
+        // down into the body: it is content — it names the person and the time of day —
+        // and sitting it in the chrome made the top of the screen look like a title bar
+        // for a screen that has no title.
+        //
+        // Profile stays here rather than in the nav bar. It isn't somewhere you move
+        // back and forth between while walking the trail — you open it to check a detail
+        // or sign out — and iOS reaches it the same way, from the avatar in this corner.
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
             Box(
                 Modifier
                     .size(42.dp)
@@ -116,6 +107,22 @@ private fun HomeContent(
                     modifier = Modifier.size(22.dp),
                 )
             }
+        }
+
+        // greeting — now the first thing in the body
+        Column(Modifier.padding(top = 18.dp)) {
+            Text(
+                stringResource(if (morning) R.string.home_good_morning else R.string.home_good_evening),
+                color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp,
+            )
+            Text(
+                stringResource(R.string.home_greeting, model.displayName),
+                // onBackdrop, not textPrimary: this sits on the dark backdrop image in
+                // both themes, and textPrimary goes near-black in light theme.
+                style = MaterialTheme.typography.displaySmall,
+                color = colors.onBackdrop,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
 
         // Home has been emptied deliberately, one piece at a time: the 3D plant hero,

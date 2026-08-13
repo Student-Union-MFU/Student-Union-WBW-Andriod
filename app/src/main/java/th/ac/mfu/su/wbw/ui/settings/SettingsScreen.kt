@@ -87,7 +87,7 @@ fun SettingsScreen(
             }
             Spacer(Modifier.size(10.dp))
             Column {
-                Text(stringResource(R.string.settings_title).uppercase(), color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
+                Text(stringResource(R.string.settings_title).uppercase(), color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
                 Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
             }
         }
@@ -165,14 +165,14 @@ private fun LanguageRow(settings: AppSettings) {
 private fun LangSegment(label: String, selected: Boolean, onClick: () -> Unit) {
     val colors = wbwColors
     Box(
-        Modifier.clip(RoundedCornerShape(9.dp)).background(if (selected) colors.gold else Color.Transparent).clickableTap(onClick).padding(horizontal = 15.dp, vertical = 5.dp),
+        Modifier.clip(RoundedCornerShape(9.dp)).background(if (selected) colors.accent else Color.Transparent).clickableTap(onClick).padding(horizontal = 15.dp, vertical = 5.dp),
     ) {
-        // Sits on the gold pill when selected, and gold is deliberately not the same
-        // lightness in both themes — dark ink reads on the bright dusk gold, cream on
-        // the deeper daylight one. One fixed colour loses whichever theme it wasn't
+        // Sits on the accent pill when selected, and the accent is deliberately not the
+        // same lightness in both themes — dark ink reads on the bright dusk green, cream
+        // on the deeper daylight one. One fixed colour loses whichever theme it was not
         // picked for.
-        val onGold = if (colors.isDark) WbwInkLight else TicketCreamPaper
-        Text(label, color = if (selected) onGold else colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        val onAccent = if (colors.isDark) WbwInkLight else TicketCreamPaper
+        Text(label, color = if (selected) onAccent else colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     }
 }
 
@@ -188,12 +188,12 @@ private fun ThemeOption(label: String, icon: ImageVector, selected: Boolean, mod
     val shape = RoundedCornerShape(15.dp)
     Column(
         modifier.clip(shape)
-            .background(if (selected) colors.gold.copy(alpha = 0.2f) else colors.textMuted.copy(alpha = 0.06f))
-            .then(if (selected) Modifier.border2(colors.gold, shape) else Modifier)
+            .background(if (selected) colors.accent.copy(alpha = 0.2f) else colors.textMuted.copy(alpha = 0.06f))
+            .then(if (selected) Modifier.border2(colors.accent, shape) else Modifier)
             .clickableTap(onClick).padding(vertical = 11.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(icon, null, tint = if (selected) colors.gold else colors.textMuted, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = if (selected) colors.accent else colors.textMuted, modifier = Modifier.size(20.dp))
         Text(label, color = if (selected) colors.textPrimary else colors.textMuted, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
     }
 }
@@ -214,7 +214,7 @@ private fun NotiToggle(settings: AppSettings, key: String, title: String, desc: 
             onCheckedChange = { checked = it; settings.setNotificationEnabled(key, it) },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = colors.goldSoft,
+                checkedTrackColor = colors.accentSoft,
                 checkedBorderColor = Color.Transparent,
                 uncheckedThumbColor = Color.White,
                 uncheckedTrackColor = colors.textMuted.copy(alpha = 0.3f),
@@ -231,7 +231,7 @@ private fun LinkRow(icon: ImageVector, label: String, onClick: () -> Unit) {
         Modifier.fillMaxWidth().clickableTap(onClick).padding(15.dp, 13.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(icon, null, tint = colors.gold, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = colors.accent, modifier = Modifier.size(18.dp))
         Text(label, color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(18.dp))
     }
@@ -240,7 +240,7 @@ private fun LinkRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Composable
 private fun SectionLabel(text: String) {
     Text(
-        text.uppercase(), color = wbwColors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.6.sp,
+        text.uppercase(), color = wbwColors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.6.sp,
         modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 7.dp),
     )
 }

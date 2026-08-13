@@ -214,7 +214,7 @@ fun FloatingTabBar(
                     NavBarItem(
                         item = item,
                         idle = idle,
-                        accent = colors.gold,
+                        accent = colors.accent,
                         selected = index == highlighted,
                         onClick = { onSelect(item.route) },
                         modifier = Modifier
@@ -232,7 +232,7 @@ fun FloatingTabBar(
             surface = barSurface,
             edge = edge,
             idle = idle,
-            accent = colors.gold,
+            accent = colors.accent,
             selected = qrSelected,
             onClick = onSelectQr,
             icon = qrIcon,

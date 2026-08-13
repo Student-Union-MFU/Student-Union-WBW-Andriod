@@ -15,9 +15,9 @@ import androidx.compose.ui.graphics.Color
  * assumed a bright cream photograph (`wbwBg` #FAF7F0). Against a dark green backdrop
  * their warm neutrals read as grey and their mustard gold went muddy.
  *
- * Tuned toward forest rather than toward neutral: the surfaces carry a trace of moss
- * and bark instead of grey, the light card is birch parchment rather than white, and
- * gold reads as sunlight through canopy rather than as brass.
+ * Tuned toward forest rather than toward neutral: the surfaces carry a trace of moss and
+ * bark instead of grey, the light card is birch parchment rather than white, and the
+ * accent is a leaf rather than a metal.
  *
  * Two rules hold the set together:
  *
@@ -26,22 +26,40 @@ import androidx.compose.ui.graphics.Color
  *     simply erased the artwork. What the theme changes is what sits *on* the ground:
  *     cards and their text. Which means the ground is dark either way, and text placed
  *     straight on it uses [WbwColors.onBackdrop], not [WbwColors.textPrimary].
- *  2. **Gold is tuned, not flipped.** It stays the same hue in both themes and only
- *     moves in lightness, because bright gold on a near-white card is unreadable and
- *     deep gold on a dark card is invisible. Same colour, correct exposure.
+ *  2. **The accent is tuned, not flipped.** It keeps its hue in both themes and only
+ *     moves in lightness, because the light version is unreadable on a near-white card
+ *     and the dark one is invisible on a dark card. Same colour, correct exposure.
  */
 
 // ===== Brand =====
 
-/** Event gold. Hue ~38 — far enough from the backdrop's green to read as an accent. */
-val WbwGoldDark = Color(0xFFE5A93F)   // on dark grounds
-val WbwGoldLight = Color(0xFFA87516)  // on light grounds — same hue, dropped in lightness
+/**
+ * The accent: new leaf against old forest.
+ *
+ * Gold came from the event branding and never sat right here — a warm metallic on a
+ * cold green ground reads as brass laid on moss, and at the size an accent is actually
+ * used (8sp section labels, a tab icon) the warmth just looked dirty.
+ *
+ * A literal dark green was tried and rejected on evidence: at #2F6B4A the section labels
+ * in Settings sank into the panel and stopped functioning as an accent at all. An accent
+ * on a dark ground has to be LIGHTER than the ground — that is not a style preference,
+ * it is the only way it can be seen. So: green, as intended, but the green of a new leaf
+ * rather than of the canopy behind it.
+ */
+val WbwAccentDark = Color(0xFF7FCB9B)   // on dark grounds
+val WbwAccentLight = Color(0xFF2F7A52)  // on light grounds — same hue, dropped in lightness
 
-/** The soft, sandy gold used for headings and de-emphasised accents. */
-val WbwGoldSoftDark = Color(0xFFF0DFB3)
-val WbwGoldSoftLight = Color(0xFFB98A2C)
+/** The softer accent, for headings and de-emphasised marks. */
+val WbwAccentSoftDark = Color(0xFFBFE3CC)
+val WbwAccentSoftLight = Color(0xFF4C9670)
 
-/** Leaf green for "on" states and progress. Lifted well clear of the backdrop's range. */
+/**
+ * Status green — "on", checked in, progress.
+ *
+ * Deliberately a step deeper than the accent above rather than a different hue: they are
+ * the same family, so a selected control and a completed thing read as related, and the
+ * accent still sits on top because it is the lighter of the two.
+ */
 val WbwGreenDark = Color(0xFF63B283)
 val WbwGreenLight = Color(0xFF35784F)
 
@@ -92,9 +110,11 @@ val DangerLight = Color(0xFFC0503A)
 // on [WbwColors] in new code.
 
 val Cream = WbwBgLight
-val Gold = WbwGoldDark
-val GoldLight = WbwGoldDark
-val GoldDark = WbwGoldLight
+// Named for the colour they used to be. Kept only because screens outside this package
+// still import them; new code should read `wbwColors.accent`.
+val Gold = WbwAccentDark
+val GoldLight = WbwAccentDark
+val GoldDark = WbwAccentLight
 val Leaf = WbwGreenDark
 val LeafLight = Color(0xFF8FD3A6)
 val Line = WbwLineLight

@@ -13,14 +13,14 @@ fun wbwTextFieldColors(): TextFieldColors {
         unfocusedTextColor = c.textPrimary,
         focusedContainerColor = c.glass,
         unfocusedContainerColor = c.glass,
-        focusedBorderColor = c.gold,
+        focusedBorderColor = c.accent,
         unfocusedBorderColor = c.glassBorder,
-        focusedLabelColor = c.gold,
+        focusedLabelColor = c.accent,
         unfocusedLabelColor = c.textMuted,
         focusedPlaceholderColor = c.textMuted,
         unfocusedPlaceholderColor = c.textMuted,
-        cursorColor = c.gold,
-        focusedTrailingIconColor = c.gold,
+        cursorColor = c.accent,
+        focusedTrailingIconColor = c.accent,
         unfocusedTrailingIconColor = c.textMuted,
     )
 }

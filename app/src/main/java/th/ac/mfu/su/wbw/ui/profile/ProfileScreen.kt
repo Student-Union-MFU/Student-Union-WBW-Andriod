@@ -194,7 +194,7 @@ private fun Pass(p: ParticipantDetail) {
                     p.studentId?.let {
                         Text(
                             stringResource(R.string.profile_student_n, it),
-                            color = colors.gold,
+                            color = colors.accent,
                             fontSize = 11.sp,
                             letterSpacing = 1.5.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -253,7 +253,7 @@ private fun Pass(p: ParticipantDetail) {
                 Kicker(stringResource(R.string.profile_trail_stamps))
                 Text(
                     stringResource(R.string.profile_stamps_progress, done, total, stringResource(phase.labelRes)),
-                    color = colors.gold,
+                    color = colors.accent,
                     fontSize = 10.sp,
                     letterSpacing = 1.sp,
                     fontWeight = FontWeight.SemiBold,

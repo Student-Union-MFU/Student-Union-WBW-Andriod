@@ -60,12 +60,12 @@ fun NotificationsScreen(
         // header
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("ALERTS", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
+                Text("ALERTS", color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
                 Text(stringResource(R.string.notifications_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
             }
             Text(
                 stringResource(R.string.notifications_mark_all_read),
-                color = colors.gold, style = MaterialTheme.typography.labelMedium,
+                color = colors.accent, style = MaterialTheme.typography.labelMedium,
             )
         }
 
@@ -134,7 +134,7 @@ private fun NotificationCard(item: Notification) {
             }
         }
         if (unread) {
-            Box(Modifier.padding(top = 4.dp).size(8.dp).clip(CircleShape).background(colors.gold))
+            Box(Modifier.padding(top = 4.dp).size(8.dp).clip(CircleShape).background(colors.accent))
         }
     }
 }
@@ -144,10 +144,10 @@ private fun accentFor(item: Notification): Pair<Color, ImageVector> {
     val colors = wbwColors
     return when (item.level) {
         "emergency" -> colors.danger to Icons.Outlined.WarningAmber
-        "warning" -> colors.gold to Icons.Outlined.Place
+        "warning" -> colors.accent to Icons.Outlined.Place
         else -> when (item.type) {
             "growth", "tree" -> colors.green to Icons.Outlined.Park
-            "schedule", "event" -> colors.gold to Icons.Outlined.CalendarMonth
+            "schedule", "event" -> colors.accent to Icons.Outlined.CalendarMonth
             else -> colors.green to Icons.Outlined.Campaign
         }
     }

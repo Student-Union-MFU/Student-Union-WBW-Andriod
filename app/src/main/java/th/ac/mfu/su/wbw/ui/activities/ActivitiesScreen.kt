@@ -127,7 +127,7 @@ private fun EventCard(
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(colors.gold))
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(colors.accent))
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(statusRes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 }
@@ -136,7 +136,7 @@ private fun EventCard(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Outlined.CalendarMonth, null, tint = colors.gold, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Outlined.CalendarMonth, null, tint = colors.accent, modifier = Modifier.size(15.dp))
                     Text(date, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 }
                 Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)

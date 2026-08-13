@@ -27,7 +27,7 @@ fun LoadingState(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator(color = wbwColors.gold, strokeWidth = 3.dp)
+        CircularProgressIndicator(color = wbwColors.accent, strokeWidth = 3.dp)
     }
 }
 
