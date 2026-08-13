@@ -94,6 +94,7 @@
     <string name="chat_channel_desc">ทุกคนที่เดินอยู่ในกลุ่มของคุณ</string>
     <string name="chat_composer_hint">พิมพ์ข้อความถึงกลุ่ม…</string>
     <string name="chat_send">ส่ง</string>
+    <string name="chat_emoji">อีโมจิ</string>
     <string name="chat_tag_staff">เจ้าหน้าที่</string>
     <string name="tab_activities">กิจกรรม</string>
 

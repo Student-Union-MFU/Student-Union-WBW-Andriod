@@ -20,7 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -80,13 +84,30 @@ fun ForestBackground(
     val wallpaper = rememberLayerBackdrop()
 
     Box(modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().layerBackdrop(wallpaper)) {
+        // clipToBounds so the overscaled, blurred image below cannot paint outside.
+        Box(Modifier.fillMaxSize().clipToBounds().layerBackdrop(wallpaper)) {
             Image(
                 painter = painterResource(R.drawable.bg_backdrop),
                 contentDescription = null,
                 // ContentScale.Crop is SwiftUI's scaledToFill: fill the frame, clip the rest.
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Overscaled *before* the blur so the kernel always has real pixels to
+                    // sample. Without this the edge pixels blur toward transparent and the
+                    // whole screen picks up a dark frame — visible on a real device, not
+                    // in any preview.
+                    .graphicsLayer {
+                        scaleX = BackdropOverscan
+                        scaleY = BackdropOverscan
+                    }
+                    // A soft defocus so text sits on tone rather than on detail. The
+                    // artwork is already a blurred forest, but it keeps enough structure —
+                    // bright blooms against near-black — that a line of type crossing one
+                    // loses half its contrast midway.
+                    //
+                    // No-op below API 31, where the app simply gets the artwork as-is.
+                    .blur(BackdropBlur, edgeTreatment = BlurredEdgeTreatment.Unbounded),
             )
             Box(
                 Modifier
@@ -220,6 +241,23 @@ fun ProceduralSkyBackground(
  * 0.00 is the literal iOS treatment.
  */
 private const val BackdropDim = 0.00f
+
+/**
+ * How far the backdrop is defocused.
+ *
+ * Small on purpose: enough to stop the artwork's brighter passages competing with text,
+ * not so much that it stops being a forest. Above roughly 20dp it turns to flat wash and
+ * the app loses the thing the background was for.
+ */
+private val BackdropBlur = 12.dp
+
+/**
+ * How far the backdrop image is scaled up before being blurred.
+ *
+ * Enough to keep the blur kernel inside real pixels at every edge. The image is a soft
+ * forest texture with no subject to lose, so a few percent of crop costs nothing.
+ */
+private const val BackdropOverscan = 1.12f
 
 /** A hill silhouette path: two quadratic humps across the width, filled to the bottom. */
 private fun DrawScope.hill(w: Float, h: Float, y0: Float, y1: Float, y2: Float, y3: Float, y4: Float): Path =
