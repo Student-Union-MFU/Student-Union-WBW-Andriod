@@ -13,15 +13,13 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.runtime.Composable
@@ -65,16 +63,18 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
 
-    // Icons follow iOS `MainTabView.swift`: house.fill, map.fill, figure.run. The
-    // remaining two (activities, profile) have no iOS counterpart in the bar — iOS
-    // reaches profile from the avatar in Home's header instead — so they keep their
-    // own glyphs rather than being forced onto an iOS symbol that means something else.
+    // Icons follow iOS `MainTabView.swift`: house.fill, map.fill, figure.run.
+    // `activities` has no iOS counterpart in the bar, so it keeps its own glyph
+    // rather than being forced onto an iOS symbol that means something else.
+    //
+    // Profile is deliberately not here — it is the avatar in Home's header, which is
+    // where iOS puts it too. A destination you open to check a detail and close again
+    // does not earn a permanent slot next to the places you walk between.
     val tabs = listOf(
         TabItem("home", Icons.Filled.Home, Icons.Outlined.Home, stringResource(R.string.tab_home)),
         TabItem("map", Icons.Filled.Map, Icons.Outlined.Map, stringResource(R.string.tab_map)),
-        TabItem("steps", Icons.Filled.DirectionsRun, Icons.Outlined.DirectionsRun, stringResource(R.string.tab_steps)),
+        TabItem("steps", Icons.AutoMirrored.Filled.DirectionsRun, Icons.AutoMirrored.Outlined.DirectionsRun, stringResource(R.string.tab_steps)),
         TabItem("activities", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, stringResource(R.string.tab_activities)),
-        TabItem("profile", Icons.Filled.Person, Icons.Outlined.Person, stringResource(R.string.profile_title)),
     )
     val currentRoute = current?.route
 
@@ -112,10 +112,17 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     },
                 ) {
                     composable("home") {
-                        HomeScreen(contentPadding = contentPadding, onNavigateBase = { nav.navigate("map") })
+                        HomeScreen(
+                            contentPadding = contentPadding,
+                            onNavigateBase = { nav.navigate("map") },
+                            // Pushed rather than tab-switched: profile is opened from
+                            // Home and closed back to it, so back should return there
+                            // instead of unwinding to a tab you were never on.
+                            onOpenProfile = { nav.navigate("profile") },
+                        )
                     }
                     composable("map") { ComingSoonScreen(R.string.tab_map, Icons.Outlined.Map, contentPadding) }
-                    composable("steps") { ComingSoonScreen(R.string.tab_steps, Icons.Outlined.DirectionsRun, contentPadding) }
+                    composable("steps") { ComingSoonScreen(R.string.tab_steps, Icons.AutoMirrored.Outlined.DirectionsRun, contentPadding) }
                     composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
                     composable("profile") {
                         ProfileScreen(contentPadding = contentPadding, onOpenSettings = { nav.navigate("settings") })

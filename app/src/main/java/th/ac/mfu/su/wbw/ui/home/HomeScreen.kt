@@ -61,13 +61,14 @@ import java.time.LocalTime
 fun HomeScreen(
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
     onNavigateBase: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         is UiState.Loading -> LoadingState()
         is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
-        is UiState.Success -> HomeContent(s.data, contentPadding, onNavigateBase)
+        is UiState.Success -> HomeContent(s.data, contentPadding, onNavigateBase, onOpenProfile)
     }
 }
 
@@ -76,6 +77,7 @@ private fun HomeContent(
     model: HomeUiModel,
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
     onNavigateBase: () -> Unit,
+    onOpenProfile: () -> Unit,
 ) {
     val colors = wbwColors
     val morning = remember2()
@@ -104,11 +106,24 @@ private fun HomeContent(
                     style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary,
                 )
             }
+            // Profile lives here rather than in the nav bar. It isn't somewhere you
+            // move back and forth between while walking the trail — you open it to
+            // check a detail or sign out — and iOS reaches it the same way, from the
+            // avatar in this header.
             Box(
-                Modifier.size(42.dp).clip(CircleShape).glass(CircleShape),
+                Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .glass(CircleShape)
+                    .clickable(onClick = onOpenProfile),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Person, null, tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+                Icon(
+                    Icons.Outlined.Person,
+                    stringResource(R.string.profile_title),
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
 
