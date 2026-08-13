@@ -101,7 +101,7 @@ fun FloatingTabBar(
                 // outline, and on a shape this wide the ramp reads as a gradient
                 // painted onto the bar rather than light catching an edge. An even
                 // hairline instead — also the only edge a pre-API-33 phone can draw.
-                .liquidGlass(backdrop, PillShape, highlight = null)
+                .liquidGlass(backdrop, PillShape, surface = BarSurface, highlight = null)
                 .border(1.dp, EdgeColor, PillShape),
         ) {
             val slotWidthPx = constraints.maxWidth.toFloat() / items.size
@@ -240,6 +240,22 @@ private fun slotIndexAt(x: Float, slotWidth: Float, count: Int): Int =
 private val PillShape = RoundedCornerShape(50)
 private val BarHeight = 62.dp
 
+/**
+ * The pane's own lightness, over and above what it refracts.
+ *
+ * Much heavier than clubfair's 0.06, and the difference is the icon colour. That bar
+ * draws its icons white, so it can afford to be nearly clear and let whatever passes
+ * underneath show through. This one draws them in ink to match iOS, and ink needs a
+ * light pane to sit on — with a near-clear surface the icons vanished the moment a
+ * dark card scrolled under the bar (Home's "next base" panel did exactly that).
+ *
+ * So the pane carries its own light rather than borrowing all of it from behind,
+ * which is also what iOS's `.regular` glass does: it lightens what it covers instead
+ * of merely transmitting it. Refraction and blur still come through — this only sets
+ * the floor.
+ */
+private val BarSurface = Color.White.copy(alpha = 0.55f)
+
 /** The gap that separates the action from the destinations. */
 private val BarGap = 12.dp
 
@@ -368,7 +384,7 @@ private fun QrButton(
             // Matched to the bar beside it — two pieces of the same material a gap
             // apart, edged two different ways, is worse than either choice made
             // consistently.
-            .liquidGlass(backdrop, CircleShape, highlight = null)
+            .liquidGlass(backdrop, CircleShape, surface = BarSurface, highlight = null)
             .clip(CircleShape)
             .background(WbwGold.copy(alpha = 0.28f * emphasis))
             // After the fill, not before: the selected state washes gold across the
