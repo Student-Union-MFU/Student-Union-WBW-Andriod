@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -155,23 +156,32 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Row(
                 Modifier
                     .weight(1f)
-                    .glass(RoundedCornerShape(24.dp), fill = GlassClear, elevation = 0.dp)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .heightIn(min = 56.dp)
+                    // A brighter edge than the app's usual hairline. With no fill under
+                    // it, the border is the only thing describing the shape — the shared
+                    // glassBorder is tuned for panes that also have a surface to help.
+                    .glass(
+                        RoundedCornerShape(28.dp),
+                        fill = GlassClear,
+                        border = colors.onBackdrop.copy(alpha = 0.34f),
+                        elevation = 0.dp,
+                    )
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     Icons.Outlined.AddCircleOutline,
                     null,
-                    tint = colors.onBackdropMuted,
-                    modifier = Modifier.size(20.dp),
+                    tint = colors.onBackdrop.copy(alpha = 0.75f),
+                    modifier = Modifier.size(24.dp),
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     if (draft.isEmpty()) {
                         Text(
                             stringResource(R.string.chat_composer_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.onBackdropMuted,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.onBackdrop.copy(alpha = 0.62f),
                         )
                     }
                     // BasicTextField, not a Material TextField: the Material ones bring
@@ -180,7 +190,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
                     BasicTextField(
                         value = draft,
                         onValueChange = { draft = it },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onBackdrop),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onBackdrop),
                         cursorBrush = SolidColor(colors.onBackdrop),
                         maxLines = 4,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -193,8 +203,15 @@ fun ChatScreen(contentPadding: PaddingValues) {
             val canSend = draft.isNotBlank()
             Box(
                 Modifier
-                    .size(46.dp)
-                    .glass(CircleShape, fill = GlassClear, elevation = 0.dp)
+                    .size(56.dp)
+                    .glass(
+                        CircleShape,
+                        fill = GlassClear,
+                        // Lights up with the draft, so the button itself carries the state
+                        // rather than only its glyph.
+                        border = colors.onBackdrop.copy(alpha = if (canSend) 0.55f else 0.28f),
+                        elevation = 0.dp,
+                    )
                     .clickableTap { send(); keyboard?.hide() },
                 contentAlignment = Alignment.Center,
             ) {
@@ -203,8 +220,8 @@ fun ChatScreen(contentPadding: PaddingValues) {
                     stringResource(R.string.chat_send),
                     // Dimmed until there is something to send — the only state the button
                     // has, and cheaper to read than a disabled fill.
-                    tint = colors.onBackdrop.copy(alpha = if (canSend) 1f else 0.35f),
-                    modifier = Modifier.size(19.dp),
+                    tint = colors.onBackdrop.copy(alpha = if (canSend) 1f else 0.42f),
+                    modifier = Modifier.size(23.dp),
                 )
             }
         }
