@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,9 +47,6 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
-import th.ac.mfu.su.wbw.ui.theme.Ink
-import th.ac.mfu.su.wbw.ui.theme.PillButton
-import th.ac.mfu.su.wbw.ui.theme.Kanit
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -60,7 +55,6 @@ import java.time.LocalTime
 @Composable
 fun HomeScreen(
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
-    onNavigateBase: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
@@ -68,7 +62,7 @@ fun HomeScreen(
     when (val s = state) {
         is UiState.Loading -> LoadingState()
         is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
-        is UiState.Success -> HomeContent(s.data, contentPadding, onNavigateBase, onOpenProfile)
+        is UiState.Success -> HomeContent(s.data, contentPadding, onOpenProfile)
     }
 }
 
@@ -76,15 +70,15 @@ fun HomeScreen(
 private fun HomeContent(
     model: HomeUiModel,
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
-    onNavigateBase: () -> Unit,
     onOpenProfile: () -> Unit,
 ) {
     val colors = wbwColors
     val morning = remember2()
-    // Tapping a phase chip previews the plant at that growth stage; otherwise show real progress.
+    // Tapping a phase chip highlights that stage; otherwise the real one is shown.
+    // This used to drive the 3D plant as well — with the plant gone it only moves the
+    // highlight, so the chips read as a legend you can point at rather than a preview.
     var previewStage by remember { mutableStateOf<Int?>(null) }
     val activeOrdinal = previewStage ?: model.phase.ordinal
-    val growthValue = previewStage?.let { stageGrowth(it) } ?: model.progress
     Column(
         Modifier
             .fillMaxSize()
@@ -127,15 +121,12 @@ private fun HomeContent(
             }
         }
 
-        // 3D plant hero — real growth-stage model over the forest bg (no capsule). Drag to rotate.
-        val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-        PlantHero(
-            growth = growthValue,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.5f)
-                .padding(top = 4.dp),
-        )
+        // The 3D plant hero used to sit here, filling half the screen. Removed on
+        // request — the backdrop is already a forest, so a tree drawn on top of it was
+        // competing with the artwork rather than adding to it. `PlantHero`, `Plant3D`
+        // and the growth-stage models are all still in the package, so putting it back
+        // is one call.
+        Spacer(Modifier.height(8.dp))
 
         Text(
             stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases),
@@ -164,36 +155,12 @@ private fun HomeContent(
             }
         }
 
-        // next base
-        Row(
-            Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner)).padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
-                    .background(colors.gold.copy(alpha = 0.16f))
-                    .border(1.dp, colors.gold.copy(alpha = 0.3f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Place, null, tint = colors.gold, modifier = Modifier.size(21.dp)) }
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.home_next_base), color = colors.textMuted, fontSize = 10.sp, letterSpacing = 1.5.sp)
-                Text(model.nextBaseName, style = MaterialTheme.typography.titleMedium, color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.home_base_distance, model.nextBaseDistance), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-            }
-            PillButton(
-                text = stringResource(R.string.home_navigate),
-                onClick = onNavigateBase,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 9.dp),
-            )
-        }
+        // The "next base" card sat here (name, distance, Navigate → the map tab).
+        // Removed on request. `model.nextBaseName`/`nextBaseDistance` are still on the
+        // ui model and still populated, so nothing had to be unpicked upstream.
         Spacer(Modifier.height(4.dp))
     }
 }
-
-/** Growth fraction (0..1) each phase maps to, used to preview the plant at that stage. */
-private fun stageGrowth(ordinal: Int): Float =
-    floatArrayOf(0.05f, 0.24f, 0.5f, 0.75f, 1f)[ordinal.coerceIn(0, 4)]
 
 @Composable
 private fun PhaseChip(phase: GrowthPhase, activeOrdinal: Int, onClick: () -> Unit, modifier: Modifier) {

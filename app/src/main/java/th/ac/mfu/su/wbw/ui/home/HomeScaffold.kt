@@ -114,7 +114,6 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     composable("home") {
                         HomeScreen(
                             contentPadding = contentPadding,
-                            onNavigateBase = { nav.navigate("map") },
                             // Pushed rather than tab-switched: profile is opened from
                             // Home and closed back to it, so back should return there
                             // instead of unwinding to a tab you were never on.

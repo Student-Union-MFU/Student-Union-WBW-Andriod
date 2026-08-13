@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,17 +57,23 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // The event wordmark, replacing the old mark + "WBW" + tagline stack. It
+            // already carries the Thai subtitle, so the tagline underneath was saying
+            // the same thing twice.
+            //
+            // Black artwork on transparent, so it is tinted white and used as a mask —
+            // the same thing iOS does with `logo_wordmark` over this backdrop.
+            // Width-driven at the artwork's own aspect ratio rather than pinned to a
+            // height, so it scales with the screen instead of clipping the descender
+            // on the Thai line.
             Image(
-                painter = painterResource(R.drawable.ic_wbw_logo),
-                contentDescription = null,
-                modifier = Modifier.size(92.dp).padding(bottom = 14.dp),
-            )
-            Text("WBW", style = MaterialTheme.typography.displaySmall, fontFamily = th.ac.mfu.su.wbw.ui.theme.HandLatin, color = colors.textPrimary)
-            Text(
-                text = stringResource(R.string.login_tagline),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 4.dp, bottom = 32.dp),
+                painter = painterResource(R.drawable.logo_wordmark),
+                contentDescription = stringResource(R.string.app_name),
+                colorFilter = ColorFilter.tint(Color.White),
+                modifier = Modifier
+                    .fillMaxWidth(0.86f)
+                    .aspectRatio(LogoAspect)
+                    .padding(bottom = 30.dp),
             )
 
             OutlinedTextField(
@@ -116,3 +125,6 @@ fun LoginScreen(
 
 // Consistent max field width so the form doesn't stretch edge-to-edge on tablets.
 private fun Modifier.fillMaxWidthField(): Modifier = this.width(360.dp)
+
+/** The wordmark artwork's own width:height (847×473 after trimming its empty canvas). */
+private const val LogoAspect = 847f / 473f
