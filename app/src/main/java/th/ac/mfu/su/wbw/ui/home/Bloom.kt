@@ -295,8 +295,16 @@ private fun petalsFor(stage: Float): List<Petal> {
 
     val out = ArrayList<Petal>(toCount + 12)
     for (k in 0 until toCount) {
-        val f = if (toCount == 1) 0f else k.toFloat() / (toCount - 1)
-        val ang = -90f - splay + 2f * splay * f + 6f * (hash(k * 40.7f) - 0.5f)
+        val jitter = 6f * (hash(k * 40.7f) - 0.5f)
+        // A petal's angle depends on how many petals share the fan, so it has to be
+        // carried across the count change rather than recomputed at the new count —
+        // see [fanAngle]. Petals being added take the destination fan directly; they
+        // are at zero length here anyway and will be "existing" in the next segment.
+        val ang = if (k < fromCount) {
+            lerp(fanAngle(k, fromCount, splay, jitter), fanAngle(k, toCount, splay, jitter), t)
+        } else {
+            fanAngle(k, toCount, splay, jitter)
+        }
         // Petals that this stage is adding grow in; ones that already existed stay put.
         val grow = if (k < fromCount) 1f else t
         val len = length * (0.82f + 0.18f * hash(k * 70.3f)) * grow
@@ -309,15 +317,46 @@ private fun petalsFor(stage: Float): List<Petal> {
     // rather than switched on at stage 3, for the same reason as everything above.
     val innerGrow = ((s - 2.5f) / 0.9f).coerceIn(0f, 1f)
     if (innerGrow > 0f) {
-        val inner = toCount / 2
-        for (k in 0 until inner) {
-            val ang = -90f - splay * 0.5f + splay * k / maxOf(1, inner - 1) + 8f * (hash(k * 13.9f) - 0.5f)
-            val len = length * 0.5f * innerGrow
+        val innerFrom = fromCount / 2
+        val innerTo = toCount / 2
+        for (k in 0 until innerTo) {
+            val jitter = 8f * (hash(k * 13.9f) - 0.5f)
+            // Same carry as the outer ring: its count changes on the same boundaries.
+            val ang = if (k < innerFrom) {
+                lerp(innerAngle(k, innerFrom, splay, jitter), innerAngle(k, innerTo, splay, jitter), t)
+            } else {
+                innerAngle(k, innerTo, splay, jitter)
+            }
+            val grow = if (k < innerFrom) 1f else t
+            val len = length * 0.5f * innerGrow * grow
             if (len <= 0.01f) continue
             out.add(Petal(CX, CY, ang, len, len * 0.26f))
         }
     }
     return out
+}
+
+/**
+ * Where petal [k] sits when [count] petals share a fan of [splay] degrees either side of up.
+ *
+ * Pulled out because the same petal has a *different* angle in a six-petal fan than in a
+ * nine-petal one, and the stage transition changes the count underneath it. Computing the
+ * angle from the destination count alone is what made stages 2→3, 3→4 and 4→5 snap: every
+ * existing petal was re-fanned in a single frame. The caller interpolates between the two
+ * fans instead, so the petals sweep to their new spacing.
+ *
+ * The jump is invisible at 1→2 only because the splay there is still zero — the bug was
+ * always present, it just had nothing to swing.
+ */
+private fun fanAngle(k: Int, count: Int, splay: Float, jitter: Float): Float {
+    val f = if (count <= 1) 0.5f else k.toFloat() / (count - 1)
+    return -90f - splay + 2f * splay * f + jitter
+}
+
+/** The inner ring's tighter fan — half the splay, centred. */
+private fun innerAngle(k: Int, count: Int, splay: Float, jitter: Float): Float {
+    val f = if (count <= 1) 0.5f else k.toFloat() / (count - 1)
+    return -90f - splay * 0.5f + splay * f + jitter
 }
 
 /** How much flower covers a point in flower space, 0..1. */
