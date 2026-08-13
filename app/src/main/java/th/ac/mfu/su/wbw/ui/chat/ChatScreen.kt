@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.GlassClear
-import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -116,37 +115,28 @@ fun ChatScreen(contentPadding: PaddingValues) {
             )
         }
 
-        // The conversation sits on one glass pane rather than loose on the backdrop —
-        // but a *sheer* one, so the forest still reads through the thread.
+        // The thread sits directly on the backdrop — no pane under it.
         //
-        // Two fills were tried here and both were too much surface. The themed card fill
-        // is parchment at 0.86 in light mode, which over a dark photograph is a white slab
-        // with a conversation printed on it. GlassSheer's 12% white is subtler but still
-        // washes a pane this large into a pale rectangle. So: nothing painted at all —
-        // refraction and a hairline, and the text commits to light ink in both themes,
-        // exactly like the participant pass.
+        // It had one, and that is what put two different greens on the screen. Liquid
+        // glass lifts what it samples (vibrancy, then the lens), which is exactly right
+        // for something small floating on a ground: the nav bar, the composer, a card.
+        // The thread is not small. It covers most of the screen, so a pane there stops
+        // reading as a surface *on* the background and starts reading as a second
+        // background — a big bright rectangle butted against the real one, with a seam
+        // down the side.
         //
-        // One pane for the whole thread, not one per message: Discord's column reads as a
-        // continuous surface people are talking on, and bubbling each message would undo
-        // the grouping work below.
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp)
-                .glass(RoundedCornerShape(PanelCorner), fill = GlassClear, elevation = 0.dp),
+        // Discord does the same thing for the same reason: its message list sits on the
+        // app background, and only the composer and chrome are their own surfaces.
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            LazyColumn(
-                Modifier.weight(1f).fillMaxWidth(),
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                items(rows) { row ->
-                    when (row) {
-                        is Row_.Day -> DayDivider(row.label)
-                        is Row_.Message -> MessageRow(row)
-                    }
+            items(rows) { row ->
+                when (row) {
+                    is Row_.Day -> DayDivider(row.label)
+                    is Row_.Message -> MessageRow(row)
                 }
             }
         }
