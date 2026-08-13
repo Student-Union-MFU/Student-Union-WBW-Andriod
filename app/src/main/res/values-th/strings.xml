@@ -136,6 +136,9 @@
     <string name="profile_pass_title">บัตรผู้เข้าร่วม</string>
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">ทางการ</string>
+    <string name="profile_event_dates">22–23 พ.ย. 2026</string>
+    <string name="profile_group_n">กลุ่ม %1$d</string>
+    <string name="profile_student_n">รหัส %1$s</string>
     <string name="profile_bib_number">หมายเลขบิบ</string>
     <string name="profile_trail_stamps">แสตมป์เส้นทาง</string>
     <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>

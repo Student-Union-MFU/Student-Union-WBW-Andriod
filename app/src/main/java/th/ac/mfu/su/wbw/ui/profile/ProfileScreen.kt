@@ -1,7 +1,7 @@
 package th.ac.mfu.su.wbw.ui.profile
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,14 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,10 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,20 +53,35 @@ import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.home.GrowthPhase
 import th.ac.mfu.su.wbw.ui.theme.Kanit
+import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
-// The pass is a physical ticket — fixed cream/forest palette, independent of app theme.
-private val TicketInk = Color(0xFF173D2C)
-private val TicketMuted = Color(0xFF8A8577)
-private val TicketGold = Color(0xFFC9883F)
-private val TicketGoldSoft = Color(0xFFE2B078)
-private val TicketTileBg = Color(0xFFF6EFE1)
-private val TicketTileBorder = Color(0xFFEBE1CD)
-private val TicketCream = Color(0xFFFDFBF5)
+/**
+ * The pass reads as one frosted pane over the forest rather than as a paper ticket.
+ *
+ * Everything on it is white on glass, in both themes, for the same reason the old
+ * version pinned a cream palette: the pass is a fixed design you hold up, not a surface
+ * that follows the user's appearance setting. What changed is which fixed design — the
+ * printed-ticket look (cream stock, perforation, barcode, gradient stubs) fought the
+ * backdrop, because a piece of paper laid over a photograph never belongs to it.
+ *
+ * The layout is editorial: one hairline rule system, one accent, a rotated masthead down
+ * the edge, and a lot of air. Weight carries the hierarchy instead of colour, which is
+ * what lets a single white do the work of the old palette's seven tones.
+ */
+private val PassInk = Color(0xFFFFFFFF)
+private val PassMuted = Color(0xCCFFFFFF)
+private val PassFaint = Color(0x8AFFFFFF)
+private val PassHairline = Color(0x33FFFFFF)
+private val PassWell = Color(0x14FFFFFF)
+
+/** The pane itself — deliberately thin, so the forest still reads through it. */
+private val PassSurface = Color(0x1FFFFFFF)
 
 @Composable
 fun ProfileScreen(
     contentPadding: PaddingValues,
+    onBack: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
@@ -71,192 +90,307 @@ fun ProfileScreen(
         when (val s = state) {
             is UiState.Loading -> LoadingState()
             is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
-            is UiState.Success -> ProfileContent(s.data, contentPadding, onOpenSettings)
+            is UiState.Success -> ProfileContent(s.data, contentPadding, onBack, onOpenSettings)
         }
     }
 }
 
 @Composable
-private fun ProfileContent(p: ParticipantDetail, contentPadding: PaddingValues, onOpenSettings: () -> Unit) {
-    val colors = wbwColors
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 18.dp),
-    ) {
-        // header
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.profile_pass_kicker), color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
-                Text(stringResource(R.string.profile_pass_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
-            }
-            Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(colors.glass)
-                    .clickableTap(onOpenSettings),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings_title), tint = colors.onBackdrop, modifier = Modifier.size(20.dp)) }
-        }
-
-        Ticket(p)
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun Ticket(p: ParticipantDetail) {
-    Column(
-        Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(26.dp))
-            .background(Brush.linearGradient(listOf(TicketCream, Color(0xFFF0E8D8)))),
-    ) {
-        // stub header
-        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(TicketInk, Color(0xFF2D6A4F)))).padding(18.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text(stringResource(R.string.profile_pass_title).uppercase(), color = Color(0x99FAF7F0), fontSize = 8.5.sp, letterSpacing = 3.sp, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(R.string.profile_event_name), color = TicketGoldSoft, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, lineHeight = 21.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Filled.Park, null, tint = TicketGoldSoft, modifier = Modifier.size(30.dp))
-                    Text(stringResource(R.string.profile_official), color = Color(0xA6FAF7F0), fontSize = 7.sp, letterSpacing = 2.sp)
-                }
-            }
-            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                TicketChip("22–23 Nov 2026", Color(0x2EE2B078), TicketGoldSoft, border = Color(0x57E2B078))
-                p.groupNumber?.let { TicketChip("Group $it", Color(0x1AFAF7F0), Color(0xFFFAF7F0), border = Color(0x2EFAF7F0)) }
-            }
-        }
-
-        // identity row
-        Row(Modifier.padding(20.dp, 16.dp, 20.dp, 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-            Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(17.dp)).background(Brush.linearGradient(listOf(Color(0xFF40916C), TicketInk))),
-                contentAlignment = Alignment.Center,
-            ) { Text(initialOf(p), fontFamily = Kanit, color = Color(0xFFFAF7F0), fontSize = 25.sp) }
-            Column(Modifier.weight(1f)) {
-                Text(p.fullName, color = TicketInk, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 20.sp)
-                p.schoolName?.let { Text(it, color = TicketMuted, fontSize = 12.sp) }
-                p.studentId?.let { Text("Student $it", color = TicketGold, fontWeight = FontWeight.Bold, fontSize = 11.5.sp) }
-            }
-        }
-
-        // BIB band
+private fun ProfileContent(
+    p: ParticipantDetail,
+    contentPadding: PaddingValues,
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
+        // No title bar. This screen is pushed from Home's avatar and closed again, so it
+        // needs a way back and nothing else — a header repeating "Participant Pass" over
+        // a pass that already says so was spending the top of the screen on nothing.
+        // Settings keeps its button here because this is the only route to it.
+        //
+        // Outside the scroll on purpose: the pass is taller than the screen, and a back
+        // button that scrolls away is one you have to scroll back up to reach.
         Row(
-            Modifier.padding(horizontal = 20.dp).clip(RoundedCornerShape(18.dp))
-                .background(Brush.linearGradient(listOf(TicketInk, Color(0xFF2D6A4F)))).padding(16.dp, 14.dp),
+            Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.profile_bib_number).uppercase(), color = Color(0x99FAF7F0), fontSize = 8.5.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
-                Text(p.bib?.toString() ?: "—", fontFamily = Kanit, color = Color(0xFFFAF7F0), fontSize = 42.sp, fontWeight = FontWeight.Bold, lineHeight = 44.sp)
+            CircleButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    stringResource(R.string.action_back),
+                    tint = PassInk,
+                    modifier = Modifier.size(20.dp),
+                )
             }
-            Box(Modifier.clip(RoundedCornerShape(12.dp)).background(TicketCream).padding(5.dp)) {
-                Icon(Icons.Outlined.QrCode2, null, tint = Color(0xFF1B4332), modifier = Modifier.size(44.dp))
-            }
-        }
-
-        // trail stamps (placeholder progress — backend has no per-base check-ins yet)
-        val total = 8
-        val done = if (p.checkedIn) 3 else 0
-        val phase = GrowthPhase.forProgress(done, total)
-        Column(Modifier.padding(20.dp, 14.dp, 20.dp, 0.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.profile_trail_stamps), color = TicketInk, fontWeight = FontWeight.Bold, fontSize = 11.5.sp, letterSpacing = 0.5.sp)
-                Text(stringResource(R.string.profile_stamps_progress, done, total, stringResource(phase.labelRes)), color = TicketGold, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-            }
-            Row(Modifier.padding(top = 9.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                repeat(total) { i ->
-                    val filled = i < done
-                    Box(
-                        Modifier.weight(1f).height(34.dp).clip(RoundedCornerShape(9.dp))
-                            .background(if (filled) Color(0xFF6FB894) else Color(0xFFF4EEE1)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Filled.Park, null, tint = if (filled) Color(0xFF123826) else Color(0xFFCABFA8), modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-            // progress bar
-            Box(Modifier.padding(top = 11.dp).fillMaxWidth().height(12.dp).clip(RoundedCornerShape(7.dp)).background(Color(0xFFE6DDC9))) {
-                Box(Modifier.fillMaxWidth(done.toFloat() / total).height(12.dp).clip(RoundedCornerShape(7.dp)).background(Color(0xFF40916C)))
+            Spacer(Modifier.weight(1f))
+            CircleButton(onClick = onOpenSettings) {
+                Icon(
+                    Icons.Outlined.Settings,
+                    stringResource(R.string.settings_title),
+                    tint = PassInk,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
 
-        // perforation
-        Canvas(Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 16.dp)) {
-            val y = size.height / 2
-            var x = 0f
-            val dash = 10f; val gap = 8f
-            while (x < size.width) {
-                drawLine(Color(0xFFD8CFBA), androidx.compose.ui.geometry.Offset(x, y), androidx.compose.ui.geometry.Offset(x + dash, y), strokeWidth = 4f)
-                x += dash + gap
-            }
-        }
-
-        // info tiles
-        Row(Modifier.padding(20.dp, 0.dp, 20.dp, 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            InfoTile(p.groupNumber?.toString() ?: "—", stringResource(R.string.profile_label_group), Modifier.weight(1f))
-            InfoTile(p.bloodType ?: "—", stringResource(R.string.profile_label_blood), Modifier.weight(1f))
-            InfoTile(if (p.checkedIn) stringResource(R.string.profile_checkin_status) else "—", stringResource(R.string.profile_label_rank), Modifier.weight(1f))
-        }
-
-        // detail rows
-        Column(Modifier.padding(20.dp, 8.dp, 20.dp, 4.dp)) {
-            DetailRow(stringResource(R.string.profile_row_height_weight), heightWeight(p))
-            DetailRow(stringResource(R.string.profile_row_contact_phone), p.contactPhone ?: "—")
-            DetailRow(
-                stringResource(R.string.profile_section_emergency),
-                listOfNotNull(p.emergencyContactName, p.emergencyContactPhone).joinToString(" · ").ifBlank { "—" },
-                last = true,
-            )
-        }
-
-        // barcode footer
-        Row(Modifier.fillMaxWidth().background(Color(0xFFF3ECDD)).padding(20.dp, 13.dp, 20.dp, 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Canvas(Modifier.weight(1f).height(34.dp)) {
-                var x = 0f
-                val widths = listOf(2f, 1f, 3f, 1f, 2f, 4f, 1f, 2f, 3f, 1f, 2f, 1f, 4f, 2f, 1f, 3f, 2f, 1f, 2f, 4f)
-                var i = 0
-                while (x < size.width) {
-                    val w = widths[i % widths.size]
-                    drawRect(TicketInk, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Size(w, size.height))
-                    x += w + 2f; i++
-                }
-            }
-            Column(Modifier.padding(start = 14.dp), horizontalAlignment = Alignment.End) {
-                Text(stringResource(R.string.profile_label_student_id), color = TicketMuted, fontSize = 8.5.sp, letterSpacing = 1.5.sp)
-                Text(p.studentId ?: "—", fontFamily = Kanit, color = TicketInk, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(contentPadding)) {
+            Pass(p)
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun TicketChip(text: String, bg: Color, fg: Color, border: Color) {
-    Box(Modifier.clip(RoundedCornerShape(10.dp)).background(bg).padding(horizontal = 10.dp, vertical = 4.dp)) {
-        Text(text, color = fg, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-    }
+private fun CircleButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .size(40.dp)
+            .glass(CircleShape, fill = PassSurface)
+            .clickableTap(onClick),
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
 
 @Composable
-private fun InfoTile(value: String, label: String, modifier: Modifier) {
-    Column(
-        modifier.clip(RoundedCornerShape(13.dp)).background(TicketTileBg).padding(vertical = 9.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun Pass(p: ParticipantDetail) {
+    val colors = wbwColors
+    val shape = RoundedCornerShape(28.dp)
+    val total = 8
+    val done = if (p.checkedIn) 3 else 0
+    val phase = GrowthPhase.forProgress(done, total)
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .glass(shape, fill = PassSurface, elevation = 18.dp)
+            .padding(start = 24.dp, end = 10.dp, top = 26.dp, bottom = 24.dp),
     ) {
-        Text(value, fontFamily = Kanit, color = Color(0xFF2D6A4F), fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1)
-        Text(label.uppercase(), color = TicketMuted, fontSize = 9.sp, letterSpacing = 0.5.sp)
+        Column(Modifier.weight(1f)) {
+            Kicker(stringResource(R.string.profile_pass_title))
+
+            // The QR block, in the slot the reference gives its inset photograph: an
+            // opaque rectangle high on the panel, the one solid thing amongst the glass.
+            Box(
+                Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(0.52f)
+                    .aspectRatio(1.24f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(PassInk),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.QrCode2,
+                    stringResource(R.string.profile_label_student_id),
+                    tint = Color(0xFF16241A),
+                    modifier = Modifier.size(74.dp),
+                )
+            }
+
+            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                OutlinePill(stringResource(R.string.profile_event_dates))
+                p.groupNumber?.let { OutlinePill(stringResource(R.string.profile_group_n, it)) }
+            }
+
+            // The name is the headline, the way the reference sets its title — the
+            // largest thing on the panel, and the only place weight is used at all.
+            Text(
+                p.fullName,
+                color = PassInk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                lineHeight = 34.sp,
+                modifier = Modifier.padding(top = 22.dp),
+            )
+            p.schoolName?.let {
+                Text(it, color = PassMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+            p.studentId?.let {
+                Text(
+                    stringResource(R.string.profile_student_n, it),
+                    color = colors.gold,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 5.dp),
+                )
+            }
+
+            Rule(Modifier.padding(top = 20.dp))
+
+            // BIB, set as a number rather than a badge — it is the other thing on this
+            // screen someone reads out loud, so it gets display size too.
+            Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Kicker(stringResource(R.string.profile_bib_number))
+                    Text(
+                        p.bib?.toString() ?: "—",
+                        fontFamily = Kanit,
+                        color = PassInk,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 46.sp,
+                        lineHeight = 48.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (p.checkedIn) FilledPill(stringResource(R.string.profile_checkin_status))
+            }
+
+            Rule(Modifier.padding(top = 18.dp))
+
+            // Trail stamps: eight cells, filled ones solid. The old version drew a tree
+            // glyph in every cell and a second progress bar underneath — two readings of
+            // one number, in a design that has room for neither.
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Kicker(stringResource(R.string.profile_trail_stamps))
+                Text(
+                    stringResource(R.string.profile_stamps_progress, done, total, stringResource(phase.labelRes)),
+                    color = colors.gold,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                repeat(total) { i ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(if (i < done) PassInk else PassWell),
+                    )
+                }
+            }
+
+            Rule(Modifier.padding(top = 20.dp))
+
+            Column(Modifier.padding(top = 6.dp)) {
+                DetailRow(stringResource(R.string.profile_label_blood), p.bloodType ?: "—")
+                DetailRow(stringResource(R.string.profile_row_height_weight), heightWeight(p))
+                DetailRow(stringResource(R.string.profile_row_contact_phone), p.contactPhone ?: "—")
+                DetailRow(
+                    stringResource(R.string.profile_section_emergency),
+                    listOfNotNull(p.emergencyContactName, p.emergencyContactPhone).joinToString(" · ").ifBlank { "—" },
+                    last = true,
+                )
+            }
+        }
+
+        // The masthead, running up the edge. Carries the event name and the OFFICIAL
+        // mark that used to need a tree icon and a stub header to say the same thing.
+        Column(
+            Modifier.padding(start = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            VerticalLabel(stringResource(R.string.profile_event_name).uppercase(), PassMuted)
+            Spacer(Modifier.height(16.dp))
+            Box(Modifier.width(1.dp).height(46.dp).background(PassHairline))
+            Spacer(Modifier.height(16.dp))
+            VerticalLabel(stringResource(R.string.profile_official), PassFaint)
+        }
     }
+}
+
+/** Small letterspaced uppercase label — the panel's only secondary type style. */
+@Composable
+private fun Kicker(text: String) {
+    Text(
+        text.uppercase(),
+        color = PassFaint,
+        fontSize = 8.5.sp,
+        letterSpacing = 3.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+/**
+ * The same label turned on its side.
+ *
+ * `layout` swaps the measured axes before the rotation, so the row reserves the glyphs'
+ * height as its width. Rotating alone leaves the original horizontal box in the layout
+ * and the text overhangs the panel.
+ */
+@Composable
+private fun VerticalLabel(text: String, color: Color) {
+    Text(
+        text,
+        color = color,
+        fontSize = 8.5.sp,
+        letterSpacing = 4.sp,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(Constraints(0, constraints.maxHeight, 0, constraints.maxWidth))
+                layout(placeable.height, placeable.width) {
+                    placeable.place(
+                        x = -(placeable.width / 2 - placeable.height / 2),
+                        y = -(placeable.height / 2 - placeable.width / 2),
+                    )
+                }
+            }
+            .rotate(90f),
+    )
+}
+
+/** Hairline-outlined chip, straight from the reference's button treatment. */
+@Composable
+private fun OutlinePill(text: String) {
+    Box(
+        Modifier
+            .clip(CircleShape)
+            .border(1.dp, PassHairline, CircleShape)
+            .padding(horizontal = 13.dp, vertical = 6.dp),
+    ) {
+        Text(text.uppercase(), color = PassMuted, fontSize = 8.5.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** The one solid-filled chip on the panel — the reference uses exactly one too. */
+@Composable
+private fun FilledPill(text: String) {
+    Box(
+        Modifier
+            .clip(CircleShape)
+            .background(PassInk)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) {
+        Text(text.uppercase(), color = Color(0xFF16241A), fontSize = 8.5.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun Rule(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(1.dp).background(PassHairline))
 }
 
 @Composable
 private fun DetailRow(label: String, value: String, last: Boolean = false) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = TicketMuted, fontSize = 12.sp)
-        Text(value, color = TicketInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(label.uppercase(), color = PassFaint, fontSize = 8.5.sp, letterSpacing = 1.6.sp, modifier = Modifier.padding(top = 2.dp))
+        Text(
+            value,
+            color = PassInk,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 16.dp),
+        )
     }
-    if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFEFE6D5)))
+    if (!last) Rule()
 }
-
-private fun initialOf(p: ParticipantDetail): String =
-    (p.firstName ?: p.fullName).trim().take(1).uppercase().ifBlank { "•" }
 
 @Composable
 private fun heightWeight(p: ParticipantDetail): String {

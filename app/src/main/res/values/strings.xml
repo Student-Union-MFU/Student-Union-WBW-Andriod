@@ -138,6 +138,10 @@
     <string name="profile_pass_title">Participant Pass</string>
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">OFFICIAL</string>
+    <!-- Was hardcoded in ProfileScreen before the pass was redesigned. -->
+    <string name="profile_event_dates">22–23 Nov 2026</string>
+    <string name="profile_group_n">Group %1$d</string>
+    <string name="profile_student_n">Student %1$s</string>
     <string name="profile_bib_number">Bib number</string>
     <string name="profile_trail_stamps">TRAIL STAMPS</string>
     <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>

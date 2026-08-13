@@ -121,7 +121,11 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     composable("steps") { ComingSoonScreen(R.string.tab_steps, Icons.AutoMirrored.Outlined.DirectionsRun, contentPadding) }
                     composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
                     composable("profile") {
-                        ProfileScreen(contentPadding = contentPadding, onOpenSettings = { nav.navigate("settings") })
+                        ProfileScreen(
+                            contentPadding = contentPadding,
+                            onBack = { nav.popBackStack() },
+                            onOpenSettings = { nav.navigate("settings") },
+                        )
                     }
                     composable("settings") {
                         SettingsScreen(contentPadding = contentPadding, onBack = { nav.popBackStack() }, onLogout = onLogout)
