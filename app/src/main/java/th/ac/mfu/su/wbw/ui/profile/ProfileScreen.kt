@@ -168,52 +168,57 @@ private fun Pass(p: ParticipantDetail) {
         Column(Modifier.weight(1f)) {
             Kicker(stringResource(R.string.profile_pass_title))
 
-            // The QR block, in the slot the reference gives its inset photograph: an
-            // opaque rectangle high on the panel, the one solid thing amongst the glass.
-            Box(
-                Modifier
-                    .padding(top = 16.dp)
-                    .fillMaxWidth(0.52f)
-                    .aspectRatio(1.24f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(PassInk),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.QrCode2,
-                    stringResource(R.string.profile_label_student_id),
-                    tint = Color(0xFF16241A),
-                    modifier = Modifier.size(74.dp),
-                )
-            }
-
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 OutlinePill(stringResource(R.string.profile_event_dates))
                 p.groupNumber?.let { OutlinePill(stringResource(R.string.profile_group_n, it)) }
             }
 
-            // The name is the headline, the way the reference sets its title — the
-            // largest thing on the panel, and the only place weight is used at all.
-            Text(
-                p.fullName,
-                color = PassInk,
-                fontWeight = FontWeight.Bold,
-                fontSize = 34.sp,
-                lineHeight = 34.sp,
-                modifier = Modifier.padding(top = 22.dp),
-            )
-            p.schoolName?.let {
-                Text(it, color = PassMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
-            }
-            p.studentId?.let {
-                Text(
-                    stringResource(R.string.profile_student_n, it),
-                    color = colors.gold,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 5.dp),
-                )
+            // Identity and QR share a row: they are the two things a marshal looks at,
+            // and the QR is the one that gets held up. Sitting it beside the name rather
+            // than in its own block above lets it be larger and puts the code next to
+            // the person it belongs to.
+            Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f).padding(end = 14.dp)) {
+                    // The name is the headline, the way the reference sets its title —
+                    // the largest thing on the panel after the bib.
+                    Text(
+                        p.fullName,
+                        color = PassInk,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        lineHeight = 31.sp,
+                    )
+                    p.schoolName?.let {
+                        Text(it, color = PassMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    p.studentId?.let {
+                        Text(
+                            stringResource(R.string.profile_student_n, it),
+                            color = colors.gold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 5.dp),
+                        )
+                    }
+                }
+                // The one solid thing amongst the glass, and deliberately the brightest
+                // rectangle on the panel — a code that will be scanned in low light
+                // under trees should not be competing with a translucent surface.
+                Box(
+                    Modifier
+                        .size(116.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(PassInk),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.QrCode2,
+                        stringResource(R.string.profile_label_student_id),
+                        tint = Color(0xFF16241A),
+                        modifier = Modifier.size(96.dp),
+                    )
+                }
             }
 
             Rule(Modifier.padding(top = 20.dp))
