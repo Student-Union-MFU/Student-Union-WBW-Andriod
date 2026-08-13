@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "th.ac.mfu.su.wbw"
-    compileSdk = 36
+    // 37 because `backdrop` refuses to be consumed by anything compiling against
+    // less. Only compileSdk moved — targetSdk stays at 36, since raising that opts
+    // the app into new runtime behaviour and is a separate decision from being able
+    // to see the newer APIs at compile time.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "th.ac.mfu.su.wbw"
@@ -77,4 +81,5 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.coil.compose)
     implementation(libs.sceneview)
+    implementation(libs.backdrop)
 }

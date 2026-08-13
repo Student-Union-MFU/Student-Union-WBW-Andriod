@@ -1,5 +1,8 @@
 [versions]
-agp = "9.0.1"
+# 9.2.1 (with Gradle 9.6.1 in the wrapper) is the floor for compileSdk 37, which
+# `backdrop` requires. Same pair su-clubfair-mobile runs, so the combination is
+# known to work with this library rather than guessed at.
+agp = "9.2.1"
 kotlin = "2.3.20"
 coreKtx = "1.15.0"
 lifecycle = "2.9.0"
@@ -14,6 +17,7 @@ retrofitSerializationConverter = "1.0.0"
 coil = "2.7.0"
 splashscreen = "1.0.1"
 sceneview = "2.3.3"
+backdrop = "2.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,6 +43,13 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 retrofit-serialization-converter = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitSerializationConverter" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 sceneview = { group = "io.github.sceneview", name = "sceneview", version.ref = "sceneview" }
+# Liquid glass — Kyant0's AndroidLiquidGlass, the same library su-clubfair-mobile
+# uses for its nav bar. It refracts what is behind a pane rather than only blurring
+# it, which is the part that reads as iOS 26 glass. The shaders need RuntimeShader,
+# so the lens wants API 33 and the blur API 31; the library no-ops each below those
+# instead of crashing, so on an older phone the bar degrades to a plain translucent
+# pill rather than breaking.
+backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
