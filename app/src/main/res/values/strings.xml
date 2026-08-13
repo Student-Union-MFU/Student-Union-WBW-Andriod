@@ -92,7 +92,14 @@
     <string name="tab_home">Home</string>
     <string name="tab_map">Map</string>
     <string name="tab_activity">Activity</string>
-    <string name="tab_steps">Steps</string>
+    <string name="tab_chat">Chat</string>
+
+    <!-- Group chat placeholder -->
+    <string name="chat_channel">Group chat</string>
+    <string name="chat_channel_desc">Everyone walking with your group</string>
+    <string name="chat_composer_hint">Message your group…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_tag_staff">Staff</string>
     <string name="tab_activities">Activities</string>
 
     <!-- Activities / events -->

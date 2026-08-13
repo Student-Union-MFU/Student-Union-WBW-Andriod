@@ -262,8 +262,19 @@ private const val HeadSpan = 160f
 /**
  * The flower at a (fractional) stage.
  *
- * Fractional because the stage animates: petal *count* steps, but length and splay are
- * interpolated, so the opening is continuous rather than five visible jumps.
+ * Everything here is continuous in [stage], because the stage animates and any quantity
+ * that steps will be seen stepping. Three things used to step, and all three were
+ * visible as a pop between bud and first bloom:
+ *
+ *  - **Petal count** snapped at the halfway point, so five petals appeared at once at
+ *    full length. Now the target stage's petals all exist from the start of the
+ *    transition and the new ones grow their length in from zero.
+ *  - **Petal width** was a separate `count == 1` branch using a 0.35 ratio against the
+ *    0.20 the others use, so the bud instantly thinned as it split. The ratio is now
+ *    interpolated like everything else and the branch is gone.
+ *  - **The jitter seed** was `hash(s * 40 + k)` — `s` is the *animating* value, so every
+ *    frame reseeded every petal and the flower shimmered its way through the change.
+ *    Seeds are per-petal-index only, fixed for the life of the flower.
  */
 private fun petalsFor(stage: Float): List<Petal> {
     val s = stage.coerceIn(0f, 5f)
@@ -273,30 +284,37 @@ private fun petalsFor(stage: Float): List<Petal> {
     val counts = intArrayOf(0, 1, 6, 9, 13, 18)
     val lengths = floatArrayOf(0f, 30f, 40f, 52f, 64f, 74f)
     val splays = floatArrayOf(0f, 0f, 42f, 96f, 150f, 180f)
+    // Wide and blunt as a bud, narrowing as the petals separate.
+    val ratios = floatArrayOf(0.35f, 0.35f, 0.24f, 0.21f, 0.20f, 0.20f)
 
-    val count = if (s < 1f) 0 else counts[minOf(i + if (t > 0.5f) 1 else 0, 5)]
+    val fromCount = counts[i]
+    val toCount = counts[minOf(i + 1, 5)]
     val length = lerp(lengths[i], lengths[minOf(i + 1, 5)], t)
     val splay = lerp(splays[i], splays[minOf(i + 1, 5)], t)
+    val ratio = lerp(ratios[i], ratios[minOf(i + 1, 5)], t)
 
-    val out = ArrayList<Petal>(count + 12)
-    if (count == 1) {
-        // A closed bud.
-        out.add(Petal(CX, CY, -90f, length, length * 0.35f))
-        return out
+    val out = ArrayList<Petal>(toCount + 12)
+    for (k in 0 until toCount) {
+        val f = if (toCount == 1) 0f else k.toFloat() / (toCount - 1)
+        val ang = -90f - splay + 2f * splay * f + 6f * (hash(k * 40.7f) - 0.5f)
+        // Petals that this stage is adding grow in; ones that already existed stay put.
+        val grow = if (k < fromCount) 1f else t
+        val len = length * (0.82f + 0.18f * hash(k * 70.3f)) * grow
+        if (len <= 0.01f) continue
+        out.add(Petal(CX, CY, ang, len, len * ratio))
     }
-    for (k in 0 until count) {
-        val f = if (count == 1) 0f else k.toFloat() / (count - 1)
-        val ang = -90f - splay + 2f * splay * f + 6f * (hash(s * 40f + k) - 0.5f)
-        val len = length * (0.82f + 0.18f * hash(s * 70f + k))
-        out.add(Petal(CX, CY, ang, len, len * 0.20f))
-    }
+
     // Inner ring — shorter and tighter, which is what makes the centre read as dense
-    // rather than as a hole where all the petal roots meet.
-    if (s >= 3f) {
-        val inner = count / 2
+    // rather than as a hole where all the petal roots meet. Faded in over a window
+    // rather than switched on at stage 3, for the same reason as everything above.
+    val innerGrow = ((s - 2.5f) / 0.9f).coerceIn(0f, 1f)
+    if (innerGrow > 0f) {
+        val inner = toCount / 2
         for (k in 0 until inner) {
-            val ang = -90f - splay * 0.5f + splay * k / maxOf(1, inner - 1) + 8f * (hash(k * 13f + s) - 0.5f)
-            out.add(Petal(CX, CY, ang, length * 0.5f, length * 0.13f))
+            val ang = -90f - splay * 0.5f + splay * k / maxOf(1, inner - 1) + 8f * (hash(k * 13.9f) - 0.5f)
+            val len = length * 0.5f * innerGrow
+            if (len <= 0.01f) continue
+            out.add(Petal(CX, CY, ang, len, len * 0.26f))
         }
     }
     return out

@@ -13,11 +13,11 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.QrCode2
@@ -35,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.ui.activities.ActivitiesScreen
+import th.ac.mfu.su.wbw.ui.chat.ChatScreen
 import th.ac.mfu.su.wbw.ui.profile.ProfileScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
@@ -43,7 +44,7 @@ import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 private fun routeOrder(route: String?): Int = when (route) {
     "home" -> 0
     "map" -> 1
-    "steps" -> 2
+    "chat" -> 2
     "activities" -> 3
     "profile" -> 4
     "settings" -> 5
@@ -61,9 +62,10 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
 
-    // Icons follow iOS `MainTabView.swift`: house.fill, map.fill, figure.run.
-    // `activities` has no iOS counterpart in the bar, so it keeps its own glyph
-    // rather than being forced onto an iOS symbol that means something else.
+    // Icons follow iOS `MainTabView.swift`: house.fill, map.fill, and — for the chat
+    // slot — the message glyph iOS uses once a participant has a group. `activities` has
+    // no iOS counterpart in the bar, so it keeps its own glyph rather than being forced
+    // onto an iOS symbol that means something else.
     //
     // Profile is deliberately not here — it is the avatar in Home's header, which is
     // where iOS puts it too. A destination you open to check a detail and close again
@@ -71,7 +73,7 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
     val tabs = listOf(
         TabItem("home", Icons.Filled.Home, Icons.Outlined.Home, stringResource(R.string.tab_home)),
         TabItem("map", Icons.Filled.Map, Icons.Outlined.Map, stringResource(R.string.tab_map)),
-        TabItem("steps", Icons.AutoMirrored.Filled.DirectionsRun, Icons.AutoMirrored.Outlined.DirectionsRun, stringResource(R.string.tab_steps)),
+        TabItem("chat", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat, stringResource(R.string.tab_chat)),
         TabItem("activities", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, stringResource(R.string.tab_activities)),
     )
     val currentRoute = current?.route
@@ -118,7 +120,7 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                         )
                     }
                     composable("map") { ComingSoonScreen(R.string.tab_map, Icons.Outlined.Map, contentPadding) }
-                    composable("steps") { ComingSoonScreen(R.string.tab_steps, Icons.AutoMirrored.Outlined.DirectionsRun, contentPadding) }
+                    composable("chat") { ChatScreen(contentPadding = contentPadding) }
                     composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
                     composable("profile") {
                         ProfileScreen(
