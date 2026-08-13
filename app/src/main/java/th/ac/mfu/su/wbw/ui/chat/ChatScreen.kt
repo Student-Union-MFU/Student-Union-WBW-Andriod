@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
+import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
+import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
@@ -80,18 +82,38 @@ fun ChatScreen(contentPadding: PaddingValues) {
             )
         }
 
-        LazyColumn(
-            Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+        // The conversation sits on one glass pane rather than loose on the backdrop.
+        //
+        // Loose was the mistake: with no surface under it, every line had to be drawn in
+        // the backdrop ink — one near-white for everything, because that is the only
+        // colour legible directly on the photograph. Put the thread on a pane and the
+        // card palette applies again, so author, body and timestamp can separate by tone
+        // instead of all being the same white.
+        //
+        // One pane for the whole thread, not one per message: Discord's column reads as a
+        // continuous surface people are talking on, and bubbling each message would undo
+        // the grouping work below.
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .glass(RoundedCornerShape(PanelCorner)),
         ) {
-            items(rows) { row ->
-                when (row) {
-                    is Row_.Day -> DayDivider(row.label)
-                    is Row_.Message -> MessageRow(row)
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                items(rows) { row ->
+                    when (row) {
+                        is Row_.Day -> DayDivider(row.label)
+                        is Row_.Message -> MessageRow(row)
+                    }
                 }
             }
         }
+        Spacer(Modifier.height(10.dp))
 
         // Composer. Disabled on purpose — a box you can type into but that cannot send
         // would be a worse lie than one that plainly is not ready.
@@ -112,14 +134,14 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 Icon(
                     Icons.Outlined.AddCircleOutline,
                     null,
-                    tint = colors.onBackdropMuted,
+                    tint = colors.textMuted,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.chat_composer_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onBackdropMuted,
+                    color = colors.textMuted,
                 )
             }
             Spacer(Modifier.width(10.dp))
@@ -133,7 +155,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 Icon(
                     Icons.AutoMirrored.Outlined.Send,
                     stringResource(R.string.chat_send),
-                    tint = colors.onBackdropMuted,
+                    tint = colors.textMuted,
                     modifier = Modifier.size(19.dp),
                 )
             }
@@ -148,16 +170,16 @@ private fun DayDivider(label: String) {
         Modifier.fillMaxWidth().padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.weight(1f).height(1.dp).background(colors.glassBorder))
+        Box(Modifier.weight(1f).height(1.dp).background(colors.line))
         Text(
             label.uppercase(),
-            color = colors.onBackdropMuted,
+            color = colors.textMuted,
             fontSize = 8.5.sp,
             letterSpacing = 2.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
-        Box(Modifier.weight(1f).height(1.dp).background(colors.glassBorder))
+        Box(Modifier.weight(1f).height(1.dp).background(colors.line))
     }
 }
 
@@ -174,13 +196,18 @@ private fun MessageRow(row: Row_.Message) {
         // keeps every line of every message aligned down the page.
         Box(Modifier.width(46.dp), contentAlignment = Alignment.TopCenter) {
             if (!row.grouped) {
+                // Avatars carry the only colour in the thread. Discord's are arbitrary
+                // hues; these come off the palette's green so the column still reads as
+                // part of the app, and staff get the strongest one so an official message
+                // is identifiable before the tag is read.
+                val tint = if (m.staff) colors.green else colors.green.copy(alpha = avatarAlpha(m.author))
                 Box(
-                    Modifier.size(36.dp).clip(CircleShape).background(colors.glass),
+                    Modifier.size(36.dp).clip(CircleShape).background(tint),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         m.author.take(1).uppercase(),
-                        color = colors.onBackdrop,
+                        color = if (colors.isDark) WbwInkLight else TicketCreamPaper,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
@@ -192,7 +219,7 @@ private fun MessageRow(row: Row_.Message) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         m.author,
-                        color = colors.onBackdrop,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.5.sp,
                     )
@@ -201,14 +228,14 @@ private fun MessageRow(row: Row_.Message) {
                         StaffTag()
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(m.time, color = colors.onBackdropMuted, fontSize = 9.5.sp)
+                    Text(m.time, color = colors.textMuted, fontSize = 9.5.sp)
                 }
                 Spacer(Modifier.height(3.dp))
             }
             Text(
                 m.body,
                 style = MaterialTheme.typography.bodyMedium,
-                color = colors.onBackdrop.copy(alpha = 0.92f),
+                color = colors.textPrimary.copy(alpha = 0.86f),
             )
         }
     }
@@ -220,12 +247,13 @@ private fun StaffTag() {
     Box(
         Modifier
             .clip(RoundedCornerShape(5.dp))
-            .border(1.dp, colors.glassBorder, RoundedCornerShape(5.dp))
+            .background(colors.green.copy(alpha = 0.18f))
+            .border(1.dp, colors.green.copy(alpha = 0.45f), RoundedCornerShape(5.dp))
             .padding(horizontal = 5.dp, vertical = 1.dp),
     ) {
         Text(
             stringResource(R.string.chat_tag_staff).uppercase(),
-            color = colors.onBackdropMuted,
+            color = colors.green,
             fontSize = 7.5.sp,
             letterSpacing = 1.sp,
             fontWeight = FontWeight.Bold,
@@ -267,6 +295,18 @@ private fun groupMessages(source: List<ChatMessageStub>): List<Row_> {
         lastAuthor = m.author
     }
     return out
+}
+
+/**
+ * A stable per-author strength for the avatar tint.
+ *
+ * Hashed off the name so a person keeps the same shade for the life of the thread, and
+ * kept inside a narrow band — the point is to tell speakers apart at a glance, not to
+ * reintroduce the accent colour that was just taken out.
+ */
+private fun avatarAlpha(author: String): Float {
+    val h = author.fold(0) { acc, c -> acc * 31 + c.code } and 0xFFFF
+    return 0.38f + (h % 5) * 0.09f
 }
 
 private fun Modifier.clickableTap(onClick: () -> Unit): Modifier = composed {
