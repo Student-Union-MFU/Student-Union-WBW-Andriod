@@ -146,82 +146,80 @@ fun ChatScreen(contentPadding: PaddingValues) {
         // A real composer: it takes text and the button posts it into the thread above.
         // Local only, but a field you can actually type in is the thing that tells you
         // whether the layout works — a painted-on placeholder never does.
+        //
+        // One shape, with send *inside* it. It was a pill plus a detached round button,
+        // which is precisely the nav bar's silhouette — and the nav bar sits directly
+        // underneath. Two identical pill-and-circle rows stacked read as two nav bars,
+        // and the lower one is the real navigation, so the composer was the one that had
+        // to give the pattern up. The bar owns that split (it is the iOS `.search` role);
+        // the composer is a single field.
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
-                .padding(bottom = contentPadding.calculateBottomPadding().coerceAtLeast(12.dp)),
+                // contentPadding carries the floating nav bar's clearance. Without it the
+                // composer sits under the bar, which overlays everything from the scaffold.
+                .padding(bottom = contentPadding.calculateBottomPadding().coerceAtLeast(14.dp))
+                .heightIn(min = 56.dp)
+                // A brighter edge than the app's usual hairline. With no fill under it,
+                // the border is the only thing describing the shape — the shared
+                // glassBorder is tuned for panes that also have a surface to help.
+                .glass(
+                    RoundedCornerShape(28.dp),
+                    fill = GlassClear,
+                    border = colors.onBackdrop.copy(alpha = 0.34f),
+                    elevation = 0.dp,
+                )
+                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier
-                    .weight(1f)
-                    .heightIn(min = 56.dp)
-                    // A brighter edge than the app's usual hairline. With no fill under
-                    // it, the border is the only thing describing the shape — the shared
-                    // glassBorder is tuned for panes that also have a surface to help.
-                    .glass(
-                        RoundedCornerShape(28.dp),
-                        fill = GlassClear,
-                        border = colors.onBackdrop.copy(alpha = 0.34f),
-                        elevation = 0.dp,
-                    )
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Outlined.AddCircleOutline,
-                    null,
-                    tint = colors.onBackdrop.copy(alpha = 0.75f),
-                    modifier = Modifier.size(24.dp),
-                )
-                Spacer(Modifier.width(12.dp))
-                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (draft.isEmpty()) {
-                        Text(
-                            stringResource(R.string.chat_composer_hint),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = colors.onBackdrop.copy(alpha = 0.62f),
-                        )
-                    }
-                    // BasicTextField, not a Material TextField: the Material ones bring
-                    // their own container, indicator line and padding, all of which would
-                    // paint a background back onto a pane that is deliberately clear.
-                    BasicTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onBackdrop),
-                        cursorBrush = SolidColor(colors.onBackdrop),
-                        maxLines = 4,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { send(); keyboard?.hide() }),
-                        modifier = Modifier.fillMaxWidth(),
+            Icon(
+                Icons.Outlined.AddCircleOutline,
+                null,
+                tint = colors.onBackdrop.copy(alpha = 0.75f),
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (draft.isEmpty()) {
+                    Text(
+                        stringResource(R.string.chat_composer_hint),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.onBackdrop.copy(alpha = 0.62f),
                     )
                 }
+                // BasicTextField, not a Material TextField: the Material ones bring their
+                // own container, indicator line and padding, all of which would paint a
+                // background back onto a field that is deliberately clear.
+                BasicTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onBackdrop),
+                    cursorBrush = SolidColor(colors.onBackdrop),
+                    maxLines = 4,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { send(); keyboard?.hide() }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             val canSend = draft.isNotBlank()
+            // Filled once there is something to send. Inside the field it needs to lift
+            // off the glass to read as a button rather than a second icon, and this is
+            // the one control on the screen whose whole job is to be pressed.
             Box(
                 Modifier
-                    .size(56.dp)
-                    .glass(
-                        CircleShape,
-                        fill = GlassClear,
-                        // Lights up with the draft, so the button itself carries the state
-                        // rather than only its glyph.
-                        border = colors.onBackdrop.copy(alpha = if (canSend) 0.55f else 0.28f),
-                        elevation = 0.dp,
-                    )
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(colors.onBackdrop.copy(alpha = if (canSend) 0.92f else 0.10f))
                     .clickableTap { send(); keyboard?.hide() },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.Send,
                     stringResource(R.string.chat_send),
-                    // Dimmed until there is something to send — the only state the button
-                    // has, and cheaper to read than a disabled fill.
-                    tint = colors.onBackdrop.copy(alpha = if (canSend) 1f else 0.42f),
-                    modifier = Modifier.size(23.dp),
+                    tint = if (canSend) WbwInkLight else colors.onBackdrop.copy(alpha = 0.45f),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
