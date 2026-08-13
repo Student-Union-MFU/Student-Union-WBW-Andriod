@@ -2,6 +2,8 @@ package th.ac.mfu.su.wbw.ui.activities
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,18 +23,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Park
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,11 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.CardCorner
-import th.ac.mfu.su.wbw.ui.theme.Deep
-import th.ac.mfu.su.wbw.ui.theme.Forest
 import th.ac.mfu.su.wbw.ui.theme.GlassCard
-import th.ac.mfu.su.wbw.ui.theme.Leaf
-import th.ac.mfu.su.wbw.ui.theme.PillButton
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
 /** Events on the trail (replaces the old Announcements tab). */
@@ -77,7 +74,6 @@ fun ActivitiesScreen(contentPadding: PaddingValues) {
             description = stringResource(R.string.event_step_comp_desc),
             statusRes = R.string.event_status_upcoming,
             icon = Icons.Outlined.DirectionsWalk,
-            banner = listOf(Forest, Leaf),
         )
         EventCard(
             title = stringResource(R.string.event_wbw_title),
@@ -85,12 +81,24 @@ fun ActivitiesScreen(contentPadding: PaddingValues) {
             description = stringResource(R.string.event_wbw_desc),
             statusRes = R.string.event_status_upcoming,
             icon = Icons.Outlined.Park,
-            banner = listOf(Deep, Forest),
         )
         Spacer(Modifier.height(8.dp))
     }
 }
 
+/**
+ * One event, in the same language as the participant pass.
+ *
+ * The old card led with a saturated green gradient band and a big white watermark, which
+ * is what made these read as visitors: it was the only solid colour left in the app, and
+ * it sat on a glass pane over a photograph. Everything that band was doing — separating
+ * the card from the ground, carrying the status, giving the eye somewhere to land — the
+ * pass already does with a hairline, a tracked micro-label and one heavy line of type.
+ *
+ * So the card is now glass with nothing painted on it. The watermark survives at a
+ * fraction of its old strength, behind the text rather than in a band of its own, because
+ * it is genuinely useful for telling the two events apart at a glance.
+ */
 @Composable
 private fun EventCard(
     title: String,
@@ -98,55 +106,89 @@ private fun EventCard(
     description: String,
     statusRes: Int,
     icon: ImageVector,
-    banner: List<Color>,
 ) {
     val colors = wbwColors
     GlassCard(shape = RoundedCornerShape(CardCorner), contentPadding = PaddingValues(0.dp)) {
-        Column {
-            // Coloured banner with a large watermark icon and a status pill.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(108.dp)
-                    .background(Brush.linearGradient(banner)),
-            ) {
-                Icon(
-                    icon, null, tint = Color.White.copy(alpha = 0.20f),
-                    modifier = Modifier
-                        .size(150.dp)
-                        .align(Alignment.CenterEnd)
-                        .offset(x = 34.dp, y = 20.dp),
+        Box(Modifier.fillMaxWidth()) {
+            // Watermark, behind the type. Bled off the corner so it reads as a mark on
+            // the surface rather than as an illustration boxed inside it.
+            Icon(
+                icon,
+                null,
+                tint = colors.textPrimary.copy(alpha = 0.06f),
+                modifier = Modifier
+                    .size(168.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 44.dp, y = (-26).dp),
+            )
+
+            Column(Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(5.dp).clip(CircleShape).background(colors.textMuted))
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        stringResource(statusRes).uppercase(),
+                        color = colors.textMuted,
+                        fontSize = 8.5.sp,
+                        letterSpacing = 2.2.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        date.uppercase(),
+                        color = colors.textMuted,
+                        fontSize = 8.5.sp,
+                        letterSpacing = 1.6.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.textPrimary,
+                    modifier = Modifier.padding(top = 14.dp),
                 )
-                Row(
+
+                Box(
                     Modifier
-                        .align(Alignment.TopStart)
-                        .padding(14.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.16f))
-                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(colors.accent))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(statusRes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                }
-            }
-            // Body
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Outlined.CalendarMonth, null, tint = colors.accent, modifier = Modifier.size(15.dp))
-                    Text(date, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-                }
-                Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
-                Spacer(Modifier.height(4.dp))
-                PillButton(
-                    text = stringResource(R.string.event_details),
-                    onClick = {},
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                        .padding(top = 14.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(colors.glassBorder),
                 )
+
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(top = 14.dp),
+                )
+
+                // Hairline rather than filled. A solid button is the loudest thing a card
+                // can hold, and on a screen of two cards it made the actions shout over
+                // the events they belong to.
+                Box(
+                    Modifier
+                        .padding(top = 18.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, colors.glassBorder, CircleShape)
+                        .clickableTap {}
+                        .padding(horizontal = 18.dp, vertical = 9.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.event_details).uppercase(),
+                        color = colors.textPrimary,
+                        fontSize = 9.sp,
+                        letterSpacing = 1.8.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
+}
+
+private fun Modifier.clickableTap(onClick: () -> Unit): Modifier = composed {
+    clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
 }
