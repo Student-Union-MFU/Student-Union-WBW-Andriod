@@ -164,10 +164,11 @@ private fun DrawScope.drawBloom(
     // Scaled to the flower's own extent, not to its authoring canvas. The prototype draws
     // inside a 300×300 box but only ever fills about a third of it, so scaling by 300 left
     // the bloom a thumbnail in the middle of the screen.
-    val span = if (headOnly) HeadSpan else FlowerSpan
-    val scale = if (headOnly) minOf(w, h) / span else minOf(w / span, h / (span * 1.15f))
+    val scale = if (headOnly) minOf(w, h) / HeadSpan else minOf(w / FlowerWidth, h / FlowerHeight)
     val cx = w / 2f
-    val cy = h * centreYFraction
+    // Centred on the flower's real bounds, not on the canvas: the head reaches up by a
+    // petal length and the stem down by its own, so the origin is not the middle.
+    val cy = if (headOnly) h * centreYFraction else h / 2f - (FlowerHeight / 2f - MaxPetal) * scale
 
     // Fixed density, in dp — the halftone grid belongs to the surface it is printed on,
     // like a print screen, not to the drawing. Scaling it with the flower is what turned
@@ -238,17 +239,37 @@ private data class Petal(val cx: Float, val cy: Float, val ang: Float, val len: 
 private const val CX = 150f
 private const val CY = 176f
 
-/** How far across the flower actually reaches, in flower units — see the scale note. */
-private const val FlowerSpan = 172f
+/** The longest a petal ever gets — the head's radius at full bloom. */
+private const val MaxPetal = 80f
 
 /**
- * Stem length below the head.
+ * The whole plant's bounding box in flower units: head above, stem and leaves below.
  *
- * Shorter than the prototype's 96. That value was tuned for a 300px thumbnail where the
- * head was tiny; blown up to a phone screen it read as a long wire with a speck on top.
- * The head grew and the stem shrank until the two balanced.
+ * Written out rather than composed from [MaxPetal] and [StemLength] — top-level `const`
+ * initialisation runs in file order, and the stem is declared further down.
  */
-private const val StemLength = 74f
+private const val FlowerWidth = 176f
+private const val FlowerHeight = 206f   // MaxPetal 80 + StemLength 112 + 14 of air
+
+/** Stem length below the head. */
+private const val StemLength = 112f
+
+/**
+ * Leaves on the stem: how far down it they sit, which way they point, how big.
+ *
+ * Two, at different heights and opposite sides, from the prototype. A single leaf reads
+ * as a mistake and a symmetrical pair reads as a logo; two at different heights is what
+ * makes the stalk look grown rather than drawn.
+ *
+ * The second appears later than the first, so the plant keeps gaining something through
+ * the middle stages instead of only widening its head.
+ */
+private val Leaves = listOf(
+    LeafSpec(alongStem = 0.40f, angle = 150f, length = 34f, fromStage = 1.0f),
+    LeafSpec(alongStem = 0.66f, angle = 32f, length = 29f, fromStage = 2.4f),
+)
+
+private data class LeafSpec(val alongStem: Float, val angle: Float, val length: Float, val fromStage: Float)
 
 /**
  * The head's own reach, used when the stem is left out.
@@ -281,9 +302,13 @@ private fun petalsFor(stage: Float): List<Petal> {
     val i = s.toInt().coerceAtMost(4)
     val t = s - i
 
-    val counts = intArrayOf(0, 1, 6, 9, 13, 18)
-    val lengths = floatArrayOf(0f, 30f, 40f, 52f, 64f, 74f)
-    val splays = floatArrayOf(0f, 0f, 42f, 96f, 150f, 180f)
+    // Stage 5 used to be 18 petals at a full 180-degree splay, which closed the fan into
+    // a disc — every gap filled, no silhouette left, and it read as worse than stage 4
+    // rather than as more. Fewer petals, stopped short of the half-turn, and longer, so
+    // the last stage is bigger and still has an outline.
+    val counts = intArrayOf(0, 1, 6, 9, 13, 16)
+    val lengths = floatArrayOf(0f, 30f, 40f, 52f, 64f, 80f)
+    val splays = floatArrayOf(0f, 0f, 42f, 96f, 140f, 166f)
     // Wide and blunt as a bud, narrowing as the petals separate.
     val ratios = floatArrayOf(0.35f, 0.35f, 0.24f, 0.21f, 0.20f, 0.20f)
 
@@ -307,7 +332,7 @@ private fun petalsFor(stage: Float): List<Petal> {
         }
         // Petals that this stage is adding grow in; ones that already existed stay put.
         val grow = if (k < fromCount) 1f else t
-        val len = length * (0.82f + 0.18f * hash(k * 70.3f)) * grow
+        val len = length * (0.72f + 0.28f * hash(k * 70.3f)) * grow
         if (len <= 0.01f) continue
         out.add(Petal(CX, CY, ang, len, len * ratio))
     }
@@ -332,6 +357,19 @@ private fun petalsFor(stage: Float): List<Petal> {
             if (len <= 0.01f) continue
             out.add(Petal(CX, CY, ang, len, len * 0.26f))
         }
+    }
+
+    // Leaves. Modelled as petals rooted on the stem rather than at the head, which is
+    // all a leaf is geometrically — the coverage test does not care where a petal starts.
+    for ((n, leaf) in Leaves.withIndex()) {
+        val grow = ((s - leaf.fromStage) / 0.9f).coerceIn(0f, 1f)
+        if (grow <= 0f) continue
+        val ly = CY + StemLength * leaf.alongStem
+        val lx = cubic(CX, CX + 13f, CX - 11f, CX + 3f, leaf.alongStem)
+        val len = leaf.length * grow
+        if (len <= 0.01f) continue
+        val jitter = 5f * (hash(n * 27.1f) - 0.5f)
+        out.add(Petal(lx, ly, leaf.angle + jitter, len, len * 0.30f))
     }
     return out
 }

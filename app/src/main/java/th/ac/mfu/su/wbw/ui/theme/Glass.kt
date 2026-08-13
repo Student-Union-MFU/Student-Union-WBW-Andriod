@@ -246,13 +246,19 @@ val LocalBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 /**
  * How much of the pane's own colour sits over the refraction.
  *
- * Below this the cards stop reading as surfaces and text on them loses its ground;
- * above it the refraction is buried and the whole thing is just a tinted rectangle
- * again. Dark panes need more because the wallpaper is already dark and a translucent
- * dark pane over it disappears.
+ * The dark value used to be 0.72, which is why cards read as a different material from
+ * the participant pass and the nav bar: those tint at 0.12, so they refract the forest
+ * while a card at 0.72 buried it and came out a flat tinted rectangle. All three use the
+ * same library and the same call — the tint was the whole difference.
+ *
+ * Light stays high, and cannot come down to match. A light card has to be light, and the
+ * only thing behind it is a dark photograph; at a low tint it simply goes dark and the
+ * ink on it stops reading. Light mode gets the shape of the glass without much of its
+ * transparency, which is a property of putting a pale surface on a dark ground rather
+ * than something tuning can fix.
  */
-private const val GlassTintDark = 0.72f
-private const val GlassTintLight = 0.80f
+private const val GlassTintDark = 0.30f
+private const val GlassTintLight = 0.86f
 
 /**
  * Rounded glass surface: refracts the wallpaper, tinted by the theme, hairline border.
