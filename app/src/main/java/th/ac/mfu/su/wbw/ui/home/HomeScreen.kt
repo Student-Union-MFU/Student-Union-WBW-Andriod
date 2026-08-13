@@ -146,9 +146,13 @@ private fun HomeContent(
         // The stage strip. Every stage is tappable, including ones not yet earned — those
         // draw as faint silhouettes of the same flower, so the row shows what the trail
         // leads to rather than hiding it behind a number.
+        // Sized by weight rather than a fixed dp: six chips big enough to read do not fit
+        // a phone at any fixed size — at 62dp they overflow a 393dp screen once the
+        // screen padding is taken out. Dividing the row gives each one every pixel that
+        // is going spare, and stays right on a narrower handset.
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             for (s in 0..5) {
@@ -158,7 +162,7 @@ private fun HomeContent(
                     selected = s == shown,
                     onClick = { preview = if (s == reached) null else s },
                     ink = colors.onBackdrop,
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier.weight(1f).height(58.dp),
                 )
             }
         }

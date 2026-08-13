@@ -127,7 +127,7 @@ fun BloomStage(
                     .border(1.dp, ink.copy(alpha = 0.22f), CircleShape),
             )
         }
-        Canvas(Modifier.matchParentSize().padding(5.dp)) {
+        Canvas(Modifier.matchParentSize().padding(7.dp)) {
             // Head only, and a much finer grid. The stem is two thirds of the flower's
             // height and carries none of its identity, so including it left the head a
             // speck; at this size the head *is* the stage.
