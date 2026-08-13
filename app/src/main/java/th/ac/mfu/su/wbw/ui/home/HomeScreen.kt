@@ -74,14 +74,15 @@ private fun HomeContent(
 ) {
     val colors = wbwColors
     val morning = remember2()
+    // Not scrollable. Home is a single view now — greeting, bloom, count — and the bloom
+    // takes the height that is left, which a scrolling column cannot give it (its content
+    // is measured against an unbounded height, so `weight` has nothing to divide).
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(contentPadding)
             .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         // The top strip carries the profile button and nothing else. The greeting moved
         // down into the body: it is content — it names the person and the time of day —
@@ -125,16 +126,28 @@ private fun HomeContent(
             )
         }
 
-        // Home has been emptied deliberately, one piece at a time: the 3D plant hero,
-        // the "Checked in N / M bases" line and its hint, the "next base" card, and now
-        // the Seed→Grown phase track. Only the greeting and the profile button are left.
-        //
-        // Little of what fed them was unpicked — `PlantHero`/`Plant3D`, the
-        // `GrowthPhase` enum with its `PhaseTree` drawing, and
-        // `nextBaseName`/`nextBaseDistance` on the ui model are all still here and still
-        // populated, so this can be rebuilt from parts rather than from scratch. Only
-        // `PhaseChip` went, since it had no caller left.
-        Spacer(Modifier.height(4.dp))
+        // The bloom is what Home is for: the one thing on the screen that changes as the
+        // trail is walked. It replaced the 3D plant hero, the progress line, the phase
+        // track and the next-base card — all four were saying the same number in
+        // different shapes, and none of them was worth looking at twice.
+        Bloom(
+            checkedIn = model.checkedInBases,
+            total = model.totalBases,
+            ink = colors.onBackdrop,
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 12.dp),
+        )
+
+        // The count, set as quietly as the pass sets its labels — the flower carries the
+        // progress, this only names it for anyone who wants the number.
+        Text(
+            stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases),
+            color = colors.onBackdropMuted,
+            fontSize = 10.sp,
+            letterSpacing = 2.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

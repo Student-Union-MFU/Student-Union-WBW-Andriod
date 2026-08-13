@@ -95,7 +95,7 @@ fun FloatingTabBar(
     // pitched against the artwork, not against the theme.
     val barSurface = Color.White.copy(alpha = 0.12f)
     val idle = colors.onBackdrop
-    val edge = Color.White.copy(alpha = 0.24f)
+    val edge = Color.White.copy(alpha = 0.13f)
     val indicatorFill = Color.White.copy(alpha = 0.18f)
 
     Row(

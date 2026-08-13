@@ -34,24 +34,26 @@ import androidx.compose.ui.graphics.Color
 // ===== Brand =====
 
 /**
- * The accent: new leaf against old forest.
+ * There is no accent hue. The "accent" is simply the text colour.
  *
- * Gold came from the event branding and never sat right here — a warm metallic on a
- * cold green ground reads as brass laid on moss, and at the size an accent is actually
- * used (8sp section labels, a tab icon) the warmth just looked dirty.
+ * Gold, then leaf green, were both tried and both lost to the same problem: the screen
+ * already has a photograph and a set of glass panes doing the visual work, and a
+ * highlight colour on top of those is a fourth thing asking for attention. It made every
+ * screen busier without making anything clearer.
  *
- * A literal dark green was tried and rejected on evidence: at #2F6B4A the section labels
- * in Settings sank into the panel and stopped functioning as an accent at all. An accent
- * on a dark ground has to be LIGHTER than the ground — that is not a style preference,
- * it is the only way it can be seen. So: green, as intended, but the green of a new leaf
- * rather than of the canopy behind it.
+ * So emphasis is carried the way the participant pass carries it — by weight, size and
+ * letterspacing against a single ink. A label reads as a label because it is 8sp,
+ * uppercase and widely tracked, not because it is a different colour from its neighbour.
+ *
+ * The token survives so call sites keep their meaning ("this is emphasised") and so a
+ * hue can be reintroduced in one place if it is ever wanted again.
  */
-val WbwAccentDark = Color(0xFF7FCB9B)   // on dark grounds
-val WbwAccentLight = Color(0xFF2F7A52)  // on light grounds — same hue, dropped in lightness
+val WbwAccentDark = Color(0xFFE9EEE0)   // = WbwInkDark
+val WbwAccentLight = Color(0xFF1B2A1B)  // = WbwInkLight
 
-/** The softer accent, for headings and de-emphasised marks. */
-val WbwAccentSoftDark = Color(0xFFBFE3CC)
-val WbwAccentSoftLight = Color(0xFF4C9670)
+/** The de-emphasised version, for eyebrows and secondary marks. */
+val WbwAccentSoftDark = Color(0xFFA2AF98)
+val WbwAccentSoftLight = Color(0xFF58684F)
 
 /**
  * Status green — "on", checked in, progress.
@@ -136,12 +138,21 @@ val DeepMuted = WbwMutedLight
 // glass panel are the same material.
 
 val GlassDark = WbwSurfaceDark
-val GlassDarkBorder = WbwLineDark
 val GlassDarkHighlight = Color(0x1FFFFFFF)
 
 val GlassLight = WbwSurfaceLight
-val GlassLightBorder = WbwLineLight
 val GlassLightHighlight = Color(0xCCFFFFFF)
+
+/**
+ * Pane edges, as light as they can be while still closing the shape.
+ *
+ * These used to be the solid `WbwLine*` values — fine on an opaque card, wrong on glass:
+ * an edge with its own colour reads as an outline *drawn around* the pane, which turns a
+ * floating surface into a sticker. A few percent of white (or black on light) catches the
+ * edge instead of describing it, and lets the shape be defined by the refraction.
+ */
+val GlassDarkBorder = Color(0x1AFFFFFF)
+val GlassLightBorder = Color(0x12000000)
 
 // ===== Sky gradient =====
 //

@@ -72,8 +72,8 @@ import th.ac.mfu.su.wbw.ui.theme.wbwColors
 private val PassInk = Color(0xFFFFFFFF)
 private val PassMuted = Color(0xCCFFFFFF)
 private val PassFaint = Color(0x8AFFFFFF)
-private val PassHairline = Color(0x33FFFFFF)
-private val PassWell = Color(0x14FFFFFF)
+private val PassHairline = Color(0x1AFFFFFF)
+private val PassWell = Color(0x0FFFFFFF)
 
 /** The pane itself — deliberately thin, so the forest still reads through it. */
 private val PassSurface = Color(0x1FFFFFFF)
