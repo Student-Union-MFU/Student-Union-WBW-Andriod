@@ -7,13 +7,24 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
+import th.ac.mfu.su.wbw.R
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -42,16 +53,15 @@ import kotlin.math.sin
  */
 @Composable
 fun Bloom(
-    checkedIn: Int,
-    total: Int,
+    stage: Int,
     modifier: Modifier = Modifier,
     ink: Color = Color.White,
 ) {
-    val stage = stageFor(checkedIn, total)
-    // Eased so a check-in *opens* the flower rather than snapping it.
+    // Eased so a check-in *opens* the flower rather than snapping it — and so tapping
+    // along the stage strip runs the bloom forwards and backwards instead of cutting.
     val openness by animateFloatAsState(
         targetValue = stage.toFloat(),
-        animationSpec = tween(durationMillis = 1400, easing = LinearEasing),
+        animationSpec = tween(durationMillis = 900, easing = LinearEasing),
         label = "bloom",
     )
     val breath by rememberInfiniteTransition(label = "breath").animateFloat(
@@ -61,54 +71,135 @@ fun Bloom(
         label = "breathT",
     )
 
-    val petals = remember(openness) { petalsFor(openness) }
-
     Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        if (w <= 0f || h <= 0f) return@Canvas
+        drawBloom(openness, ink, breath, gridDp = 6f, centreYFraction = 0.38f)
+    }
+}
 
-        // Scaled to the flower's own extent, not to its authoring canvas. The prototype
-        // draws inside a 300×300 box but only ever fills about a third of it, so scaling
-        // by 300 left the bloom a thumbnail in the middle of the screen. The real reach
-        // is the longest petal (58 up) and the stem (96 down), about 160 across.
-        val scale = minOf(w / FlowerSpan, h / (FlowerSpan * 1.15f))
-        val cx = w / 2f
-        val cy = h * 0.38f
-
-        // Fixed density, in dp — the halftone grid belongs to the screen, like a print
-        // screen, not to the drawing. Scaling it with the flower is what turned the dots
-        // into four fat blobs: the bigger the flower got, the coarser its own texture.
-        val step = 6.dp.toPx()
-        val maxR = step * 0.60f
-
-        var gy = 0f
-        while (gy < h) {
-            var gx = 0f
-            while (gx < w) {
-                // Back into flower space to test coverage.
-                val fx = (gx - cx) / scale + CX
-                val fy = (gy - cy) / scale + CY
-                val cover = coverage(fx, fy, petals, openness)
-                if (cover > 0.02f) {
-                    val n = hash(floor(gx / step) * 31f + floor(gy / step) * 57f)
-                    // The breath moves each dot on its own phase, so the field shimmers
-                    // instead of pulsing as one block.
-                    val puff = 0.88f + 0.12f * sin(breath + n * 6.2831f)
-                    val r = maxR * cover * puff * (0.55f + 0.45f * n)
-                    if (r > 0.25f) {
-                        drawCircle(
-                            color = ink,
-                            radius = r,
-                            center = Offset(gx + (n - 0.5f) * step * 0.35f, gy + (hash(n) - 0.5f) * step * 0.35f),
-                            alpha = (0.35f + 0.65f * cover).coerceAtMost(1f),
-                        )
-                    }
-                }
-                gx += step
-            }
-            gy += step
+/**
+ * One stage as a small silhouette, for the strip.
+ *
+ * The same flower at the same stage, drawn small — not an abstract dot or a numeral.
+ * That is the whole point of the strip: an unreached stage should show you the shape you
+ * are working toward, so the row reads as a sequence of blooms rather than as a progress
+ * bar with steps.
+ *
+ * [reached] only changes ink strength. Drawing unreached stages in a different *form*
+ * (outline, wireframe) would have meant a second renderer to keep in step with the first.
+ */
+@Composable
+fun BloomStage(
+    stage: Int,
+    reached: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    ink: Color = Color.White,
+) {
+    val strength by animateFloatAsState(
+        targetValue = when {
+            selected -> 1f
+            reached -> 0.72f
+            else -> 0.26f   // silhouette: present, clearly not yours yet
+        },
+        animationSpec = tween(220),
+        label = "stageStrength",
+    )
+    Box(
+        modifier
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        // A ring under the selected stage. Without it the strip has no affordance at all
+        // — six faint drawings do not look like controls, which is exactly the complaint
+        // the strip exists to answer.
+        if (selected) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clip(CircleShape)
+                    .background(ink.copy(alpha = 0.10f))
+                    .border(1.dp, ink.copy(alpha = 0.22f), CircleShape),
+            )
         }
+        Canvas(Modifier.matchParentSize().padding(5.dp)) {
+            // Head only, and a much finer grid. The stem is two thirds of the flower's
+            // height and carries none of its identity, so including it left the head a
+            // speck; at this size the head *is* the stage.
+            drawBloom(
+                stage.toFloat(), ink, breath = 0f,
+                gridDp = 1.5f, centreYFraction = 0.5f,
+                alphaScale = strength, headOnly = true,
+            )
+        }
+    }
+}
+
+/**
+ * The halftone pass, shared by the hero and the strip.
+ *
+ * Kept as one function on purpose — two copies of this would drift, and the strip's whole
+ * job is to be the same flower the hero is.
+ */
+private fun DrawScope.drawBloom(
+    openness: Float,
+    ink: Color,
+    breath: Float,
+    gridDp: Float,
+    centreYFraction: Float,
+    alphaScale: Float = 1f,
+    headOnly: Boolean = false,
+) {
+    val w = size.width
+    val h = size.height
+    if (w <= 0f || h <= 0f) return
+
+    val petals = petalsFor(openness)
+
+    // Scaled to the flower's own extent, not to its authoring canvas. The prototype draws
+    // inside a 300×300 box but only ever fills about a third of it, so scaling by 300 left
+    // the bloom a thumbnail in the middle of the screen.
+    val span = if (headOnly) HeadSpan else FlowerSpan
+    val scale = if (headOnly) minOf(w, h) / span else minOf(w / span, h / (span * 1.15f))
+    val cx = w / 2f
+    val cy = h * centreYFraction
+
+    // Fixed density, in dp — the halftone grid belongs to the surface it is printed on,
+    // like a print screen, not to the drawing. Scaling it with the flower is what turned
+    // the dots into four fat blobs: the bigger the flower got, the coarser its texture.
+    val step = gridDp.dp.toPx()
+    val maxR = step * 0.60f
+
+    var gy = 0f
+    while (gy < h) {
+        var gx = 0f
+        while (gx < w) {
+            val fx = (gx - cx) / scale + CX
+            val fy = (gy - cy) / scale + CY
+            val cover = coverage(fx, fy, petals, openness, withStem = !headOnly)
+            if (cover > 0.02f) {
+                val n = hash(floor(gx / step) * 31f + floor(gy / step) * 57f)
+                // Each dot breathes on its own phase, so the field shimmers instead of
+                // pulsing as one block. Zero breath freezes it, which is what the strip wants.
+                val puff = if (breath == 0f) 1f else 0.88f + 0.12f * sin(breath + n * 6.2831f)
+                val r = maxR * cover * puff * (0.55f + 0.45f * n)
+                if (r > 0.25f) {
+                    drawCircle(
+                        color = ink,
+                        radius = r,
+                        center = Offset(gx + (n - 0.5f) * step * 0.35f, gy + (hash(n) - 0.5f) * step * 0.35f),
+                        alpha = ((0.35f + 0.65f * cover) * alphaScale).coerceIn(0f, 1f),
+                    )
+                }
+            }
+            gx += step
+        }
+        gy += step
     }
 }
 
@@ -131,6 +222,16 @@ fun stageFor(checkedIn: Int, total: Int): Int {
     }
 }
 
+/** The label for a bloom stage. Six of them — see the note on the strings. */
+fun stageLabel(stage: Int): Int = when (stage.coerceIn(0, 5)) {
+    0 -> R.string.bloom_stage_0
+    1 -> R.string.bloom_stage_1
+    2 -> R.string.bloom_stage_2
+    3 -> R.string.bloom_stage_3
+    4 -> R.string.bloom_stage_4
+    else -> R.string.bloom_stage_5
+}
+
 /** One petal, in flower space: origin, axis angle, length, half-width at the waist. */
 private data class Petal(val cx: Float, val cy: Float, val ang: Float, val len: Float, val halfWidth: Float)
 
@@ -148,6 +249,15 @@ private const val FlowerSpan = 172f
  * The head grew and the stem shrank until the two balanced.
  */
 private const val StemLength = 74f
+
+/**
+ * The head's own reach, used when the stem is left out.
+ *
+ * At full bloom the petals radiate a full half-turn, so the head is roughly a disc of the
+ * longest petal's radius. Scaling a head-only drawing by [FlowerSpan] would leave two
+ * thirds of the box empty — that space belongs to a stem that is not being drawn.
+ */
+private const val HeadSpan = 160f
 
 /**
  * The flower at a (fractional) stage.
@@ -193,12 +303,12 @@ private fun petalsFor(stage: Float): List<Petal> {
 }
 
 /** How much flower covers a point in flower space, 0..1. */
-private fun coverage(x: Float, y: Float, petals: List<Petal>, stage: Float): Float {
+private fun coverage(x: Float, y: Float, petals: List<Petal>, stage: Float, withStem: Boolean = true): Float {
     var cover = 0f
 
     // Stem: a curve, so distance is taken to a handful of samples along it.
     val stemTop = CY
-    if (y > stemTop - 6f) {
+    if (withStem && y > stemTop - 6f && y < stemTop + StemLength + 4f) {
         val t = ((y - stemTop) / StemLength).coerceIn(0f, 1f)
         val sx = cubic(CX, CX + 13f, CX - 11f, CX + 3f, t)
         val d = abs(x - sx)
@@ -224,9 +334,14 @@ private fun coverage(x: Float, y: Float, petals: List<Petal>, stage: Float): Flo
     }
 
     // The core: dots crowd where every petal meets, so it is drawn as solid.
-    if (stage >= 1f) {
+    //
+    // Drawn at every stage including zero, where it is the seed. Gating it at stage 1
+    // left the first chip in the strip completely blank — stage 0 has no petals, and the
+    // strip draws heads without stems, so there was nothing at all to see under a label
+    // reading "Seed".
+    run {
         val d = hypot(x - CX, y - CY)
-        val coreR = 5f + 3f * stage
+        val coreR = 3.5f + 3f * stage
         if (d < coreR) cover = maxOf(cover, 1f - (d / coreR) * 0.35f)
     }
     return cover.coerceIn(0f, 1f)

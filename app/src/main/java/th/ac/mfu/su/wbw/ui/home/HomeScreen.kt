@@ -130,17 +130,48 @@ private fun HomeContent(
         // trail is walked. It replaced the 3D plant hero, the progress line, the phase
         // track and the next-base card — all four were saying the same number in
         // different shapes, and none of them was worth looking at twice.
+        val reached = stageFor(model.checkedInBases, model.totalBases)
+        // Tapping a stage previews it; null means "show where I actually am". Preview
+        // does not persist — leaving Home and coming back returns you to your own bloom,
+        // because this is a peek at what is coming, not a setting.
+        var preview by remember(reached) { mutableStateOf<Int?>(null) }
+        val shown = preview ?: reached
+
         Bloom(
-            checkedIn = model.checkedInBases,
-            total = model.totalBases,
+            stage = shown,
             ink = colors.onBackdrop,
             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 12.dp),
         )
 
+        // The stage strip. Every stage is tappable, including ones not yet earned — those
+        // draw as faint silhouettes of the same flower, so the row shows what the trail
+        // leads to rather than hiding it behind a number.
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            for (s in 0..5) {
+                BloomStage(
+                    stage = s,
+                    reached = s <= reached,
+                    selected = s == shown,
+                    onClick = { preview = if (s == reached) null else s },
+                    ink = colors.onBackdrop,
+                    modifier = Modifier.size(46.dp),
+                )
+            }
+        }
+
         // The count, set as quietly as the pass sets its labels — the flower carries the
-        // progress, this only names it for anyone who wants the number.
+        // progress, this only names it. While previewing it says which stage you are
+        // looking at instead, so the screen never shows a flower it cannot account for.
         Text(
-            stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases),
+            if (preview == null) {
+                stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases)
+            } else {
+                stringResource(R.string.home_stage_preview, stringResource(stageLabel(shown)))
+            },
             color = colors.onBackdropMuted,
             fontSize = 10.sp,
             letterSpacing = 2.5.sp,

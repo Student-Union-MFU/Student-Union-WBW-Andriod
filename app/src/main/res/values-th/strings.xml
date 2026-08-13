@@ -65,6 +65,14 @@
     <string name="phase_young">ไม้หนุ่ม</string>
     <string name="phase_grown">ไม้ใหญ่</string>
 
+    <string name="bloom_stage_0">เมล็ด</string>
+    <string name="bloom_stage_1">ตูม</string>
+    <string name="bloom_stage_2">เริ่มบาน</string>
+    <string name="bloom_stage_3">บานครึ่ง</string>
+    <string name="bloom_stage_4">ใกล้บานเต็ม</string>
+    <string name="bloom_stage_5">บานเต็มที่</string>
+    <string name="home_stage_preview">ดูตัวอย่าง · %1$s</string>
+
     <!-- Home -->
     <string name="home_good_morning">อรุณสวัสดิ์</string>
     <string name="home_good_evening">สวัสดียามเย็น</string>

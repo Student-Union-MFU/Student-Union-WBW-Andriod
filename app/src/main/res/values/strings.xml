@@ -67,6 +67,16 @@
     <string name="phase_young">Young</string>
     <string name="phase_grown">Grown</string>
 
+    <!-- Bloom stages. Six, not the five tree phases — the flower has a bare-stem state
+         the tree never had, and the two scales do not line up. -->
+    <string name="bloom_stage_0">Seed</string>
+    <string name="bloom_stage_1">Bud</string>
+    <string name="bloom_stage_2">Opening</string>
+    <string name="bloom_stage_3">Half bloom</string>
+    <string name="bloom_stage_4">Almost</string>
+    <string name="bloom_stage_5">Full bloom</string>
+    <string name="home_stage_preview">Preview · %1$s</string>
+
     <!-- Home -->
     <string name="home_good_morning">GOOD MORNING</string>
     <string name="home_good_evening">GOOD EVENING</string>
