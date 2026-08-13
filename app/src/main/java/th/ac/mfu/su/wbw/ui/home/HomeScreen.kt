@@ -97,7 +97,9 @@ private fun HomeContent(
                 )
                 Text(
                     stringResource(R.string.home_greeting, model.displayName),
-                    style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary,
+                    // onBackdrop, not textPrimary: this sits on the dark backdrop image
+                    // in both themes, and textPrimary goes near-black in light theme.
+                    style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop,
                 )
             }
             // Profile lives here rather than in the nav bar. It isn't somewhere you

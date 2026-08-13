@@ -38,18 +38,22 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * The app-wide backdrop, ported from iOS `AppBackdrop.swift`.
+ * The app-wide backdrop: one full-bleed image under everything.
  *
- * iOS draws one full-bleed forest photograph under everything and dims only the top
- * and bottom of it. That dimming is not decoration: the screens over this backdrop
- * were designed when the background was the flat #0A1610, so their text and icons
- * are all white. Against the bright photo they became nearly unreadable — iOS
- * confirmed that from real screenshots before adding the scrim. Covering the whole
- * frame would fix it too but would waste the photo, so only the head and foot (where
- * the header and tab bar actually sit) are dimmed and the middle stays clear.
+ * The artwork is a dark, blurred forest texture (736×1471 — the same 1:2 ratio iOS
+ * picked so cropping stays under ~11% on either axis). It replaced the iOS
+ * `bg_ticket` photograph, which is still in git history if it is ever wanted back.
  *
- * The source image is 1440×2880 (1:2), chosen to sit near the geometric middle of the
- * widest and tallest handsets so cropping stays under ~11% on either axis.
+ * That swap is why the scrim below is mild. iOS needs a heavy head-and-foot scrim
+ * (0.45/0.40 black) because its photograph is bright — measured mean luminance 169,
+ * with white text over it. This one measures 63 and never exceeds 157 anywhere, so
+ * light text reads on it unaided and a heavy scrim would only crush the texture. What
+ * is left is a gentle darkening at the very top and bottom, where the status bar and
+ * gesture bar sit and the system draws its own glyphs over us.
+ *
+ * The consequence to keep in mind: this backdrop is dark in **both** themes, so
+ * anything drawn straight onto it must use [WbwColors.onBackdrop], never
+ * `textPrimary` — the latter flips to near-black in light theme and disappears here.
  *
  * The previous procedural sky is kept as [ProceduralSkyBackground] — it is not part
  * of the iOS design, but it is this app's own work and worth not throwing away.
@@ -71,19 +75,18 @@ fun ForestBackground(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    // iOS's head-and-foot scrim, ported as-is.
+                    // Head-and-foot scrim, much lighter than the iOS original — see
+                    // the note above on why the darker artwork does not need it.
                     drawRect(
                         Brush.verticalGradient(
-                            0.00f to Color.Black.copy(alpha = 0.45f),
-                            0.28f to Color.Transparent,
-                            0.76f to Color.Transparent,
-                            1.00f to Color.Black.copy(alpha = 0.40f),
+                            0.00f to Color.Black.copy(alpha = 0.22f),
+                            0.18f to Color.Transparent,
+                            0.84f to Color.Transparent,
+                            1.00f to Color.Black.copy(alpha = 0.22f),
                         ),
                     )
-                    // An even dim on top of it. iOS can leave the middle of the frame
-                    // clear because everything it puts there sits on a surface; this
-                    // app writes text straight onto the backdrop in several places, and
-                    // the photograph is at its brightest exactly through the middle.
+                    // An even dim over the whole frame, if one is ever wanted. Zero
+                    // with this artwork: it is already dark enough to carry light text.
                     if (BackdropDim > 0f) drawRect(Color.Black.copy(alpha = BackdropDim))
                 },
         )

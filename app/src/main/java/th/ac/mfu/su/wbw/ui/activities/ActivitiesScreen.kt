@@ -63,11 +63,11 @@ fun ActivitiesScreen(contentPadding: PaddingValues) {
         Spacer(Modifier.height(8.dp))
         Text(
             stringResource(R.string.activities_title),
-            style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary,
+            style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop,
         )
         Text(
             stringResource(R.string.activities_subtitle),
-            style = MaterialTheme.typography.bodySmall, color = colors.textMuted,
+            style = MaterialTheme.typography.bodySmall, color = colors.onBackdropMuted,
         )
         Spacer(Modifier.height(2.dp))
 

@@ -61,7 +61,7 @@ fun NotificationsScreen(
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("ALERTS", color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
-                Text(stringResource(R.string.notifications_title), style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary)
+                Text(stringResource(R.string.notifications_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
             }
             Text(
                 stringResource(R.string.notifications_mark_all_read),

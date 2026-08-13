@@ -31,6 +31,17 @@ data class WbwColors(
     val green: Color,
     val textPrimary: Color,
     val textMuted: Color,
+    /**
+     * Text drawn straight onto the backdrop rather than onto a card.
+     *
+     * Fixed light in BOTH themes, unlike [textPrimary]. The backdrop is one dark image
+     * that does not change with the theme, so a token that flips to near-black takes
+     * screen titles and the Home greeting with it and they vanish into the artwork.
+     * iOS does the same thing — the greeting over its backdrop is white regardless of
+     * the theme, and only cards follow it.
+     */
+    val onBackdrop: Color,
+    val onBackdropMuted: Color,
     /** iOS `wbwBg` — the flat screen background. */
     val background: Color,
     /** iOS `wbwSurface`. Named "glass" for continuity with existing call sites. */
@@ -52,6 +63,8 @@ val LightWbwColors = WbwColors(
     green = WbwGreen,
     textPrimary = WbwInkLight,
     textMuted = WbwMutedLight,
+    onBackdrop = WbwInkDark,
+    onBackdropMuted = WbwMutedDark,
     background = WbwBgLight,
     glass = GlassLight,
     glassBorder = GlassLightBorder,
@@ -69,6 +82,8 @@ val DarkWbwColors = WbwColors(
     green = WbwGreen,
     textPrimary = WbwInkDark,
     textMuted = WbwMutedDark,
+    onBackdrop = WbwInkDark,
+    onBackdropMuted = WbwMutedDark,
     background = WbwBgDark,
     glass = GlassDark,
     glassBorder = GlassDarkBorder,

@@ -82,12 +82,12 @@ fun SettingsScreen(
         // header
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(30.dp).clickableTap(onBack), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back), tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back), tint = colors.onBackdrop, modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.size(10.dp))
             Column {
                 Text(stringResource(R.string.settings_title).uppercase(), color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
-                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary)
+                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
             }
         }
 

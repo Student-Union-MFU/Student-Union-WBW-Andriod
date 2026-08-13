@@ -39,11 +39,11 @@ fun ComingSoonScreen(
                     Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(colors.gold.copy(alpha = 0.16f)),
                     contentAlignment = Alignment.Center,
                 ) { Icon(icon, null, tint = colors.gold, modifier = Modifier.size(30.dp)) }
-                Text(stringResource(titleRes), style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
+                Text(stringResource(titleRes), style = MaterialTheme.typography.titleLarge, color = colors.onBackdrop)
                 Text(stringResource(R.string.coming_soon), style = MaterialTheme.typography.labelLarge, color = colors.gold)
                 Text(
                     stringResource(R.string.coming_soon_desc),
-                    style = MaterialTheme.typography.bodyMedium, color = colors.textMuted, textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyMedium, color = colors.onBackdropMuted, textAlign = TextAlign.Center,
                 )
             }
         }

@@ -86,13 +86,13 @@ private fun ProfileContent(p: ParticipantDetail, contentPadding: PaddingValues, 
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.profile_pass_kicker), color = colors.gold, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
-                Text(stringResource(R.string.profile_pass_title), style = MaterialTheme.typography.headlineSmall, color = colors.textPrimary)
+                Text(stringResource(R.string.profile_pass_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
             }
             Box(
                 Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(colors.glass)
                     .clickableTap(onOpenSettings),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings_title), tint = colors.textPrimary, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings_title), tint = colors.onBackdrop, modifier = Modifier.size(20.dp)) }
         }
 
         Ticket(p)
