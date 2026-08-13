@@ -154,6 +154,21 @@ val GlassLightHighlight = Color(0xCCFFFFFF)
 val GlassDarkBorder = Color(0x1AFFFFFF)
 val GlassLightBorder = Color(0x12000000)
 
+/**
+ * The sheer pane: barely there, and identical in both themes.
+ *
+ * The themed [GlassLight]/[GlassDark] fills exist so a *card* can be light in light mode
+ * — but a light card is by definition nearly opaque here, because the only thing behind
+ * it is a dark photograph. Wherever the glass itself is the point rather than the card,
+ * that trade is the wrong way round, and this is used instead: the backdrop stays
+ * visible and the content on it commits to light ink in both themes, exactly as the
+ * participant pass does.
+ *
+ * One constant rather than a copy per screen — the pass and the chat each carried their
+ * own ~0x1F white, which is two chances to drift apart.
+ */
+val GlassSheer = Color(0x1FFFFFFF)
+
 // ===== Sky gradient =====
 //
 // Only used by [ProceduralSkyBackground], which the app no longer draws. Re-anchored on

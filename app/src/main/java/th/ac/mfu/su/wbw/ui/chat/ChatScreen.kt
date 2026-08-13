@@ -38,8 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
+import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
-import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
+import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -82,13 +83,14 @@ fun ChatScreen(contentPadding: PaddingValues) {
             )
         }
 
-        // The conversation sits on one glass pane rather than loose on the backdrop.
+        // The conversation sits on one glass pane rather than loose on the backdrop —
+        // but a *sheer* one, so the forest still reads through the thread.
         //
-        // Loose was the mistake: with no surface under it, every line had to be drawn in
-        // the backdrop ink — one near-white for everything, because that is the only
-        // colour legible directly on the photograph. Put the thread on a pane and the
-        // card palette applies again, so author, body and timestamp can separate by tone
-        // instead of all being the same white.
+        // The themed card fill was tried here and is wrong for this screen: in light mode
+        // it is parchment at 0.86, which over a dark photograph is a white slab with a
+        // conversation printed on it. This is a surface you look *through*, so it takes
+        // GlassSheer and the text on it commits to light ink in both themes, exactly like
+        // the participant pass.
         //
         // One pane for the whole thread, not one per message: Discord's column reads as a
         // continuous surface people are talking on, and bubbling each message would undo
@@ -98,7 +100,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
-                .glass(RoundedCornerShape(PanelCorner)),
+                .glass(RoundedCornerShape(PanelCorner), fill = GlassSheer),
         ) {
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
@@ -127,35 +129,35 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Row(
                 Modifier
                     .weight(1f)
-                    .glass(RoundedCornerShape(24.dp))
+                    .glass(RoundedCornerShape(24.dp), fill = GlassSheer)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     Icons.Outlined.AddCircleOutline,
                     null,
-                    tint = colors.textMuted,
+                    tint = colors.onBackdropMuted,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.chat_composer_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textMuted,
+                    color = colors.onBackdropMuted,
                 )
             }
             Spacer(Modifier.width(10.dp))
             Box(
                 Modifier
                     .size(46.dp)
-                    .glass(CircleShape)
+                    .glass(CircleShape, fill = GlassSheer)
                     .clickableTap {},
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.Send,
                     stringResource(R.string.chat_send),
-                    tint = colors.textMuted,
+                    tint = colors.onBackdrop,
                     modifier = Modifier.size(19.dp),
                 )
             }
@@ -170,16 +172,16 @@ private fun DayDivider(label: String) {
         Modifier.fillMaxWidth().padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.weight(1f).height(1.dp).background(colors.line))
+        Box(Modifier.weight(1f).height(1.dp).background(colors.glassBorder))
         Text(
             label.uppercase(),
-            color = colors.textMuted,
+            color = colors.onBackdropMuted,
             fontSize = 8.5.sp,
             letterSpacing = 2.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
-        Box(Modifier.weight(1f).height(1.dp).background(colors.line))
+        Box(Modifier.weight(1f).height(1.dp).background(colors.glassBorder))
     }
 }
 
@@ -200,14 +202,17 @@ private fun MessageRow(row: Row_.Message) {
                 // hues; these come off the palette's green so the column still reads as
                 // part of the app, and staff get the strongest one so an official message
                 // is identifiable before the tag is read.
-                val tint = if (m.staff) colors.green else colors.green.copy(alpha = avatarAlpha(m.author))
+                // WbwGreenDark, not colors.green: the pane is sheer, so what sits behind
+                // an avatar is the dark backdrop in both themes. colors.green flips to the
+                // deep light-mode variant and would go dark-on-dark here.
+                val tint = if (m.staff) WbwGreenDark else WbwGreenDark.copy(alpha = avatarAlpha(m.author))
                 Box(
                     Modifier.size(36.dp).clip(CircleShape).background(tint),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         m.author.take(1).uppercase(),
-                        color = if (colors.isDark) WbwInkLight else TicketCreamPaper,
+                        color = WbwInkLight,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
@@ -219,7 +224,7 @@ private fun MessageRow(row: Row_.Message) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         m.author,
-                        color = colors.textPrimary,
+                        color = colors.onBackdrop,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.5.sp,
                     )
@@ -228,14 +233,14 @@ private fun MessageRow(row: Row_.Message) {
                         StaffTag()
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(m.time, color = colors.textMuted, fontSize = 9.5.sp)
+                    Text(m.time, color = colors.onBackdropMuted, fontSize = 9.5.sp)
                 }
                 Spacer(Modifier.height(3.dp))
             }
             Text(
                 m.body,
                 style = MaterialTheme.typography.bodyMedium,
-                color = colors.textPrimary.copy(alpha = 0.86f),
+                color = colors.onBackdrop.copy(alpha = 0.88f),
             )
         }
     }
@@ -247,13 +252,13 @@ private fun StaffTag() {
     Box(
         Modifier
             .clip(RoundedCornerShape(5.dp))
-            .background(colors.green.copy(alpha = 0.18f))
-            .border(1.dp, colors.green.copy(alpha = 0.45f), RoundedCornerShape(5.dp))
+            .background(WbwGreenDark.copy(alpha = 0.18f))
+            .border(1.dp, WbwGreenDark.copy(alpha = 0.45f), RoundedCornerShape(5.dp))
             .padding(horizontal = 5.dp, vertical = 1.dp),
     ) {
         Text(
             stringResource(R.string.chat_tag_staff).uppercase(),
-            color = colors.green,
+            color = WbwGreenDark,
             fontSize = 7.5.sp,
             letterSpacing = 1.sp,
             fontWeight = FontWeight.Bold,
