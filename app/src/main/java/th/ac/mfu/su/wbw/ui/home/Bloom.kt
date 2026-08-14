@@ -171,8 +171,13 @@ fun BloomStage(
  *
  * Kept as one function on purpose — two copies of this would drift, and the strip's whole
  * job is to be the same flower the hero is.
+ *
+ * The geometry is *not* recomputed here. It is built into [field] and reused until the
+ * flower or the canvas actually changes; all this does per frame is walk the finished dots
+ * and give each one its breath. See [BloomField] for why that mattered so much.
  */
 private fun DrawScope.drawBloom(
+    field: BloomField,
     openness: Float,
     ink: Color,
     breath: Float,
@@ -181,69 +186,37 @@ private fun DrawScope.drawBloom(
     alphaScale: Float = 1f,
     headOnly: Boolean = false,
 ) {
-    val w = size.width
-    val h = size.height
-    if (w <= 0f || h <= 0f) return
+    field.ensure(
+        w = size.width,
+        h = size.height,
+        stage = openness,
+        // Fixed density, in dp — the halftone grid belongs to the surface it is printed
+        // on, like a print screen, not to the drawing. Scaling it with the flower is what
+        // turned the dots into four fat blobs: the bigger the flower got, the coarser its
+        // texture.
+        step = gridDp.dp.toPx(),
+        centreYFraction = centreYFraction,
+        headOnly = headOnly,
+    )
 
-    // Leaves live on the stem, so a head-only drawing that keeps them ends up with two
-    // strokes floating under a flower and a bounding box half again too tall.
-    val petals = petalsFor(openness, withLeaves = !headOnly)
-
-    // Scaled to the flower's own extent, not to its authoring canvas. The prototype draws
-    // inside a 300×300 box but only ever fills about a third of it, so scaling by 300 left
-    // the bloom a thumbnail in the middle of the screen.
-    //
-    // The hero has one stage on screen at a time and can use the whole-plant box. A chip
-    // cannot: six stages sit side by side and the early ones are a tiny fraction of the
-    // last, so they are fitted to themselves instead — see [headFit].
-    val bounds = if (headOnly) headBounds(petals, openness) else null
-    val scale = if (bounds != null) {
-        val bw = (bounds[2] - bounds[0]).coerceAtLeast(1f)
-        val bh = (bounds[3] - bounds[1]).coerceAtLeast(1f)
-        minOf(w / bw, h / bh) * headFit(maxOf(bw, bh))
-    } else {
-        minOf(w / FlowerWidth, h / FlowerHeight)
-    }
-    // What the drawing is centred on. For the head-only fit that is the middle of what is
-    // actually drawn; otherwise the authored origin.
-    val refX = if (bounds != null) (bounds[0] + bounds[2]) / 2f else CX
-    val refY = if (bounds != null) (bounds[1] + bounds[3]) / 2f else CY
-    val cx = w / 2f
-    // Centred on the flower's real bounds, not on the canvas: the head reaches up by a
-    // petal length and the stem down by its own, so the origin is not the middle.
-    val cy = if (headOnly) h * centreYFraction else h / 2f - (FlowerHeight / 2f - MaxPetal) * scale
-
-    // Fixed density, in dp — the halftone grid belongs to the surface it is printed on,
-    // like a print screen, not to the drawing. Scaling it with the flower is what turned
-    // the dots into four fat blobs: the bigger the flower got, the coarser its texture.
-    val step = gridDp.dp.toPx()
-    val maxR = step * 0.60f
-
-    var gy = 0f
-    while (gy < h) {
-        var gx = 0f
-        while (gx < w) {
-            val fx = (gx - cx) / scale + refX
-            val fy = (gy - cy) / scale + refY
-            val cover = coverage(fx, fy, petals, openness, withStem = !headOnly)
-            if (cover > 0.02f) {
-                val n = hash(floor(gx / step) * 31f + floor(gy / step) * 57f)
-                // Each dot breathes on its own phase, so the field shimmers instead of
-                // pulsing as one block. Zero breath freezes it, which is what the strip wants.
-                val puff = if (breath == 0f) 1f else 0.88f + 0.12f * sin(breath + n * 6.2831f)
-                val r = maxR * cover * puff * (0.55f + 0.45f * n)
-                if (r > 0.25f) {
-                    drawCircle(
-                        color = ink,
-                        radius = r,
-                        center = Offset(gx + (n - 0.5f) * step * 0.35f, gy + (hash(n) - 0.5f) * step * 0.35f),
-                        alpha = ((0.35f + 0.65f * cover) * alphaScale).coerceIn(0f, 1f),
-                    )
-                }
-            }
-            gx += step
+    val dots = field.dots
+    var i = 0
+    val end = field.count * DotStride
+    while (i < end) {
+        val n = dots[i + 4]
+        // Each dot breathes on its own phase, so the field shimmers instead of pulsing as
+        // one block. Zero breath freezes it, which is what the strip wants.
+        val puff = if (breath == 0f) 1f else 0.88f + 0.12f * sin(breath + n * 6.2831f)
+        val r = dots[i + 2] * puff
+        if (r > 0.25f) {
+            drawCircle(
+                color = ink,
+                radius = r,
+                center = Offset(dots[i], dots[i + 1]),
+                alpha = (dots[i + 3] * alphaScale).coerceIn(0f, 1f),
+            )
         }
-        gy += step
+        i += DotStride
     }
 }
 
