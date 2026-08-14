@@ -170,6 +170,18 @@ val GlassLightBorder = Color(0x12000000)
 val GlassSheer = Color(0x1FFFFFFF)
 
 /**
+ * The edge that goes with [GlassSheer].
+ *
+ * White, like the pane, and pitched against the backdrop rather than against the theme —
+ * [GlassLightBorder] is a black hairline, which is correct on a pale card and invisible on
+ * a sheer one over a dark photograph.
+ *
+ * One token because the nav bar, the header chips and the event cards all draw this same
+ * edge, and they were each carrying their own `Color.White.copy(alpha = 0.13f)`.
+ */
+val GlassSheerBorder = Color(0x21FFFFFF)
+
+/**
  * No pane at all: refraction and a hairline, nothing painted on top.
  *
  * [GlassSheer]'s 12% white is still a wash — enough to lighten a large surface into a
@@ -180,6 +192,13 @@ val GlassSheer = Color(0x1FFFFFFF)
  * ground being added underneath it.
  */
 val GlassClear = Color.Transparent
+
+// A green-tinted pane lived here for a while: first `TicketGreen` at 30%, then the deeper
+// `DeepForest`. Both were wrong in the same way and it took seeing them on the device to
+// say why. The backdrop is *already* green. Tinting a pane green on a green ground either
+// brightens it (emerald, the loudest thing on screen) or darkens it (a hole), and neither
+// is what glass does — glass takes its colour from what is behind it. [GlassSheer] over
+// this artwork comes out green on its own, which is the nav bar's whole trick.
 
 // ===== Sky gradient =====
 //

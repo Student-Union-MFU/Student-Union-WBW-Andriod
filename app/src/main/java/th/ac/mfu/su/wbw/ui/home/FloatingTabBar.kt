@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import kotlinx.coroutines.launch
+import th.ac.mfu.su.wbw.ui.theme.GlassSheer
+import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.LocalBackdrop
 import th.ac.mfu.su.wbw.ui.theme.liquidGlass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -93,9 +95,9 @@ fun FloatingTabBar(
     // The bar is glass over the backdrop, and that backdrop is the same dark forest in
     // both themes — so the bar does not follow the card palette. Everything here is
     // pitched against the artwork, not against the theme.
-    val barSurface = Color.White.copy(alpha = 0.12f)
+    val barSurface = GlassSheer
     val idle = colors.onBackdrop
-    val edge = Color.White.copy(alpha = 0.13f)
+    val edge = GlassSheerBorder
     val indicatorFill = Color.White.copy(alpha = 0.18f)
 
     Row(

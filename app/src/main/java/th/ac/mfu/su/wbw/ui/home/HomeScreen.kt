@@ -16,12 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,6 +50,8 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
+import th.ac.mfu.su.wbw.ui.theme.GlassSheer
+import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -84,45 +89,76 @@ private fun HomeContent(
             .padding(contentPadding)
             .padding(horizontal = 18.dp),
     ) {
-        // The top strip carries the profile button and nothing else. The greeting moved
-        // down into the body: it is content — it names the person and the time of day —
-        // and sitting it in the chrome made the top of the screen look like a title bar
-        // for a screen that has no title.
+        // The top strip carries the profile button and nothing else. The greeting belongs
+        // below it, in the body: it is content — it names the person and the time of day —
+        // and pairing it with the button turned it into a header for a screen that has no
+        // header.
         //
         // Profile stays here rather than in the nav bar. It isn't somewhere you move
         // back and forth between while walking the trail — you open it to check a detail
         // or sign out — and iOS reaches it the same way, from the avatar in this corner.
+        //
+        // A rounded square, and sheer rather than themed. The circle was filled with
+        // `colors.glass` — cream at 86% in light theme — so it came out an opaque white
+        // disc with a near-black glyph in it: the brightest thing on the screen, for the
+        // least important control on it. Same material as the nav bar now.
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
             Box(
                 Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .glass(CircleShape)
+                    .size(46.dp)
+                    .glass(ProfileShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
                     .clickable(onClick = onOpenProfile),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Outlined.Person,
                     stringResource(R.string.profile_title),
-                    tint = colors.textPrimary,
+                    tint = colors.onBackdrop,
                     modifier = Modifier.size(22.dp),
                 )
             }
         }
 
-        // greeting — now the first thing in the body
-        Column(Modifier.padding(top = 18.dp)) {
-            Text(
-                stringResource(if (morning) R.string.home_good_morning else R.string.home_good_evening),
-                color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp,
-            )
+        // greeting — the first thing in the body
+        Column(Modifier.padding(top = 16.dp)) {
+            // The time of day, as a small pane with the sky in it.
+            //
+            // It was a bare line of type in `colors.accent` — which is near-black in light
+            // theme, on a backdrop that is a dark photograph in *both* themes. So half the
+            // users got an invisible greeting. That is the trap the palette documents:
+            // anything on the backdrop takes `onBackdrop`, never `accent` or `textPrimary`.
+            //
+            // Made a chip rather than just recoloured because the line has a job the name
+            // below cannot do — it says which half of the day the app thinks it is — and a
+            // sun or a moon says that faster than the words do.
+            Row(
+                Modifier
+                    .glass(PillShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                    .padding(start = 10.dp, end = 13.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    if (morning) Icons.Outlined.WbSunny else Icons.Outlined.DarkMode,
+                    null,
+                    tint = colors.onBackdrop,
+                    modifier = Modifier.size(13.dp),
+                )
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    stringResource(if (morning) R.string.home_good_morning else R.string.home_good_evening),
+                    color = colors.onBackdrop,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 10.sp,
+                    letterSpacing = 2.4.sp,
+                )
+            }
             Text(
                 stringResource(R.string.home_greeting, model.displayName),
                 // onBackdrop, not textPrimary: this sits on the dark backdrop image in
                 // both themes, and textPrimary goes near-black in light theme.
                 style = MaterialTheme.typography.displaySmall,
                 color = colors.onBackdrop,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 10.dp),
             )
         }
 
@@ -150,9 +186,14 @@ private fun HomeContent(
         // a phone at any fixed size — at 62dp they overflow a 393dp screen once the
         // screen padding is taken out. Dividing the row gives each one every pixel that
         // is going spare, and stays right on a narrower handset.
+        //
+        // The cells butt up against each other: the visible chip is a circle inset inside
+        // its cell, so the gap is drawn by the inset rather than by spacing, and every
+        // pixel between two circles is still a tap that lands on one of them. Explicit
+        // spacing here would only take width away from the drawings — which is what made
+        // the row hard to use in the first place.
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            Modifier.fillMaxWidth().padding(bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             for (s in 0..5) {
@@ -162,29 +203,62 @@ private fun HomeContent(
                     selected = s == shown,
                     onClick = { preview = if (s == reached) null else s },
                     ink = colors.onBackdrop,
-                    modifier = Modifier.weight(1f).height(58.dp),
+                    modifier = Modifier.weight(1f).height(64.dp),
                 )
             }
         }
 
-        // The count, set as quietly as the pass sets its labels — the flower carries the
-        // progress, this only names it. While previewing it says which stage you are
-        // looking at instead, so the screen never shows a flower it cannot account for.
+        // Two lines: the count, then what the flower has to do with it.
+        //
+        // The count used to be a single 10sp line tracked at 2.5sp — pass-label treatment,
+        // applied to the only number on the screen. And nothing anywhere said what the
+        // flower *was*: someone opening Home for the first time got a drawing, a row of
+        // silhouettes and "Checked in 3 / 8 bases", with no line connecting them. The
+        // caption now carries its own explanation, quietly, under the count.
+        //
+        // While previewing, both lines change: the stage you are looking at, and a
+        // reminder that it is not where you are — so the screen never shows a flower it
+        // cannot account for.
         Text(
             if (preview == null) {
                 stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases)
             } else {
-                stringResource(R.string.home_stage_preview, stringResource(stageLabel(shown)))
+                stringResource(stageLabel(shown))
             },
-            color = colors.onBackdropMuted,
-            fontSize = 10.sp,
-            letterSpacing = 2.5.sp,
+            color = colors.onBackdrop,
+            fontSize = 15.sp,
+            letterSpacing = 0.4.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            stringResource(
+                if (preview == null) R.string.home_bloom_hint else R.string.home_stage_preview_hint,
+            ),
+            color = colors.onBackdropMuted,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 5.dp, bottom = 12.dp, start = 12.dp, end = 12.dp),
             textAlign = TextAlign.Center,
         )
     }
 }
+
+/** The greeting chip. A full pill, so it reads as a tag rather than as a small card. */
+private val PillShape = RoundedCornerShape(50)
+
+/**
+ * The profile button: a rounded square, not a circle.
+ *
+ * A circle in the corner of a screen this glassy reads as an avatar that failed to load —
+ * it is the one shape the app reserves for photographs of people. The radius is the field
+ * corner rather than the card corner, because at 46dp a card's 26dp is most of the way
+ * back to a circle.
+ */
+private val ProfileShape = RoundedCornerShape(15.dp)
 
 // morning if between 5:00 and 18:00
 @Composable

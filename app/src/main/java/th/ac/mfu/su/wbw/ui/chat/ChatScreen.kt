@@ -55,7 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
-import th.ac.mfu.su.wbw.ui.theme.GlassClear
+import th.ac.mfu.su.wbw.ui.theme.GlassSheer
+import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -186,13 +187,19 @@ fun ChatScreen(contentPadding: PaddingValues) {
                 // composer sits under the bar, which overlays everything from the scaffold.
                 .padding(bottom = contentPadding.calculateBottomPadding().coerceAtLeast(14.dp))
                 .heightIn(min = 56.dp)
-                // A brighter edge than the app's usual hairline. With no fill under it,
-                // the border is the only thing describing the shape — the shared
-                // glassBorder is tuned for panes that also have a surface to help.
+                // The same material as the nav bar under it and the event cards: a sheer
+                // white pane and a hairline. It was clear glass with a 34% edge, which
+                // made it the only surface in the app described by its outline alone —
+                // a drawn rectangle rather than a piece of the same glass. A pane needs
+                // so little fill to stop being an outline, and this is that little.
+                //
+                // Squarer than the pill it was, too. At 28dp on a 56dp field the composer
+                // was a pill sitting directly above the nav bar's pill; the softer square
+                // separates the thing you type in from the thing you navigate with.
                 .glass(
-                    RoundedCornerShape(28.dp),
-                    fill = GlassClear,
-                    border = colors.onBackdrop.copy(alpha = 0.34f),
+                    ComposerShape,
+                    fill = GlassSheer,
+                    border = GlassSheerBorder,
                     elevation = 0.dp,
                 )
                 .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
@@ -246,7 +253,7 @@ fun ChatScreen(contentPadding: PaddingValues) {
             Box(
                 Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
+                    .clip(SendShape)
                     .background(colors.onBackdrop.copy(alpha = if (canSend) 0.92f else 0.10f))
                     .clickableTap { send(); keyboard?.hide() },
                 contentAlignment = Alignment.Center,
@@ -261,6 +268,20 @@ fun ChatScreen(contentPadding: PaddingValues) {
         }
     }
 }
+
+/**
+ * The composer's shape, and the send button's inside it.
+ *
+ * The button's radius is scaled to its own size rather than repeating the field's — 20dp
+ * on a 44dp square would be a circle again, and the point is that the two read as the same
+ * family of shape at two sizes.
+ */
+private val ComposerShape = RoundedCornerShape(20.dp)
+private val SendShape = RoundedCornerShape(14.dp)
+
+/** The avatar and the staff tag, each rounded in proportion to its own size. */
+private val AvatarShape = RoundedCornerShape(13.dp)
+private val TagShape = RoundedCornerShape(6.dp)
 
 /**
  * The emoji offered by the strip.
@@ -312,15 +333,24 @@ private fun MessageRow(row: Row_.Message) {
         // itself so the text starts clear of it rather than tucked against it.
         Box(Modifier.width(52.dp), contentAlignment = Alignment.TopStart) {
             if (!row.grouped) {
+                // A rounded square with the app's hairline on it, like the stage chips and
+                // the profile button. Staff no longer get a solid fill of their own: the
+                // tag beside the name already says staff, and the full-strength disc made
+                // the avatar the loudest thing in the thread.
                 Box(
-                    Modifier.size(38.dp).clip(CircleShape).background(
-                        if (m.staff) WbwGreenDark else WbwGreenDark.copy(alpha = avatarAlpha(m.author)),
-                    ),
+                    Modifier
+                        .size(38.dp)
+                        .clip(AvatarShape)
+                        .background(WbwGreenDark.copy(alpha = avatarAlpha(m.author)))
+                        .border(1.dp, GlassSheerBorder, AvatarShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         m.author.take(1).uppercase(),
-                        color = WbwInkLight,
+                        // Light, not WbwInkLight. These fills sit between 30% and 55% of
+                        // the green over a dark backdrop, so they come out mid-dark and a
+                        // near-black initial on them was around 2:1.
+                        color = colors.onBackdrop,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                     )
@@ -332,10 +362,14 @@ private fun MessageRow(row: Row_.Message) {
                 // CenterVertically, not Bottom: the badge and the timestamp are different
                 // heights, and hanging them off a shared baseline left the badge sitting
                 // low and looking dropped rather than set into the line.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.height(20.dp),
-                ) {
+                //
+                // No fixed height. It was pinned to 20dp, which is a *maximum* as far as
+                // the children are concerned — the badge measures a little taller than
+                // that, so its bottom was sliced off square and the tag rendered as a pill
+                // with a flat foot. The row is as tall as what is in it, and the badge
+                // controls its own height; at large system font scales the old 20dp would
+                // have started cutting the name too.
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         m.author,
                         color = colors.onBackdrop,
@@ -368,19 +402,26 @@ private fun MessageRow(row: Row_.Message) {
 
 @Composable
 private fun StaffTag() {
-    // A pill, filled, with the cap-height of the name beside it. The old one was a
-    // 5dp-radius rectangle with 1dp of vertical padding — too square to read as a badge
-    // and too short to line up with anything, which is what made it look stuck on.
+    // Sheer glass and a hairline, like the nav bar — it was the last green-tinted chip
+    // left on a screen where nothing else is tinted, so it read as a sticker.
+    //
+    // An explicit height with the label centred in it, rather than padding around a line
+    // of text. A tag this small is judged entirely on whether it sits level with the name
+    // beside it, and text metrics — ascent, descent, the font's own top padding — do not
+    // centre caps for you.
     Box(
         Modifier
-            .clip(CircleShape)
-            .background(WbwGreenDark.copy(alpha = 0.22f))
-            .padding(horizontal = 7.dp, vertical = 2.5.dp),
+            .height(18.dp)
+            .clip(TagShape)
+            .background(GlassSheer)
+            .border(1.dp, GlassSheerBorder, TagShape)
+            .padding(horizontal = 7.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             stringResource(R.string.chat_tag_staff).uppercase(),
-            color = WbwGreenDark,
-            fontSize = 8.sp,
+            color = wbwColors.onBackdrop,
+            fontSize = 8.5.sp,
             letterSpacing = 1.2.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -432,7 +473,10 @@ private fun groupMessages(source: List<ChatMessageStub>): List<Row_> {
  */
 private fun avatarAlpha(author: String): Float {
     val h = author.fold(0) { acc, c -> acc * 31 + c.code } and 0xFFFF
-    return 0.38f + (h % 5) * 0.09f
+    // 0.30–0.54. The old 0.38–0.74 reached far enough up the green that the brightest
+    // avatars stopped carrying a light initial — the range has to stay inside what one
+    // ink colour can sit on, since the initial cannot pick a colour per author.
+    return 0.30f + (h % 5) * 0.06f
 }
 
 private fun Modifier.clickableTap(onClick: () -> Unit): Modifier = composed {

@@ -72,6 +72,8 @@
     <string name="bloom_stage_4">ใกล้บานเต็ม</string>
     <string name="bloom_stage_5">บานเต็มที่</string>
     <string name="home_stage_preview">ดูตัวอย่าง · %1$s</string>
+    <string name="home_bloom_hint">ดอกไม้ของคุณจะบานขึ้นอีกนิดทุกครั้งที่เช็คอินแต่ละฐาน</string>
+    <string name="home_stage_preview_hint">นี่คือตัวอย่างล่วงหน้า — แตะระดับของคุณเพื่อกลับ</string>
 
     <!-- Home -->
     <string name="home_good_morning">อรุณสวัสดิ์</string>

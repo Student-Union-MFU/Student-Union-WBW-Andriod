@@ -338,11 +338,12 @@ fun GlassCard(
     shape: RoundedCornerShape = RoundedCornerShape(22.dp),
     contentPadding: PaddingValues = PaddingValues(16.dp),
     fill: Color? = null,
+    border: Color? = null,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier
-            .glass(shape, fill = fill, elevation = 16.dp)
+            .glass(shape, fill = fill, border = border, elevation = 16.dp)
             .padding(contentPadding),
     ) { content() }
 }

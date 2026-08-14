@@ -76,6 +76,10 @@
     <string name="bloom_stage_4">Almost</string>
     <string name="bloom_stage_5">Full bloom</string>
     <string name="home_stage_preview">Preview · %1$s</string>
+    <!-- Under the bloom. The flower is the only thing on Home that isn't self-explanatory,
+         so one line says what it is and what moves it. -->
+    <string name="home_bloom_hint">Your flower opens a little further at every base you check in at</string>
+    <string name="home_stage_preview_hint">A look ahead — tap your own stage to go back</string>
 
     <!-- Home -->
     <string name="home_good_morning">GOOD MORNING</string>

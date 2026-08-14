@@ -12,8 +12,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,6 +32,7 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.hypot
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -86,6 +89,14 @@ fun Bloom(
  *
  * [reached] only changes ink strength. Drawing unreached stages in a different *form*
  * (outline, wireframe) would have meant a second renderer to keep in step with the first.
+ *
+ * Two things used to make this row hard to use, and both were about size rather than
+ * spacing. The chips were the right size — the *drawings inside them* were not: every
+ * stage was scaled against the full-bloom head, so a seed came out a 1dp speck and stage 1
+ * a short stroke, in a 58dp box that looked empty. And only the selected chip carried a
+ * ring, so the other five had no edge, no fill and nothing to say they could be pressed.
+ * Now every chip is a ring you can see, and each stage is fitted to its own extent — see
+ * [headFit] for why that is only a partial fit.
  */
 @Composable
 fun BloomStage(
@@ -99,43 +110,58 @@ fun BloomStage(
     val strength by animateFloatAsState(
         targetValue = when {
             selected -> 1f
-            reached -> 0.72f
-            else -> 0.26f   // silhouette: present, clearly not yours yet
+            reached -> 0.78f
+            else -> 0.42f   // silhouette: present, clearly not yours yet
         },
         animationSpec = tween(220),
         label = "stageStrength",
     )
-    Box(
-        modifier
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+    // The chip's own presence, kept separate from the ink so an unreached stage can be a
+    // faint drawing inside a perfectly solid control.
+    val ringAlpha by animateFloatAsState(
+        targetValue = if (selected) 0.34f else if (reached) 0.20f else 0.13f,
+        animationSpec = tween(220),
+        label = "stageRing",
+    )
+    val fillAlpha by animateFloatAsState(
+        targetValue = if (selected) 0.14f else 0.05f,
+        animationSpec = tween(220),
+        label = "stageFill",
+    )
+    // The whole cell takes the tap — the circle is what you see, not what you have to
+    // hit. On a narrow handset the visible chip is around 50dp and the cell around 58dp,
+    // and the difference is exactly the margin that stops neighbouring stages being
+    // selected by mistake.
+    BoxWithConstraints(
+        modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onClick,
+        ),
         contentAlignment = Alignment.Center,
     ) {
-        // A ring under the selected stage. Without it the strip has no affordance at all
-        // — six faint drawings do not look like controls, which is exactly the complaint
-        // the strip exists to answer.
-        if (selected) {
+        // Sized from the cell rather than filling it: a rounded shape on a box that is
+        // wider than it is tall comes out lopsided, and six lopsided chips read as a row
+        // of buttons that did not quite fit.
+        val diameter = (minOf(maxWidth, maxHeight) - ChipInset).coerceAtLeast(24.dp)
+        Box(Modifier.size(diameter), contentAlignment = Alignment.Center) {
             Box(
                 Modifier
                     .matchParentSize()
-                    .clip(CircleShape)
-                    .background(ink.copy(alpha = 0.10f))
-                    .border(1.dp, ink.copy(alpha = 0.22f), CircleShape),
+                    .clip(ChipShape)
+                    .background(ink.copy(alpha = fillAlpha))
+                    .border(1.dp, ink.copy(alpha = ringAlpha), ChipShape),
             )
-        }
-        Canvas(Modifier.matchParentSize().padding(7.dp)) {
-            // Head only, and a much finer grid. The stem is two thirds of the flower's
-            // height and carries none of its identity, so including it left the head a
-            // speck; at this size the head *is* the stage.
-            drawBloom(
-                stage.toFloat(), ink, breath = 0f,
-                gridDp = 1.5f, centreYFraction = 0.5f,
-                alphaScale = strength, headOnly = true,
-            )
+            Canvas(Modifier.matchParentSize().padding(diameter * 0.11f)) {
+                // Head only, and a much finer grid. The stem is two thirds of the
+                // flower's height and carries none of its identity, so including it left
+                // the head a speck; at this size the head *is* the stage.
+                drawBloom(
+                    stage.toFloat(), ink, breath = 0f,
+                    gridDp = 1.5f, centreYFraction = 0.5f,
+                    alphaScale = strength, headOnly = true,
+                )
+            }
         }
     }
 }
@@ -159,12 +185,29 @@ private fun DrawScope.drawBloom(
     val h = size.height
     if (w <= 0f || h <= 0f) return
 
-    val petals = petalsFor(openness)
+    // Leaves live on the stem, so a head-only drawing that keeps them ends up with two
+    // strokes floating under a flower and a bounding box half again too tall.
+    val petals = petalsFor(openness, withLeaves = !headOnly)
 
     // Scaled to the flower's own extent, not to its authoring canvas. The prototype draws
     // inside a 300×300 box but only ever fills about a third of it, so scaling by 300 left
     // the bloom a thumbnail in the middle of the screen.
-    val scale = if (headOnly) minOf(w, h) / HeadSpan else minOf(w / FlowerWidth, h / FlowerHeight)
+    //
+    // The hero has one stage on screen at a time and can use the whole-plant box. A chip
+    // cannot: six stages sit side by side and the early ones are a tiny fraction of the
+    // last, so they are fitted to themselves instead — see [headFit].
+    val bounds = if (headOnly) headBounds(petals, openness) else null
+    val scale = if (bounds != null) {
+        val bw = (bounds[2] - bounds[0]).coerceAtLeast(1f)
+        val bh = (bounds[3] - bounds[1]).coerceAtLeast(1f)
+        minOf(w / bw, h / bh) * headFit(maxOf(bw, bh))
+    } else {
+        minOf(w / FlowerWidth, h / FlowerHeight)
+    }
+    // What the drawing is centred on. For the head-only fit that is the middle of what is
+    // actually drawn; otherwise the authored origin.
+    val refX = if (bounds != null) (bounds[0] + bounds[2]) / 2f else CX
+    val refY = if (bounds != null) (bounds[1] + bounds[3]) / 2f else CY
     val cx = w / 2f
     // Centred on the flower's real bounds, not on the canvas: the head reaches up by a
     // petal length and the stem down by its own, so the origin is not the middle.
@@ -180,8 +223,8 @@ private fun DrawScope.drawBloom(
     while (gy < h) {
         var gx = 0f
         while (gx < w) {
-            val fx = (gx - cx) / scale + CX
-            val fy = (gy - cy) / scale + CY
+            val fx = (gx - cx) / scale + refX
+            val fy = (gy - cy) / scale + refY
             val cover = coverage(fx, fy, petals, openness, withStem = !headOnly)
             if (cover > 0.02f) {
                 val n = hash(floor(gx / step) * 31f + floor(gy / step) * 57f)
@@ -203,6 +246,53 @@ private fun DrawScope.drawBloom(
         gy += step
     }
 }
+
+/**
+ * What a head-only drawing actually covers, in flower units: `[minX, minY, maxX, maxY]`.
+ *
+ * Measured rather than tabulated. The petal table changes often enough — counts, lengths,
+ * splay have all been retuned — that a hand-written extent per stage would be wrong within
+ * a release and wrong silently, as a chip that no longer quite fits its circle.
+ *
+ * Sampled at the waist and the tip: the half-width tapers to nothing at both ends, so the
+ * tip is exact and the waist is where a petal is widest.
+ */
+private fun headBounds(petals: List<Petal>, stage: Float): FloatArray {
+    val coreR = 3.5f + 3f * stage
+    var minX = CX - coreR
+    var maxX = CX + coreR
+    var minY = CY - coreR
+    var maxY = CY + coreR
+    for (p in petals) {
+        val a = p.ang * PI.toFloat() / 180f
+        for (u in floatArrayOf(0.5f, 1f)) {
+            val hw = p.halfWidth * 4f * u * (1f - u) * (1.15f - 0.15f * u)
+            val px = p.cx + p.len * u * cos(a)
+            val py = p.cy + p.len * u * sin(a)
+            minX = minOf(minX, px - hw); maxX = maxOf(maxX, px + hw)
+            minY = minOf(minY, py - hw); maxY = maxOf(maxY, py + hw)
+        }
+    }
+    return floatArrayOf(minX, minY, maxX, maxY)
+}
+
+/**
+ * How much of its circle a chip's head is allowed to fill, given how big that head is.
+ *
+ * A *full* fit — every stage scaled up until it touches its ring — is the obvious answer
+ * and the wrong one: it makes a seed exactly as big as a full bloom, and the row stops
+ * showing growth at all, which is the only thing it is there to show.
+ *
+ * A fractional power is the compromise. Filling by the raw extent ratio is what the strip
+ * did before and it is far too harsh at the bottom — a seed is 4% of a full head, so it
+ * came out invisible. Raising that ratio to 0.4 lifts the small stages into legibility
+ * (a seed to roughly a third of its circle, stage 1 to about half) while keeping every
+ * step visibly larger than the one before it.
+ */
+private fun headFit(extent: Float): Float =
+    (extent / HeadSpan).coerceIn(0.02f, 1f).pow(HeadFitExponent)
+
+private const val HeadFitExponent = 0.4f
 
 /**
  * Which of the six stages a progress maps to.
@@ -297,7 +387,7 @@ private const val HeadSpan = 160f
  *    frame reseeded every petal and the flower shimmered its way through the change.
  *    Seeds are per-petal-index only, fixed for the life of the flower.
  */
-private fun petalsFor(stage: Float): List<Petal> {
+private fun petalsFor(stage: Float, withLeaves: Boolean = true): List<Petal> {
     val s = stage.coerceIn(0f, 5f)
     val i = s.toInt().coerceAtMost(4)
     val t = s - i
@@ -362,6 +452,7 @@ private fun petalsFor(stage: Float): List<Petal> {
     // Leaves. Modelled as petals rooted on the stem rather than at the head, which is
     // all a leaf is geometrically — the coverage test does not care where a petal starts.
     for ((n, leaf) in Leaves.withIndex()) {
+        if (!withLeaves) break
         val grow = ((s - leaf.fromStage) / 0.9f).coerceIn(0f, 1f)
         if (grow <= 0f) continue
         val ly = CY + StemLength * leaf.alongStem
@@ -448,6 +539,26 @@ private fun cubic(p0: Float, p1: Float, p2: Float, p3: Float, t: Float): Float {
 }
 
 private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
+
+/**
+ * The chip's outline: a rounded square, like the profile button and the event cards.
+ *
+ * Circles were what the row had, and six of them under a round bloom over a round nav bar
+ * left the screen with nothing but circles — the stages had no edge of their own to be
+ * recognised by. A soft square also gives the drawing inside it more room in the corners,
+ * which at this size is most of the room there is.
+ */
+private val ChipShape = RoundedCornerShape(16.dp)
+
+/**
+ * The gap between one chip's ring and the next.
+ *
+ * Taken out of the circle, not out of the row: the cells stay flush, so every pixel
+ * between two rings is still a tap that lands on one of them. Spacing the cells instead
+ * would buy the same gap by making the drawings smaller, which is the wrong trade on a
+ * row this tight.
+ */
+private val ChipInset = 6.dp
 
 /** Deterministic 0..1 from a seed — the same trick the prototype used, so no RNG state. */
 private fun hash(seed: Float): Float {
