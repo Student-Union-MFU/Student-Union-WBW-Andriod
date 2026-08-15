@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.secrets.gradle)
 }
 
 android {
@@ -82,4 +83,27 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.sceneview)
     implementation(libs.backdrop)
+
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+    implementation(libs.places)
+}
+
+/**
+ * The Maps key lives in local.properties (gitignored) as MAPS_API_KEY, and the secrets
+ * plugin injects it as the `MAPS_API_KEY` manifest placeholder the map meta-data reads.
+ *
+ * `defaultPropertiesFileName` points at a committed file carrying an empty placeholder, so
+ * a fresh checkout with no key still builds — the map renders blank tiles with a log
+ * warning rather than failing the build. `ignoreList` keeps the plugin from trying to turn
+ * `sdk.dir` and the Kotlin daemon settings in local.properties into placeholders, which it
+ * cannot, because a dot is illegal in a placeholder name.
+ */
+secrets {
+    propertiesFileName = "local.properties"
+    defaultPropertiesFileName = "secrets.defaults.properties"
+    ignoreList.add("sdk.*")
+    ignoreList.add("kotlin.*")
+    ignoreList.add("org.gradle.*")
 }

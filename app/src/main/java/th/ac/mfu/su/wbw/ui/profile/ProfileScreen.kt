@@ -53,6 +53,12 @@ import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.home.GrowthPhase
 import th.ac.mfu.su.wbw.ui.theme.Kanit
+import th.ac.mfu.su.wbw.ui.theme.PassFaint
+import th.ac.mfu.su.wbw.ui.theme.PassHairline
+import th.ac.mfu.su.wbw.ui.theme.PassInk
+import th.ac.mfu.su.wbw.ui.theme.PassMuted
+import th.ac.mfu.su.wbw.ui.theme.PassSurface
+import th.ac.mfu.su.wbw.ui.theme.PassWell
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
@@ -69,14 +75,8 @@ import th.ac.mfu.su.wbw.ui.theme.wbwColors
  * the edge, and a lot of air. Weight carries the hierarchy instead of colour, which is
  * what lets a single white do the work of the old palette's seven tones.
  */
-private val PassInk = Color(0xFFFFFFFF)
-private val PassMuted = Color(0xCCFFFFFF)
-private val PassFaint = Color(0x8AFFFFFF)
-private val PassHairline = Color(0x1AFFFFFF)
-private val PassWell = Color(0x0FFFFFFF)
-
-/** The pane itself — deliberately thin, so the forest still reads through it. */
-private val PassSurface = Color(0x1FFFFFFF)
+// The pass's colours moved to the palette when the login screen took up the same
+// vocabulary — see the "pass" block in Color.kt.
 
 @Composable
 fun ProfileScreen(

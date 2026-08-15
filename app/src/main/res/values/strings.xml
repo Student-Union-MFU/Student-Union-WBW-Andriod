@@ -12,9 +12,20 @@
 
     <!-- Login -->
     <string name="login_tagline">Walk Around the Doi · Participant sign-in</string>
+    <!-- Above the fields. Deliberately not `login_tagline`, which names the event again —
+         the wordmark directly above it has just done that, in two languages. -->
+    <string name="login_greeting">Participant sign-in</string>
+    <string name="login_password_show">Show password</string>
+    <string name="login_password_hide">Hide password</string>
     <string name="login_field_username">Student ID / Username</string>
     <string name="login_field_password">Password</string>
     <string name="login_action_submit">Sign in</string>
+    <string name="login_placeholder_username">Your student ID</string>
+    <string name="login_placeholder_password">Your password</string>
+    <!-- Split from login_link_register so the call to action can be set apart from the
+         question in front of it. -->
+    <string name="login_no_account">No account yet?</string>
+    <string name="login_action_register">Register</string>
     <string name="login_link_register">No account yet? Register</string>
 
     <!-- Register -->
@@ -95,6 +106,29 @@
     <!-- Tabs -->
     <string name="tab_home">Home</string>
     <string name="tab_map">Map</string>
+    <string name="map_title">Trail map</string>
+    <string name="map_recenter">Recentre on me</string>
+    <string name="map_search">Search</string>
+    <string name="map_mode_3d">3D view</string>
+    <string name="map_mode_2d">2D view</string>
+    <string name="map_route_start">Start</string>
+    <string name="map_route_finish">Finish</string>
+
+    <!-- Walk tracking -->
+    <string name="walk_start">Start walking</string>
+    <string name="walk_stop">Stop</string>
+    <string name="walk_stat_distance">Distance</string>
+    <string name="walk_stat_steps">Steps</string>
+    <string name="walk_stat_pace">Pace</string>
+    <!-- Shown where a number would be, when the phone has no pedometer or the
+         permission was refused. Deliberately not "0". -->
+    <string name="walk_unavailable">—</string>
+    <string name="walk_distance_km">%.2f km</string>
+    <string name="walk_distance_m">%d m</string>
+    <string name="walk_pace_min_km">%1$d\'%2$02d\" /km</string>
+    <string name="walk_channel_name">Walk tracking</string>
+    <string name="walk_notification_title">Recording your walk</string>
+    <string name="walk_notification_distance">%.2f km so far</string>
     <string name="tab_activity">Activity</string>
     <string name="tab_chat">Chat</string>
 

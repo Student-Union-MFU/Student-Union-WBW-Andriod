@@ -36,6 +36,7 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.ui.activities.ActivitiesScreen
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
+import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.profile.ProfileScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
@@ -119,7 +120,7 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                             onOpenProfile = { nav.navigate("profile") },
                         )
                     }
-                    composable("map") { ComingSoonScreen(R.string.tab_map, Icons.Outlined.Map, contentPadding) }
+                    composable("map") { MapScreen(contentPadding = contentPadding) }
                     composable("chat") { ChatScreen(contentPadding = contentPadding) }
                     composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
                     composable("profile") {

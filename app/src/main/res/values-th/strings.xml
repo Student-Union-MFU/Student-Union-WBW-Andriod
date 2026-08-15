@@ -10,9 +10,16 @@
 
     <!-- Login -->
     <string name="login_tagline">เดินรอบดอย · เข้าสู่ระบบผู้เข้าร่วม</string>
+    <string name="login_greeting">เข้าสู่ระบบผู้เข้าร่วม</string>
+    <string name="login_password_show">แสดงรหัสผ่าน</string>
+    <string name="login_password_hide">ซ่อนรหัสผ่าน</string>
     <string name="login_field_username">รหัสนักศึกษา / ชื่อผู้ใช้</string>
     <string name="login_field_password">รหัสผ่าน</string>
     <string name="login_action_submit">เข้าสู่ระบบ</string>
+    <string name="login_placeholder_username">รหัสนักศึกษาของคุณ</string>
+    <string name="login_placeholder_password">รหัสผ่านของคุณ</string>
+    <string name="login_no_account">ยังไม่มีบัญชี?</string>
+    <string name="login_action_register">ลงทะเบียน</string>
     <string name="login_link_register">ยังไม่มีบัญชี? ลงทะเบียน</string>
 
     <!-- Register -->
@@ -89,6 +96,27 @@
     <!-- Tabs -->
     <string name="tab_home">หน้าหลัก</string>
     <string name="tab_map">แผนที่</string>
+    <string name="map_title">แผนที่เส้นทาง</string>
+    <string name="map_recenter">กลับมาที่ตำแหน่งฉัน</string>
+    <string name="map_search">ค้นหา</string>
+    <string name="map_mode_3d">มุมมอง 3 มิติ</string>
+    <string name="map_mode_2d">มุมมอง 2 มิติ</string>
+    <string name="map_route_start">จุดเริ่มต้น</string>
+    <string name="map_route_finish">จุดสิ้นสุด</string>
+
+    <!-- Walk tracking -->
+    <string name="walk_start">เริ่มเดิน</string>
+    <string name="walk_stop">หยุด</string>
+    <string name="walk_stat_distance">ระยะทาง</string>
+    <string name="walk_stat_steps">ก้าว</string>
+    <string name="walk_stat_pace">เพซ</string>
+    <string name="walk_unavailable">—</string>
+    <string name="walk_distance_km">%.2f กม.</string>
+    <string name="walk_distance_m">%d ม.</string>
+    <string name="walk_pace_min_km">%1$d\'%2$02d\" /กม.</string>
+    <string name="walk_channel_name">การบันทึกการเดิน</string>
+    <string name="walk_notification_title">กำลังบันทึกการเดินของคุณ</string>
+    <string name="walk_notification_distance">เดินแล้ว %.2f กม.</string>
     <string name="tab_activity">กิจกรรม</string>
     <string name="tab_chat">แชท</string>
 

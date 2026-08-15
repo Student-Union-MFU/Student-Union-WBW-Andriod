@@ -18,6 +18,11 @@ coil = "2.7.0"
 splashscreen = "1.0.1"
 sceneview = "2.3.3"
 backdrop = "2.0.0"
+mapsCompose = "6.4.1"
+playServicesMaps = "19.2.0"
+playServicesLocation = "21.3.0"
+places = "4.1.0"
+secretsPlugin = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,7 +56,19 @@ sceneview = { group = "io.github.sceneview", name = "sceneview", version.ref = "
 # pill rather than breaking.
 backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 
+# Google Maps for Compose — the official Compose wrapper over the Maps SDK. It pulls
+# play-services-maps transitively; the explicit entry below just pins that floor.
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+# Fused location, for the one "you are here" fix that centres the camera.
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+# Places — search the trail area and fly the map to a result.
+places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Reads the Maps key out of local.properties and injects it as a manifest placeholder,
+# so the key never has to live in a committed file.
+secrets-gradle = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsPlugin" }

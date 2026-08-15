@@ -58,9 +58,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.WbwApplication
 import th.ac.mfu.su.wbw.data.local.AppSettings
+import th.ac.mfu.su.wbw.ui.theme.DangerDark
+import th.ac.mfu.su.wbw.ui.theme.GlassSheer
+import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
-import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
-import th.ac.mfu.su.wbw.ui.theme.PanelCorner
+import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.ThemeMode
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -81,15 +83,25 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         // header
+        //
+        // The eyebrow above the title used to be the *same word* as the title, uppercased —
+        // "SETTINGS" over "Settings" — in `colors.accent`, which is near-black in light
+        // theme on a backdrop that is dark in both. So it was a duplicate label that half
+        // the users could not read. The back button is a glass chip now, matching the
+        // profile button it is the counterpart to, and picking up a real tap target on the
+        // way: it was a bare 30dp icon.
         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(30.dp).clickableTap(onBack), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back), tint = colors.onBackdrop, modifier = Modifier.size(22.dp))
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .glass(ChipShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                    .clickableTap(onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back), tint = colors.onBackdrop, modifier = Modifier.size(20.dp))
             }
-            Spacer(Modifier.size(10.dp))
-            Column {
-                Text(stringResource(R.string.settings_title).uppercase(), color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 3.sp)
-                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
-            }
+            Spacer(Modifier.size(12.dp))
+            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall, color = colors.onBackdrop)
         }
 
         // language
@@ -98,18 +110,18 @@ fun SettingsScreen(
 
         // appearance
         SectionLabel(stringResource(R.string.settings_appearance))
-        Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner)).padding(14.dp)) {
+        Column(Modifier.fillMaxWidth().panel().padding(14.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ThemeOption(stringResource(R.string.settings_theme_light), Icons.Outlined.LightMode, themeMode == ThemeMode.LIGHT, Modifier.weight(1f)) { settings.setThemeMode(ThemeMode.LIGHT) }
                 ThemeOption(stringResource(R.string.settings_theme_dark), Icons.Outlined.DarkMode, themeMode == ThemeMode.DARK, Modifier.weight(1f)) { settings.setThemeMode(ThemeMode.DARK) }
                 ThemeOption(stringResource(R.string.settings_theme_auto), Icons.Outlined.Brightness4, themeMode == ThemeMode.AUTO, Modifier.weight(1f)) { settings.setThemeMode(ThemeMode.AUTO) }
             }
-            Text(stringResource(R.string.settings_appearance_hint), color = colors.textMuted, fontSize = 10.5.sp, modifier = Modifier.padding(top = 9.dp))
+            Text(stringResource(R.string.settings_appearance_hint), color = colors.onBackdropMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
         }
 
         // notifications
         SectionLabel(stringResource(R.string.settings_notifications))
-        Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner))) {
+        Column(Modifier.fillMaxWidth().panel()) {
             NotiToggle(settings, "announcements", stringResource(R.string.settings_noti_announcements), stringResource(R.string.settings_noti_announcements_desc), true)
             Divider()
             NotiToggle(settings, "nearby", stringResource(R.string.settings_noti_nearby), stringResource(R.string.settings_noti_nearby_desc), true)
@@ -121,17 +133,20 @@ fun SettingsScreen(
 
         // general
         SectionLabel(stringResource(R.string.settings_general))
-        Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner))) {
+        Column(Modifier.fillMaxWidth().panel()) {
             LinkRow(Icons.Outlined.Info, stringResource(R.string.settings_about)) {}
             Divider()
             LinkRow(Icons.Outlined.HelpOutline, stringResource(R.string.settings_help)) {}
             Divider()
             Row(
-                Modifier.fillMaxWidth().clickableTap(onLogout).padding(15.dp),
+                Modifier.fillMaxWidth().clickableTap(onLogout).padding(horizontal = 15.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = colors.danger, modifier = Modifier.size(18.dp))
-                Text(stringResource(R.string.profile_action_logout), color = colors.danger, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                // DangerDark, not `colors.danger`. The themed pair exists so the warning
+                // reads on a card that follows the theme; this panel is dark in both, and
+                // the light-theme oxblood goes muddy on it.
+                Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = DangerDark, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.profile_action_logout), color = DangerDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -147,12 +162,12 @@ private fun LanguageRow(settings: AppSettings) {
     val isThai = currentLang == "th"
 
     Row(
-        Modifier.fillMaxWidth().glass(RoundedCornerShape(PanelCorner)).padding(14.dp),
+        Modifier.fillMaxWidth().panel().padding(start = 15.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(stringResource(R.string.settings_display_language), color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.settings_display_language), color = colors.onBackdrop, style = MaterialTheme.typography.bodyLarge)
         Row(
-            Modifier.clip(RoundedCornerShape(12.dp)).background(colors.textMuted.copy(alpha = 0.12f)).padding(3.dp),
+            Modifier.clip(RoundedCornerShape(13.dp)).background(colors.onBackdrop.copy(alpha = 0.07f)).padding(3.dp),
             horizontalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             LangSegment(stringResource(R.string.settings_lang_english), !isThai) { setLang(context, settings, "en") }
@@ -164,15 +179,24 @@ private fun LanguageRow(settings: AppSettings) {
 @Composable
 private fun LangSegment(label: String, selected: Boolean, onClick: () -> Unit) {
     val colors = wbwColors
+    // Selection is a lift in the glass, not a filled accent slab — the same move the nav
+    // bar's indicator makes. The accent fill needed its own ink colour per theme to stay
+    // readable, which is two more ways for this one control to go wrong.
+    val shape = RoundedCornerShape(10.dp)
     Box(
-        Modifier.clip(RoundedCornerShape(9.dp)).background(if (selected) colors.accent else Color.Transparent).clickableTap(onClick).padding(horizontal = 15.dp, vertical = 5.dp),
+        Modifier
+            .clip(shape)
+            .background(if (selected) colors.onBackdrop.copy(alpha = 0.18f) else Color.Transparent)
+            .then(if (selected) Modifier.border(1.dp, GlassSheerBorder, shape) else Modifier)
+            .clickableTap(onClick)
+            .padding(horizontal = 15.dp, vertical = 6.dp),
     ) {
-        // Sits on the accent pill when selected, and the accent is deliberately not the
-        // same lightness in both themes — dark ink reads on the bright dusk green, cream
-        // on the deeper daylight one. One fixed colour loses whichever theme it was not
-        // picked for.
-        val onAccent = if (colors.isDark) WbwInkLight else TicketCreamPaper
-        Text(label, color = if (selected) onAccent else colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text(
+            label,
+            color = if (selected) colors.onBackdrop else colors.onBackdropMuted,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+        )
     }
 }
 
@@ -185,16 +209,24 @@ private fun setLang(context: Context, settings: AppSettings, tag: String) {
 @Composable
 private fun ThemeOption(label: String, icon: ImageVector, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val colors = wbwColors
-    val shape = RoundedCornerShape(15.dp)
+    // The stage chips' states, at a different size: a fill and a hairline that both step
+    // up when selected. The 2dp accent outline this had was the heaviest border in the
+    // app, on the least consequential choice in it.
+    val shape = RoundedCornerShape(14.dp)
     Column(
         modifier.clip(shape)
-            .background(if (selected) colors.accent.copy(alpha = 0.2f) else colors.textMuted.copy(alpha = 0.06f))
-            .then(if (selected) Modifier.border2(colors.accent, shape) else Modifier)
-            .clickableTap(onClick).padding(vertical = 11.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+            .background(colors.onBackdrop.copy(alpha = if (selected) 0.14f else 0.05f))
+            .border(1.dp, colors.onBackdrop.copy(alpha = if (selected) 0.34f else 0.10f), shape)
+            .clickableTap(onClick).padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        Icon(icon, null, tint = if (selected) colors.accent else colors.textMuted, modifier = Modifier.size(20.dp))
-        Text(label, color = if (selected) colors.textPrimary else colors.textMuted, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+        Icon(icon, null, tint = if (selected) colors.onBackdrop else colors.onBackdropMuted, modifier = Modifier.size(20.dp))
+        Text(
+            label,
+            color = if (selected) colors.onBackdrop else colors.onBackdropMuted,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        )
     }
 }
 
@@ -203,22 +235,26 @@ private fun NotiToggle(settings: AppSettings, key: String, title: String, desc: 
     val colors = wbwColors
     var checked by rememberSaveable(key) { mutableStateOf(settings.notificationEnabled(key, default)) }
     Row(
-        Modifier.fillMaxWidth().padding(15.dp, 13.dp), verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge)
-            Text(desc, color = colors.textMuted, fontSize = 10.5.sp)
+        Column(Modifier.weight(1f, fill = false).padding(end = 12.dp)) {
+            Text(title, color = colors.onBackdrop, style = MaterialTheme.typography.bodyLarge)
+            Text(desc, color = colors.onBackdropMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 1.dp))
         }
+        Spacer(Modifier.weight(1f))
         Switch(
             checked = checked,
             onCheckedChange = { checked = it; settings.setNotificationEnabled(key, it) },
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = colors.accentSoft,
+                // The status green — the app's one "this is on" colour, already used for
+                // progress. `accentSoft` was standing in for it, and in light theme that
+                // is a dark olive, which on a dark panel is an off switch that looks on.
+                checkedThumbColor = TicketCreamPaper,
+                checkedTrackColor = WbwGreenDark.copy(alpha = 0.75f),
                 checkedBorderColor = Color.Transparent,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = colors.textMuted.copy(alpha = 0.3f),
-                uncheckedBorderColor = Color.Transparent,
+                uncheckedThumbColor = colors.onBackdrop.copy(alpha = 0.8f),
+                uncheckedTrackColor = colors.onBackdrop.copy(alpha = 0.12f),
+                uncheckedBorderColor = GlassSheerBorder,
             ),
         )
     }
@@ -228,30 +264,50 @@ private fun NotiToggle(settings: AppSettings, key: String, title: String, desc: 
 private fun LinkRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     val colors = wbwColors
     Row(
-        Modifier.fillMaxWidth().clickableTap(onClick).padding(15.dp, 13.dp),
+        Modifier.fillMaxWidth().clickableTap(onClick).padding(horizontal = 15.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(icon, null, tint = colors.accent, modifier = Modifier.size(18.dp))
-        Text(label, color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = colors.onBackdropMuted, modifier = Modifier.size(18.dp))
+        Text(label, color = colors.onBackdrop, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Icon(Icons.Outlined.ChevronRight, null, tint = colors.onBackdropMuted, modifier = Modifier.size(18.dp))
     }
 }
 
+/**
+ * A section heading, on the backdrop rather than on a panel.
+ *
+ * Which is exactly why it cannot use `colors.accent`: that is near-black in light theme
+ * and these sit straight on the dark artwork, so the headings were all but invisible for
+ * anyone not in dark mode. Same trap as the greeting on Home and the eyebrow above.
+ */
 @Composable
 private fun SectionLabel(text: String) {
     Text(
-        text.uppercase(), color = wbwColors.accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.6.sp,
-        modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 7.dp),
+        text.uppercase(), color = wbwColors.onBackdropMuted, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, letterSpacing = 1.8.sp,
+        modifier = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 8.dp),
     )
 }
 
+/**
+ * The panel: one pane of the app's glass, the same as an event card or the nav bar.
+ *
+ * These used the themed default, which is cream at 86% in light mode — five opaque slabs
+ * stacked down a screen whose ground is a photograph. The corner comes down with it, for
+ * the reason the event cards' did: a radius that suits a small pane looks inflated on
+ * something the full width of the screen.
+ */
+private fun Modifier.panel(): Modifier =
+    glass(RoundedCornerShape(PanelRadius), fill = GlassSheer, border = GlassSheerBorder)
+
+private val PanelRadius = 18.dp
+
+/** The header chip, matching the profile button on Home. */
+private val ChipShape = RoundedCornerShape(14.dp)
+
 @Composable
 private fun Divider() {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(wbwColors.textMuted.copy(alpha = 0.1f)))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(GlassSheerBorder))
 }
-
-private fun Modifier.border2(color: Color, shape: RoundedCornerShape): Modifier =
-    border(2.dp, color, shape)
 
 private fun Modifier.clickableTap(onClick: () -> Unit): Modifier = composed {
     clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)

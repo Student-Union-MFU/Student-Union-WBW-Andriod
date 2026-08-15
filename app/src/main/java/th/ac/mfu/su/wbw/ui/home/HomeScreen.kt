@@ -29,7 +29,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
@@ -79,12 +85,41 @@ private fun HomeContent(
 ) {
     val colors = wbwColors
     val morning = remember2()
+
+    // How long the bloom keeps breathing after you last touched the screen.
+    //
+    // The breath is what makes the flower look alive, and it is worth having while
+    // somebody is actually looking. What it is not worth is running for the whole walk:
+    // a screen with an animation on it renders sixty frames a second forever, and this is
+    // a screen people leave open in a pocket. Every touch wakes it for another spell.
+    //
+    // `touches` is a counter rather than a timestamp so that re-touching restarts the
+    // countdown by re-keying the effect, without any clock arithmetic.
+    var touches by remember { mutableIntStateOf(0) }
+    var breathing by remember { mutableStateOf(true) }
+    LaunchedEffect(touches) {
+        breathing = true
+        delay(BreathIdleMillis)
+        breathing = false
+    }
     // Not scrollable. Home is a single view now — greeting, bloom, count — and the bloom
     // takes the height that is left, which a scrolling column cannot give it (its content
     // is measured against an unbounded height, so `weight` has nothing to divide).
     Column(
         Modifier
             .fillMaxSize()
+            // Presses only, on the Initial pass: the children consume their own taps, and
+            // a wake-up has no business waiting to see whether they did. Moves are
+            // ignored — a counter that ticked on every pointer sample would recompose the
+            // screen through a drag to say something it already knew.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Press) touches++
+                    }
+                }
+            }
             .statusBarsPadding()
             .padding(contentPadding)
             .padding(horizontal = 18.dp),
@@ -176,6 +211,7 @@ private fun HomeContent(
         Bloom(
             stage = shown,
             ink = colors.onBackdrop,
+            breathing = breathing,
             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 12.dp),
         )
 
@@ -246,6 +282,14 @@ private fun HomeContent(
         )
     }
 }
+
+/**
+ * How long the bloom keeps breathing after a touch.
+ *
+ * Long enough to cover reading the screen and tapping along the stage strip, short enough
+ * that a phone put away stops drawing almost immediately.
+ */
+private const val BreathIdleMillis = 12_000L
 
 /** The greeting chip. A full pill, so it reads as a tag rather than as a small card. */
 private val PillShape = RoundedCornerShape(50)

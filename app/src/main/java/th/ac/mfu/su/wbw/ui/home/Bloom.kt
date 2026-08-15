@@ -1,11 +1,10 @@
 package th.ac.mfu.su.wbw.ui.home
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,8 +28,10 @@ import androidx.compose.ui.unit.dp
 import th.ac.mfu.su.wbw.R
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.round
 import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.sin
@@ -46,6 +47,11 @@ import kotlin.math.sin
  * also what makes the thing read at a glance — a contour spray reads as sparkle, a
  * halftone reads as a shape.
  *
+ * [gridDp] is the halftone's pitch and belongs to the surface, not to the drawing — but a
+ * small rendering of the plant needs a finer screen than a large one, or its stem comes out
+ * thinner than one cell and drops out of the picture entirely. Home's hero can use the
+ * coarse default; anything drawn at a couple of hundred dp should ask for less.
+ *
  * Everything is deterministic. The jitter comes from a hash of the cell coordinate, so
  * the same progress always draws the same flower and there is no per-frame allocation or
  * random state to keep. The only animation is a slow breath on the dot radii.
@@ -59,6 +65,8 @@ fun Bloom(
     stage: Int,
     modifier: Modifier = Modifier,
     ink: Color = Color.White,
+    breathing: Boolean = true,
+    gridDp: Float = 6f,
 ) {
     // Eased so a check-in *opens* the flower rather than snapping it — and so tapping
     // along the stage strip runs the bloom forwards and backwards instead of cutting.
@@ -67,17 +75,39 @@ fun Bloom(
         animationSpec = tween(durationMillis = 900, easing = LinearEasing),
         label = "bloom",
     )
-    val breath by rememberInfiniteTransition(label = "breath").animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(7000, easing = LinearEasing)),
-        label = "breathT",
-    )
 
+    // The breath, on a leash.
+    //
+    // An `infiniteRepeatable` cannot be stopped, and a running animation means the screen
+    // redraws sixty times a second for as long as it is open. Each of those frames is
+    // cheap now, but "cheap and constant" is still a GPU kept awake all day on a phone
+    // being carried up a mountain — and Home is a screen people leave open.
+    //
+    // So it is an [Animatable] driven by an effect that can be cancelled, and it resumes
+    // from the phase it stopped at rather than restarting the cycle: a flower caught
+    // mid-breath must not jump when it starts again. With [breathing] false the canvas has
+    // nothing left to invalidate it and the screen goes quiet, the way a screen with no
+    // animation on it does.
+    val breath = remember { Animatable(0f) }
+    LaunchedEffect(breathing) {
+        if (!breathing) return@LaunchedEffect
+        while (true) {
+            val remaining = ((TwoPi - breath.value) / TwoPi * BreathMillis).toInt().coerceAtLeast(16)
+            breath.animateTo(TwoPi, tween(remaining, easing = LinearEasing))
+            breath.snapTo(0f)
+        }
+    }
+
+    val field = remember { BloomField() }
     Canvas(modifier) {
-        drawBloom(openness, ink, breath, gridDp = 6f, centreYFraction = 0.38f)
+        drawBloom(field, openness, ink, breath.value, gridDp = gridDp, centreYFraction = 0.38f)
     }
 }
+
+private val TwoPi = (2 * PI).toFloat()
+
+/** One full breath cycle. */
+private const val BreathMillis = 7000
 
 /**
  * One stage as a small silhouette, for the strip.
@@ -152,14 +182,20 @@ fun BloomStage(
                     .background(ink.copy(alpha = fillAlpha))
                     .border(1.dp, ink.copy(alpha = ringAlpha), ChipShape),
             )
+            val field = remember { BloomField() }
             Canvas(Modifier.matchParentSize().padding(diameter * 0.11f)) {
                 // Head only, and a much finer grid. The stem is two thirds of the
                 // flower's height and carries none of its identity, so including it left
                 // the head a speck; at this size the head *is* the stage.
+                //
+                // `strength` is applied to the finished dots rather than baked into them,
+                // so the 220ms fade between reached and unreached never rebuilds the
+                // drawing — six chips redrawing themselves on every frame of that fade is
+                // what the field cache exists to avoid.
                 drawBloom(
-                    stage.toFloat(), ink, breath = 0f,
+                    field, stage.toFloat(), ink, breath = 0f,
                     gridDp = 1.5f, centreYFraction = 0.5f,
-                    alphaScale = strength, headOnly = true,
+                    alphaScale = strength, kind = Botanical.Head,
                 )
             }
         }
@@ -184,7 +220,7 @@ private fun DrawScope.drawBloom(
     gridDp: Float,
     centreYFraction: Float,
     alphaScale: Float = 1f,
-    headOnly: Boolean = false,
+    kind: Botanical = Botanical.Plant,
 ) {
     field.ensure(
         w = size.width,
@@ -196,7 +232,7 @@ private fun DrawScope.drawBloom(
         // texture.
         step = gridDp.dp.toPx(),
         centreYFraction = centreYFraction,
-        headOnly = headOnly,
+        kind = kind,
     )
 
     val dots = field.dots
@@ -217,6 +253,356 @@ private fun DrawScope.drawBloom(
             )
         }
         i += DotStride
+    }
+}
+
+/**
+ * Which drawing a field holds.
+ *
+ * All three are the same halftone of the same petal geometry — what changes is which parts
+ * are asked for and how the result is fitted to its box. A frond is a leaf spray with no
+ * flower head on it at all, which is why it alone has no core.
+ */
+private enum class Botanical { Plant, Head, Frond }
+
+/**
+ * A leaf spray, for decoration.
+ *
+ * Leaves are already modelled as petals rooted away from the head — that is how the plant's
+ * own two leaves work — so a frond is just more of them along a stalk, and the stalk itself
+ * is one long thin petal. Nothing new to render, and nothing that can drift out of step
+ * with the flower it is meant to belong to.
+ *
+ * [variant] picks a fixed arrangement rather than seeding a random one: the login screen
+ * draws these at opposite corners, and two sprays that are obviously the same drawing
+ * mirrored read as wallpaper, while two unrelated ones read as a pair.
+ */
+private fun frondPetals(variant: Float): List<Petal> {
+    val v = variant.toInt()
+    val mirror = if (v % 2 == 0) 1f else -1f
+    val out = ArrayList<Petal>(12)
+
+    // The stalk. A petal tapers to nothing at both ends, which is exactly what a stem
+    // does, so it needs no special case in the coverage test.
+    val rootX = CX
+    val rootY = CY + 96f
+    val stalkAngle = -90f + 5f * mirror
+    val stalkRad = stalkAngle * PI.toFloat() / 180f
+    val stalkLen = 168f + 20f * hash(v * 5.1f)
+    out.add(Petal(rootX, rootY, stalkAngle, stalkLen, 3.2f))
+
+    // Leaves up the stalk, alternating sides, shortening toward the tip — the shape a
+    // frond makes.
+    //
+    // Broad and few, not fine and many. The first version used the flower's own petal
+    // proportions (0.34 of their length across, six a side) and at a 3.4dp halftone that
+    // is two or three dots wide: the sprays came out as speckle in the corners rather than
+    // as leaves. A leaf has to be several dots across before the grid can describe its
+    // edge at all.
+    val along = floatArrayOf(0.12f, 0.27f, 0.42f, 0.56f, 0.70f, 0.83f)
+    for ((k, t) in along.withIndex()) {
+        val side = if (k % 2 == 0) 1f else -1f
+        val lx = rootX + (stalkLen * t) * cos(stalkRad)
+        val ly = rootY + (stalkLen * t) * sin(stalkRad)
+        // Sweeping up toward the tip, the way a frond's leaves do — flat at the base,
+        // closing on the stalk as they climb.
+        val spread = 70f - 30f * t
+        val len = (86f - 34f * t) * (0.9f + 0.2f * hash(k * 17.3f + v))
+        out.add(Petal(lx, ly, stalkAngle + side * mirror * spread, len, len * 0.30f))
+    }
+    // One leaf straight off the tip, so the spray ends in a point rather than in a gap
+    // between the last pair.
+    out.add(
+        Petal(
+            rootX + stalkLen * 0.92f * cos(stalkRad),
+            rootY + stalkLen * 0.92f * sin(stalkRad),
+            stalkAngle,
+            52f,
+            52f * 0.30f,
+        ),
+    )
+    return out
+}
+
+/**
+ * A frond, drawn in the same dots as the bloom.
+ *
+ * Decoration only — it takes no state and never animates, so it builds its field once and
+ * then costs a walk of that array whenever something else on the screen redraws.
+ */
+@Composable
+fun Frond(
+    modifier: Modifier = Modifier,
+    variant: Int = 0,
+    ink: Color = Color.White,
+    alpha: Float = 0.22f,
+    gridDp: Float = 2.4f,
+) {
+    val field = remember { BloomField() }
+    Canvas(modifier) {
+        drawBloom(
+            field, variant.toFloat(), ink, breath = 0f,
+            gridDp = gridDp, centreYFraction = 0.5f,
+            alphaScale = alpha, kind = Botanical.Frond,
+        )
+    }
+}
+
+/** `x, y, radius, alpha, jitter` per dot, packed flat. */
+private const val DotStride = 5
+
+/**
+ * The finished halftone, held between frames.
+ *
+ * This exists because of a measurement, not a hunch. Home ran at ~12fps *while idle* —
+ * 81ms frames, every one of them flagged "Slow UI thread" — and a screen with no bloom on
+ * it rendered zero frames in the same six seconds. The breath animation invalidates the
+ * canvas every frame, and every frame the old code rebuilt the entire drawing from scratch:
+ * a grid over the whole canvas (a few thousand cells on the hero), each cell tested against
+ * every petal, each test computing that petal's `sin` and `cos` again. Roughly 150k trig
+ * calls and a fresh `List<Petal>` sixty times a second, to produce a picture that only
+ * changes when you check in.
+ *
+ * So the picture is built once and kept. What actually varies per frame — the breath, and
+ * the strip's fade between reached and unreached — is applied at draw time, which is why
+ * neither is baked into the dots.
+ *
+ * Three things make the rebuild itself cheap enough to happen during the bloom animation:
+ *
+ *  - Per-petal `sin`/`cos` are hoisted out of the cell loop into [PetalFan]. They were
+ *    being recomputed for every cell of every petal.
+ *  - The scan is clipped to the flower's own bounds. The hero's canvas is mostly empty sky
+ *    and those cells were still being tested against all ~26 petals before failing.
+ *  - Each petal gets a bounding box, so a cell that cannot be inside it costs four
+ *    comparisons instead of a rotation.
+ *
+ * And the stage is quantised for the cache key, so the 900ms bloom rebuilds ~16 times
+ * rather than on all ~54 frames. A sixteenth of a stage is a couple of percent of a petal's
+ * length — invisible at the speed the tween runs.
+ */
+private class BloomField {
+    var dots: FloatArray = FloatArray(0)
+        private set
+    var count: Int = 0
+        private set
+
+    private var keyW = -1f
+    private var keyH = -1f
+    private var keyStage = Float.NaN
+    private var keyStep = -1f
+    private var keyCentre = -1f
+    private var keyKind: Botanical? = null
+
+    fun ensure(w: Float, h: Float, stage: Float, step: Float, centreYFraction: Float, kind: Botanical) {
+        val q = quantise(stage)
+        if (w == keyW && h == keyH && q == keyStage && step == keyStep &&
+            centreYFraction == keyCentre && kind == keyKind
+        ) {
+            return
+        }
+        keyW = w; keyH = h; keyStage = q; keyStep = step; keyCentre = centreYFraction; keyKind = kind
+        build(w, h, q, step, centreYFraction, kind)
+    }
+
+    private fun add(x: Float, y: Float, r: Float, alpha: Float, jitter: Float) {
+        val i = count * DotStride
+        if (i + DotStride > dots.size) {
+            dots = dots.copyOf(if (dots.size == 0) 1024 else dots.size * 2)
+        }
+        dots[i] = x; dots[i + 1] = y; dots[i + 2] = r; dots[i + 3] = alpha; dots[i + 4] = jitter
+        count++
+    }
+
+    private fun build(w: Float, h: Float, stage: Float, step: Float, centreYFraction: Float, kind: Botanical) {
+        count = 0
+        if (w <= 0f || h <= 0f || step <= 0f) return
+
+        val petals = when (kind) {
+            // Leaves live on the stem, so a head-only drawing that keeps them ends up with
+            // two strokes floating under a flower and a box half again too tall.
+            Botanical.Head -> petalsFor(stage, withLeaves = false)
+            Botanical.Plant -> petalsFor(stage, withLeaves = true)
+            Botanical.Frond -> frondPetals(stage)
+        }
+        val fan = PetalFan(petals)
+        val withStem = kind == Botanical.Plant
+        val withCore = kind != Botanical.Frond
+
+        // Scaled to the flower's own extent, not to its authoring canvas. The prototype
+        // draws inside a 300×300 box but only ever fills about a third of it, so scaling by
+        // 300 left the bloom a thumbnail in the middle of the screen.
+        //
+        // The hero has one stage on screen at a time and can use the whole-plant box. A
+        // chip cannot: six stages sit side by side and the early ones are a tiny fraction
+        // of the last, so they are fitted to themselves instead — see [headFit]. A frond is
+        // decoration and simply fills whatever box it is given.
+        val bounds = when (kind) {
+            Botanical.Head -> headBounds(petals, stage)
+            Botanical.Frond -> floatArrayOf(fan.minX, fan.minY, fan.maxX, fan.maxY)
+            Botanical.Plant -> null
+        }
+        val scale = if (bounds != null) {
+            val bw = (bounds[2] - bounds[0]).coerceAtLeast(1f)
+            val bh = (bounds[3] - bounds[1]).coerceAtLeast(1f)
+            val fit = if (kind == Botanical.Head) headFit(maxOf(bw, bh)) else 1f
+            minOf(w / bw, h / bh) * fit
+        } else {
+            minOf(w / FlowerWidth, h / FlowerHeight)
+        }
+        // What the drawing is centred on. For the head-only fit that is the middle of what
+        // is actually drawn; otherwise the authored origin.
+        val refX = if (bounds != null) (bounds[0] + bounds[2]) / 2f else CX
+        val refY = if (bounds != null) (bounds[1] + bounds[3]) / 2f else CY
+        val cx = w / 2f
+        // Centred on the flower's real bounds, not on the canvas: the head reaches up by a
+        // petal length and the stem down by its own, so the origin is not the middle.
+        val cy = if (kind == Botanical.Plant) {
+            h / 2f - (FlowerHeight / 2f - MaxPetal) * scale
+        } else {
+            h * centreYFraction
+        }
+
+        val maxR = step * 0.60f
+        val coreR = if (withCore) 3.5f + 3f * stage else 0f
+
+        // Everything drawn, in flower space, so the scan can skip the empty canvas around
+        // it. The core and the stem are in here as well as the petals: the stem is not a
+        // petal and stage 0 has no petals at all.
+        var minX = minOf(fan.minX, CX - coreR)
+        var maxX = maxOf(fan.maxX, CX + coreR)
+        var minY = minOf(fan.minY, CY - coreR)
+        var maxY = maxOf(fan.maxY, CY + coreR)
+        if (withStem) {
+            minX = minOf(minX, CX - 17f); maxX = maxOf(maxX, CX + 17f)
+            minY = minOf(minY, CY - 6f); maxY = maxOf(maxY, CY + StemLength + 4f)
+        }
+
+        // Back to canvas pixels, then out to whole grid cells. The cells are indexed from
+        // the canvas origin exactly as before — the jitter hash is keyed on that index, so
+        // starting the scan anywhere off-grid would reshuffle the whole texture.
+        val ix0 = maxOf(0, floor(((minX - refX) * scale + cx) / step).toInt())
+        val ix1 = minOf(ceil(w / step).toInt(), ceil(((maxX - refX) * scale + cx) / step).toInt())
+        val iy0 = maxOf(0, floor(((minY - refY) * scale + cy) / step).toInt())
+        val iy1 = minOf(ceil(h / step).toInt(), ceil(((maxY - refY) * scale + cy) / step).toInt())
+
+        for (iy in iy0..iy1) {
+            val gy = iy * step
+            if (gy >= h) break
+            for (ix in ix0..ix1) {
+                val gx = ix * step
+                if (gx >= w) break
+                val fx = (gx - cx) / scale + refX
+                val fy = (gy - cy) / scale + refY
+
+                var cover = fan.coverAt(fx, fy)
+
+                // Stem: a curve, so distance is taken to a sample at this height.
+                if (withStem && fy > CY - 6f && fy < CY + StemLength + 4f) {
+                    val t = ((fy - CY) / StemLength).coerceIn(0f, 1f)
+                    val sx = cubic(CX, CX + 13f, CX - 11f, CX + 3f, t)
+                    val d = abs(fx - sx)
+                    // Tapers: thick at the root, fine where it meets the head.
+                    val halfW = 3.4f * (0.45f + 0.55f * t)
+                    if (d < halfW) cover = maxOf(cover, 1f - d / halfW)
+                }
+
+                // The core: dots crowd where every petal meets, so it is drawn as solid.
+                //
+                // Drawn at every stage including zero, where it is the seed. Gating it at
+                // stage 1 left the first chip in the strip completely blank — stage 0 has
+                // no petals, and the strip draws heads without stems, so there was nothing
+                // at all to see under a label reading "Seed".
+                if (withCore) {
+                    val dc = hypot(fx - CX, fy - CY)
+                    if (dc < coreR) cover = maxOf(cover, 1f - (dc / coreR) * 0.35f)
+                }
+
+                if (cover <= 0.02f) continue
+                val n = hash(ix * 31f + iy * 57f)
+                val r = maxR * cover.coerceAtMost(1f) * (0.55f + 0.45f * n)
+                if (r <= 0.25f) continue
+                add(
+                    x = gx + (n - 0.5f) * step * 0.35f,
+                    y = gy + (hash(n) - 0.5f) * step * 0.35f,
+                    // Breath is deliberately absent: it is the one thing that changes
+                    // every frame, so it is applied at draw time to the radius here.
+                    r = r,
+                    alpha = (0.35f + 0.65f * cover).coerceIn(0f, 1f),
+                    jitter = n,
+                )
+            }
+        }
+    }
+
+    /** The cache key's stage resolution — sixteenths of a stage. */
+    private fun quantise(stage: Float): Float = round(stage * 16f) / 16f
+}
+
+/**
+ * The petals of one flower, as parallel arrays with their trigonometry already done.
+ *
+ * The per-petal `sin`/`cos` used to be computed inside the innermost loop, once per cell
+ * per petal — the single most expensive line in the drawing. Each petal also carries the
+ * box it can possibly cover, so a cell outside it is rejected by four comparisons.
+ */
+private class PetalFan(petals: List<Petal>) {
+    private val n = petals.size
+    private val ox = FloatArray(n)
+    private val oy = FloatArray(n)
+    private val cosA = FloatArray(n)
+    private val sinA = FloatArray(n)
+    private val len = FloatArray(n)
+    private val halfWidth = FloatArray(n)
+    private val bx0 = FloatArray(n)
+    private val bx1 = FloatArray(n)
+    private val by0 = FloatArray(n)
+    private val by1 = FloatArray(n)
+
+    var minX = Float.MAX_VALUE; private set
+    var maxX = -Float.MAX_VALUE; private set
+    var minY = Float.MAX_VALUE; private set
+    var maxY = -Float.MAX_VALUE; private set
+
+    init {
+        for (i in 0 until n) {
+            val p = petals[i]
+            val a = p.ang * PI.toFloat() / 180f
+            val ca = cos(a)
+            val sa = sin(a)
+            ox[i] = p.cx; oy[i] = p.cy; cosA[i] = ca; sinA[i] = sa
+            len[i] = p.len; halfWidth[i] = p.halfWidth
+            // The widest a petal ever gets is at its waist; 1.1 leaves room for the
+            // shoulder in the taper below.
+            val pad = p.halfWidth * 1.1f
+            val tipX = p.cx + p.len * ca
+            val tipY = p.cy + p.len * sa
+            bx0[i] = minOf(p.cx, tipX) - pad; bx1[i] = maxOf(p.cx, tipX) + pad
+            by0[i] = minOf(p.cy, tipY) - pad; by1[i] = maxOf(p.cy, tipY) + pad
+            minX = minOf(minX, bx0[i]); maxX = maxOf(maxX, bx1[i])
+            minY = minOf(minY, by0[i]); maxY = maxOf(maxY, by1[i])
+        }
+        if (n == 0) { minX = CX; maxX = CX; minY = CY; maxY = CY }
+    }
+
+    /** How much petal covers a point in flower space, 0..1. */
+    fun coverAt(x: Float, y: Float): Float {
+        var cover = 0f
+        for (i in 0 until n) {
+            if (x < bx0[i] || x > bx1[i] || y < by0[i] || y > by1[i]) continue
+            val dx = x - ox[i]
+            val dy = y - oy[i]
+            // Along and across the petal's own axis.
+            val f = dx * cosA[i] + dy * sinA[i]
+            if (f < 0f || f > len[i]) continue
+            val s = -dx * sinA[i] + dy * cosA[i]
+            // Half-width tapers to nothing at root and tip, widest just past the waist.
+            val u = f / len[i]
+            val hw = halfWidth[i] * 4f * u * (1f - u) * (1.15f - 0.15f * u)
+            if (hw <= 0f) continue
+            val d = abs(s) / hw
+            if (d < 1f) cover = maxOf(cover, (1f - d * d) * 0.9f + 0.1f)
+        }
+        return cover
     }
 }
 
@@ -459,51 +845,6 @@ private fun fanAngle(k: Int, count: Int, splay: Float, jitter: Float): Float {
 private fun innerAngle(k: Int, count: Int, splay: Float, jitter: Float): Float {
     val f = if (count <= 1) 0.5f else k.toFloat() / (count - 1)
     return -90f - splay * 0.5f + splay * f + jitter
-}
-
-/** How much flower covers a point in flower space, 0..1. */
-private fun coverage(x: Float, y: Float, petals: List<Petal>, stage: Float, withStem: Boolean = true): Float {
-    var cover = 0f
-
-    // Stem: a curve, so distance is taken to a handful of samples along it.
-    val stemTop = CY
-    if (withStem && y > stemTop - 6f && y < stemTop + StemLength + 4f) {
-        val t = ((y - stemTop) / StemLength).coerceIn(0f, 1f)
-        val sx = cubic(CX, CX + 13f, CX - 11f, CX + 3f, t)
-        val d = abs(x - sx)
-        // Tapers: thick at the root, fine where it meets the head.
-        val halfW = 3.4f * (0.45f + 0.55f * t)
-        if (d < halfW) cover = maxOf(cover, 1f - d / halfW)
-    }
-
-    for (p in petals) {
-        val a = p.ang * PI.toFloat() / 180f
-        val dx = x - p.cx
-        val dy = y - p.cy
-        // Along and across the petal's own axis.
-        val f = dx * cos(a) + dy * sin(a)
-        val s = -dx * sin(a) + dy * cos(a)
-        if (f < 0f || f > p.len) continue
-        // Half-width tapers to nothing at root and tip, widest just past the waist.
-        val u = f / p.len
-        val hw = p.halfWidth * 4f * u * (1f - u) * (1.15f - 0.15f * u)
-        if (hw <= 0f) continue
-        val d = abs(s) / hw
-        if (d < 1f) cover = maxOf(cover, (1f - d * d) * 0.9f + 0.1f)
-    }
-
-    // The core: dots crowd where every petal meets, so it is drawn as solid.
-    //
-    // Drawn at every stage including zero, where it is the seed. Gating it at stage 1
-    // left the first chip in the strip completely blank — stage 0 has no petals, and the
-    // strip draws heads without stems, so there was nothing at all to see under a label
-    // reading "Seed".
-    run {
-        val d = hypot(x - CX, y - CY)
-        val coreR = 3.5f + 3f * stage
-        if (d < coreR) cover = maxOf(cover, 1f - (d / coreR) * 0.35f)
-    }
-    return cover.coerceIn(0f, 1f)
 }
 
 private fun cubic(p0: Float, p1: Float, p2: Float, p3: Float, t: Float): Float {

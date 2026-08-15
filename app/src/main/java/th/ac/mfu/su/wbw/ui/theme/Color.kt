@@ -100,6 +100,28 @@ val TicketCreamPaper = Color(0xFFFBF8EF)
 /** Oxblood behind the Medical ID button (iOS `wbwMedical`). */
 val WbwMedical = Color(0xFF421717)
 
+// ===== The pass =====
+//
+// The participant pass's own set: one white at four strengths, a hairline, and a pane.
+// Fixed in both themes because the pass is a thing you hold up to a marshal, not a
+// surface that follows an appearance setting.
+//
+// These live here rather than inside the profile screen because the pass turned out to be
+// the app's best-looking surface, and the login screen is now built from the same parts.
+// Two private copies of "white at 54%" is exactly how two screens stop matching.
+
+val PassInk = Color(0xFFFFFFFF)
+val PassMuted = Color(0xCCFFFFFF)
+val PassFaint = Color(0x8AFFFFFF)
+val PassHairline = Color(0x1AFFFFFF)
+val PassWell = Color(0x0FFFFFFF)
+
+/** The pane itself — deliberately thin, so the forest still reads through it. */
+val PassSurface = Color(0x1FFFFFFF)
+
+/** Ink for the one solid-filled thing on a pass: the QR block, the primary action. */
+val PassDeepInk = Color(0xFF16241A)
+
 // ===== Status =====
 
 val DangerDark = Color(0xFFE88B7A)

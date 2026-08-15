@@ -4,6 +4,18 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Needed for FCM push once the backend sends notifications (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The map's "you are here". Coarse is enough to centre the camera on the trail;
+         fine sharpens the blue dot if the user grants it. Both optional at runtime. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Walk tracking. The service keeps counting with the phone pocketed and the screen
+         off, which is the only way an 8km hike is actually walked; from API 34 the typed
+         FOREGROUND_SERVICE_LOCATION permission is what makes that legal. ACTIVITY_RECOGNITION
+         (API 29+) is the hardware pedometer — refused or absent, the step count reads
+         "unavailable" rather than zero. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application
         android:name=".WbwApplication"
@@ -15,6 +27,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Wbw">
 
+        <!-- The Maps SDK reads its key here. ${MAPS_API_KEY} is filled by the
+             secrets-gradle-plugin from local.properties at build time. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,6 +42,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".walk.WalkTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 
 </manifest>
