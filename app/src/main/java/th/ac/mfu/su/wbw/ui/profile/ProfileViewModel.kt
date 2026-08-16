@@ -19,14 +19,21 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
     private val _state = MutableStateFlow<UiState<ParticipantDetail>>(UiState.Loading)
     val state = _state.asStateFlow()
 
-    init { load() }
+    init {
+        // The pass opens on last run's data rather than a spinner. This is the screen where
+        // that matters most: it is held up to a marshal at a checkpoint, which is exactly
+        // where the signal is worst and where waiting is least acceptable.
+        repository.cachedMe()?.let { _state.value = UiState.Success(it) }
+        load()
+    }
 
     fun load() {
-        _state.value = UiState.Loading
+        if (_state.value !is UiState.Success) _state.value = UiState.Loading
         viewModelScope.launch {
             repository.me()
                 .onSuccess { _state.value = UiState.Success(it) }
-                .onError { _state.value = UiState.Error(it) }
+                // A stale pass beats no pass — see the note in `init`.
+                .onError { if (_state.value !is UiState.Success) _state.value = UiState.Error(it) }
         }
     }
 

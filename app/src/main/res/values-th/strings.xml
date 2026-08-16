@@ -83,9 +83,29 @@
     <string name="home_stage_preview_hint">นี่คือตัวอย่างล่วงหน้า — แตะระดับของคุณเพื่อกลับ</string>
 
     <!-- Home -->
-    <string name="home_good_morning">อรุณสวัสดิ์</string>
-    <string name="home_good_evening">สวัสดียามเย็น</string>
     <string name="home_greeting">สวัสดี, %1$s</string>
+
+    <!-- สภาพอากาศบนเส้นทาง (Open-Meteo) -->
+    <string name="home_weather_feels">รู้สึก %1$d°</string>
+    <string name="home_air_aqi">AQI %1$d</string>
+    <string name="home_air_quality">คุณภาพอากาศ</string>
+    <string name="weather_clear">ท้องฟ้าแจ่มใส</string>
+    <string name="weather_mainly_clear">ท้องฟ้าโปร่ง</string>
+    <string name="weather_partly_cloudy">มีเมฆบางส่วน</string>
+    <string name="weather_overcast">เมฆมาก</string>
+    <string name="weather_fog">หมอก</string>
+    <string name="weather_drizzle">ฝนปรอย</string>
+    <string name="weather_rain">ฝนตก</string>
+    <string name="weather_showers">ฝนซู่</string>
+    <string name="weather_snow">หิมะ</string>
+    <string name="weather_thunderstorm">พายุฝนฟ้าคะนอง</string>
+    <!-- ระดับ AQI ตามเกณฑ์ US EPA -->
+    <string name="aqi_good">ดี</string>
+    <string name="aqi_moderate">ปานกลาง</string>
+    <string name="aqi_sensitive">กลุ่มเสี่ยง</string>
+    <string name="aqi_unhealthy">มีผลต่อสุขภาพ</string>
+    <string name="aqi_very_unhealthy">อันตราย</string>
+    <string name="aqi_hazardous">อันตรายมาก</string>
     <string name="home_checked_in">เช็คอินแล้ว %1$d / %2$d ฐาน</string>
     <string name="home_phase_hint">อีก %1$d ฐานเพื่อไปถึงระดับ “%2$s”</string>
     <string name="home_next_base">ฐานถัดไป</string>
@@ -97,8 +117,8 @@
     <string name="tab_home">หน้าหลัก</string>
     <string name="tab_map">แผนที่</string>
     <string name="map_title">แผนที่เส้นทาง</string>
+    <string name="map_loading">กำลังโหลดแผนที่</string>
     <string name="map_recenter">กลับมาที่ตำแหน่งฉัน</string>
-    <string name="map_search">ค้นหา</string>
     <string name="map_mode_3d">มุมมอง 3 มิติ</string>
     <string name="map_mode_2d">มุมมอง 2 มิติ</string>
     <string name="map_route_start">จุดเริ่มต้น</string>
@@ -146,9 +166,13 @@
     <string name="coming_soon_desc">ส่วนนี้ของเส้นทางกำลังจัดทำอยู่</string>
 
     <!-- Notifications -->
-    <string name="notifications_mark_all_read">อ่านทั้งหมด</string>
+    <string name="notifications_subtitle">อัปเดตล่าสุดจากทีมงานเดินรอบดอย</string>
     <string name="notif_today">วันนี้</string>
     <string name="notif_earlier">ก่อนหน้า</string>
+    <string name="notif_new">ใหม่</string>
+    <string name="notif_level_info">ทั่วไป</string>
+    <string name="notif_level_warning">สำคัญ</string>
+    <string name="notif_level_emergency">ด่วน</string>
 
     <!-- Settings -->
     <string name="settings_title">ตั้งค่า</string>
@@ -181,17 +205,14 @@
     <string name="profile_pass_title">บัตรผู้เข้าร่วม</string>
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">ทางการ</string>
-    <string name="profile_event_dates">22–23 พ.ย. 2026</string>
     <string name="profile_group_n">กลุ่ม %1$d</string>
-    <string name="profile_student_n">รหัส %1$s</string>
     <string name="profile_bib_number">หมายเลขบิบ</string>
     <string name="profile_trail_stamps">แสตมป์เส้นทาง</string>
-    <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>
     <string name="profile_label_group">กลุ่ม</string>
     <string name="profile_label_blood">เลือด</string>
     <string name="profile_label_rank">อันดับ</string>
     <string name="profile_row_height_weight">ส่วนสูง / น้ำหนัก</string>
     <string name="profile_hw_value">%1$s ซม. · %2$s กก.</string>
-    <string name="profile_label_student_id">รหัสนักศึกษา</string>
+    <string name="profile_qr_label">คิวอาร์โค้ดสำหรับเช็กอิน</string>
     <string name="profile_checkin_status">เช็คอินแล้ว</string>
 </resources>

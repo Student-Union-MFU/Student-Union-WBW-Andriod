@@ -25,6 +25,20 @@ data class ParticipantDetail(
     @SerialName("group_id") val groupId: Int? = null,
     @SerialName("group_number") val groupNumber: Int? = null,
     @SerialName("photo_url") val photoUrl: String? = null,
+    /**
+     * The check-in credential — `participant_profile.qr_token`, 12 random bytes as hex.
+     *
+     * This is what goes in the QR on the pass, and it is deliberately *not* [id] or
+     * [studentId]. Those are identifiers: they name the participant and are printed,
+     * spoken and shared, so anyone who saw one could present it as their own. This is a
+     * capability — unguessable, unique, and revocable by rotating one column — and the
+     * server treats it that way: `POST /wbw/staff/checkin` takes `qr_token` **or** `bib`,
+     * and prefers the token when both arrive, because a scan beats a marshal typing.
+     *
+     * The server has been sending this on every `/me` since before the app had a field
+     * for it; it was simply being dropped on the floor by the decoder.
+     */
+    @SerialName("qr_token") val qrToken: String? = null,
     @SerialName("checked_in") val checkedIn: Boolean = false,
     @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
     @SerialName("emergency_contact_phone") val emergencyContactPhone: String? = null,

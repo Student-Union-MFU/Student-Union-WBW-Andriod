@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -409,9 +411,21 @@ private fun StaffTag() {
     // of text. A tag this small is judged entirely on whether it sits level with the name
     // beside it, and text metrics — ascent, descent, the font's own top padding — do not
     // centre caps for you.
+    //
+    // Which is exactly what went wrong: `contentAlignment = Center` centres the text's
+    // *line box*, and Sarabun is a Thai face, so its ascent carries room for tone marks
+    // stacked above the capitals — room that is empty in a Latin word like "STAFF". The
+    // line box came out top-heavy and the caps sat low inside the pill: 22px of space above
+    // them against 9px below, measured. The pill itself was level with the name all along;
+    // it was the label inside it that was off.
+    //
+    // [LineHeightStyle] with `Trim.Both` throws away that unused leading and re-centres
+    // what is left, so the pill is centred on the glyphs that are actually drawn. It is
+    // done here rather than by nudging the text with an offset, because an offset would be
+    // tuned to one font at one size and would drift the moment either changed.
     Box(
         Modifier
-            .height(18.dp)
+            .height(TagHeight)
             .clip(TagShape)
             .background(GlassSheer)
             .border(1.dp, GlassSheerBorder, TagShape)
@@ -421,12 +435,22 @@ private fun StaffTag() {
         Text(
             stringResource(R.string.chat_tag_staff).uppercase(),
             color = wbwColors.onBackdrop,
-            fontSize = 8.5.sp,
+            fontSize = TagTextSize,
+            lineHeight = TagTextSize,
             letterSpacing = 1.2.sp,
             fontWeight = FontWeight.Bold,
+            style = LocalTextStyle.current.copy(
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both,
+                ),
+            ),
         )
     }
 }
+
+private val TagHeight = 18.dp
+private val TagTextSize = 8.5.sp
 
 /** A placeholder message. No ids, no state — this is not on its way to being a model. */
 data class ChatMessageStub(

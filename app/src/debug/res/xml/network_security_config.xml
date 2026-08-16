@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG ONLY. Overrides the strict config in `main` for debug builds, and is not compiled
+  into a release build at all, so a shipped APK still cannot talk plain http.
+
+  Cleartext is allowed to everything here rather than to a listed host because the dev
+  backend's address is whatever this laptop's LAN address happens to be, and that changes
+  with the network — home wifi, campus, the event venue. The `main` config tried to cover
+  that with `<domain>192.168.0.0</domain>`, which never worked: a `domain` entry is matched
+  as a hostname, and `includeSubdomains` walks DNS labels, so it does not match 192.168.2.x
+  or any other address in the range. It only ever matched the literal host "192.168.0.0".
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Debug builds also trust user-installed CAs, so a proxy like Charles or
+                 mitmproxy can be pointed at the app to read traffic without repacking it. -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

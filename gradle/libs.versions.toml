@@ -16,12 +16,13 @@ kotlinxSerialization = "1.7.3"
 retrofitSerializationConverter = "1.0.0"
 coil = "2.7.0"
 splashscreen = "1.0.1"
-sceneview = "2.3.3"
 backdrop = "2.0.0"
 mapsCompose = "6.4.1"
 playServicesMaps = "19.2.0"
 playServicesLocation = "21.3.0"
-places = "4.1.0"
+# QR encoding for the participant pass. `core` only — the `zxing-android-embedded`
+# wrapper is a scanner UI, which is the marshal's side and not built here.
+zxing = "3.5.3"
 secretsPlugin = "2.0.1"
 
 [libraries]
@@ -47,7 +48,6 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 retrofit-serialization-converter = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitSerializationConverter" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-sceneview = { group = "io.github.sceneview", name = "sceneview", version.ref = "sceneview" }
 # Liquid glass — Kyant0's AndroidLiquidGlass, the same library su-clubfair-mobile
 # uses for its nav bar. It refracts what is behind a pane rather than only blurring
 # it, which is the part that reads as iOS 26 glass. The shaders need RuntimeShader,
@@ -62,8 +62,7 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 # Fused location, for the one "you are here" fix that centres the camera.
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
-# Places — search the trail area and fly the map to a result.
-places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

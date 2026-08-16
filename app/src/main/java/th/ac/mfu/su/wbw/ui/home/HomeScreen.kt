@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
@@ -22,9 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -61,19 +59,31 @@ import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.PanelCorner
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
-import java.time.LocalTime
 
 @Composable
 fun HomeScreen(
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
-    onOpenProfile: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val unread by viewModel.hasUnreadNotifications.collectAsStateWithLifecycle()
+    val conditions by viewModel.trailConditions.collectAsStateWithLifecycle()
+
+    // Fires on every entry into composition, which for a NavHost destination means every
+    // time Home is returned to — including on the way back from the announcements list.
+    // See [HomeViewModel.refreshNotificationMark] for why `init` cannot do this.
+    LaunchedEffect(Unit) {
+        viewModel.refreshNotificationMark()
+        viewModel.refreshConditions()
+    }
+
     when (val s = state) {
         is UiState.Loading -> LoadingState()
         is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
-        is UiState.Success -> HomeContent(s.data, contentPadding, onOpenProfile)
+        is UiState.Success ->
+            HomeContent(s.data, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
     }
 }
 
@@ -81,10 +91,12 @@ fun HomeScreen(
 private fun HomeContent(
     model: HomeUiModel,
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
-    onOpenProfile: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    hasUnread: Boolean,
+    conditions: th.ac.mfu.su.wbw.data.repository.TrailConditions?,
 ) {
     val colors = wbwColors
-    val morning = remember2()
 
     // How long the bloom keeps breathing after you last touched the screen.
     //
@@ -124,77 +136,76 @@ private fun HomeContent(
             .padding(contentPadding)
             .padding(horizontal = 18.dp),
     ) {
-        // The top strip carries the profile button and nothing else. The greeting belongs
-        // below it, in the body: it is content — it names the person and the time of day —
-        // and pairing it with the button turned it into a header for a screen that has no
-        // header.
+        // The top strip carries the two corner buttons and nothing else. The greeting
+        // belongs below it, in the body: it is content — it names the person and the time
+        // of day — and pairing it with the buttons turned it into a header for a screen
+        // that has no header.
         //
-        // Profile stays here rather than in the nav bar. It isn't somewhere you move
-        // back and forth between while walking the trail — you open it to check a detail
-        // or sign out — and iOS reaches it the same way, from the avatar in this corner.
+        // Neither of these is in the nav bar, for the same reason: they are not places you
+        // move back and forth between while walking the trail. You open them to read or
+        // change one thing and close them again. The pass is the opposite — it is held up
+        // at every checkpoint — which is why it is the one that got a permanent slot in
+        // the bar rather than a corner up here.
         //
-        // A rounded square, and sheer rather than themed. The circle was filled with
-        // `colors.glass` — cream at 86% in light theme — so it came out an opaque white
-        // disc with a near-black glyph in it: the brightest thing on the screen, for the
-        // least important control on it. Same material as the nav bar now.
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
-            Box(
-                Modifier
-                    .size(46.dp)
-                    .glass(ProfileShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-                    .clickable(onClick = onOpenProfile),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Person,
-                    stringResource(R.string.profile_title),
-                    tint = colors.onBackdrop,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+        // Announcements sit on the left and settings on the right — the far corners, so
+        // neither is reachable by accident from the other, and the one that can demand
+        // attention is the one on the side the eye starts from.
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CornerButton(
+                icon = Icons.Outlined.Notifications,
+                contentDescription = stringResource(R.string.notifications_title),
+                onClick = onOpenNotifications,
+                badge = hasUnread,
+            )
+            CornerButton(
+                // Settings, not the profile pass. The pass moved to the QR button in the
+                // nav bar, where its own glyph is — see `QrRoute` in HomeScaffold. That
+                // left this corner free for the other thing you open once and close again,
+                // and settings had been reachable only by going through the pass first.
+                icon = Icons.Outlined.Settings,
+                contentDescription = stringResource(R.string.settings_title),
+                onClick = onOpenSettings,
+            )
         }
 
         // greeting — the first thing in the body
-        Column(Modifier.padding(top = 16.dp)) {
-            // The time of day, as a small pane with the sky in it.
-            //
-            // It was a bare line of type in `colors.accent` — which is near-black in light
-            // theme, on a backdrop that is a dark photograph in *both* themes. So half the
-            // users got an invisible greeting. That is the trap the palette documents:
-            // anything on the backdrop takes `onBackdrop`, never `accent` or `textPrimary`.
-            //
-            // Made a chip rather than just recoloured because the line has a job the name
-            // below cannot do — it says which half of the day the app thinks it is — and a
-            // sun or a moon says that faster than the words do.
-            Row(
-                Modifier
-                    .glass(PillShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-                    .padding(start = 10.dp, end = 13.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    if (morning) Icons.Outlined.WbSunny else Icons.Outlined.DarkMode,
-                    null,
-                    tint = colors.onBackdrop,
-                    modifier = Modifier.size(13.dp),
-                )
-                Spacer(Modifier.width(7.dp))
-                Text(
-                    stringResource(if (morning) R.string.home_good_morning else R.string.home_good_evening),
-                    color = colors.onBackdrop,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.sp,
-                    letterSpacing = 2.4.sp,
-                )
-            }
+        //
+        // One greeting, not two. There used to be a "GOOD MORNING" chip above the name,
+        // which meant the top of the screen greeted the participant twice in a row and
+        // spent a whole line doing it. Between the two, the name is the one worth keeping:
+        // it is the half that is about *them*.
+        //
+        // Nothing is lost with the chip. Its sun-or-moon glyph said which half of the day
+        // the app thought it was, and the conditions line immediately below now says that
+        // better — with the actual sky and the actual temperature rather than a guess made
+        // from the clock.
+        // The gap the greeting chip used to occupy, given back as air rather than to
+        // another element. With the chip gone the name sat almost against the corner
+        // buttons, which put the largest type on the screen in the tightest space on it.
+        Column(Modifier.padding(top = 44.dp)) {
             Text(
                 stringResource(R.string.home_greeting, model.displayName),
                 // onBackdrop, not textPrimary: this sits on the dark backdrop image in
                 // both themes, and textPrimary goes near-black in light theme.
                 style = MaterialTheme.typography.displaySmall,
                 color = colors.onBackdrop,
-                modifier = Modifier.padding(top = 10.dp),
             )
+
+            // Below the name and above the bloom, because it belongs to the same opening
+            // paragraph: who you are, then what it is like out there. Absent entirely
+            // until it has something to say — a third party's outage does not get to
+            // leave a hole or a spinner on the participant's home screen, and the bloom
+            // takes the height back by way of its weight.
+            if (conditions != null && !conditions.isEmpty) {
+                TrailConditionsRow(
+                    conditions = conditions,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
         }
 
         // The bloom is what Home is for: the one thing on the screen that changes as the
@@ -291,19 +302,56 @@ private fun HomeContent(
  */
 private const val BreathIdleMillis = 12_000L
 
-/** The greeting chip. A full pill, so it reads as a tag rather than as a small card. */
-private val PillShape = RoundedCornerShape(50)
+/**
+ * One of Home's two corner buttons.
+ *
+ * Written once and used twice rather than copied, because the pair only works while they
+ * are identical — two 46dp panes in opposite corners read as a matched set, and a pane
+ * that has drifted a dp or a tint away from its twin reads as a mistake. This is the same
+ * rule the palette applies to the pass's "white at 54%": two private copies is how two
+ * things stop matching.
+ *
+ * [badge] is the unread mark. It sits inside the pane's own corner rather than hanging
+ * off it, so the button keeps a clean 46dp square in the layout and the two corners stay
+ * optically level. It is drawn in `onBackdrop` — the app has no accent hue to spend on it
+ * — which is bright enough against the sheer pane to carry on its own, and it is only
+ * ever a few pixels from the glyph it belongs to.
+ */
+@Composable
+private fun CornerButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    badge: Boolean = false,
+) {
+    val colors = wbwColors
+    Box(
+        Modifier
+            .size(46.dp)
+            .glass(CornerShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription, tint = colors.onBackdrop, modifier = Modifier.size(22.dp))
+        if (badge) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(7.dp)
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(colors.onBackdrop),
+            )
+        }
+    }
+}
 
 /**
- * The profile button: a rounded square, not a circle.
+ * The corner buttons' shape: a rounded square, not a circle.
  *
  * A circle in the corner of a screen this glassy reads as an avatar that failed to load —
  * it is the one shape the app reserves for photographs of people. The radius is the field
  * corner rather than the card corner, because at 46dp a card's 26dp is most of the way
  * back to a circle.
  */
-private val ProfileShape = RoundedCornerShape(15.dp)
-
-// morning if between 5:00 and 18:00
-@Composable
-private fun remember2(): Boolean = remember { LocalTime.now().hour in 5..17 }
+private val CornerShape = RoundedCornerShape(15.dp)

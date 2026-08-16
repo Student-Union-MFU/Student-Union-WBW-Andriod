@@ -27,3 +27,7 @@ out/
 
 ### Secrets — keep firebase/service configs out of git ###
 google-services.json
+
+# Generated install QR codes — they encode a machine-specific or release-specific URL
+# and are rebuilt on demand, so there is nothing to gain from versioning one.
+install-qr*.png

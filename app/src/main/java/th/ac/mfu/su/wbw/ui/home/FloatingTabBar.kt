@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -87,7 +88,29 @@ fun FloatingTabBar(
     qrContentDescription: String,
     modifier: Modifier = Modifier,
 ) {
-    val selected = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    /**
+     * Which tab is current, or null when the screen on show is not a tab at all — the
+     * pass, settings, announcements.
+     *
+     * Null is the point. This used to be `indexOfFirst { … }.coerceAtLeast(0)`, and that
+     * `coerceAtLeast` quietly turned "no tab matches" into "Home is selected", so every
+     * one of those screens lit the Home icon while you were plainly not on Home. It was
+     * survivable while they were all reached from inside Home; it stopped being survivable
+     * when the pass moved onto the bar, because then the bar highlighted Home *and* the QR
+     * button at the same time.
+     */
+    val selectedIndex = items.indexOfFirst { it.route == currentRoute }.takeIf { it >= 0 }
+
+    /**
+     * Where the sliding pill parks while [selectedIndex] is null.
+     *
+     * The last tab you were actually on, so opening the pass leaves the pill under Map if
+     * that is where you came from. Sending it home to slot 0 would animate it across the
+     * bar to mark a tab you did not choose and are not on.
+     */
+    var restingSlot by remember { mutableIntStateOf(0) }
+    LaunchedEffect(selectedIndex) { selectedIndex?.let { restingSlot = it } }
+
     val colors = wbwColors
     // Same wallpaper layer the cards refract, taken from the ambient provider rather
     // than passed in — the bar is one more pane of the app's glass, not a special case.
@@ -98,7 +121,6 @@ fun FloatingTabBar(
     val barSurface = GlassSheer
     val idle = colors.onBackdrop
     val edge = GlassSheerBorder
-    val indicatorFill = Color.White.copy(alpha = 0.18f)
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -139,13 +161,14 @@ fun FloatingTabBar(
             // The gesture below is keyed on slot width, so its coroutine is not
             // restarted when the selection changes — anything it closes over would be
             // frozen at the value it had when the finger went down. Read through these.
-            val currentSelected by rememberUpdatedState(selected)
+            val currentSelected by rememberUpdatedState(selectedIndex)
             val currentItems by rememberUpdatedState(items)
             val currentOnSelect by rememberUpdatedState(onSelect)
 
             // Which tab lights up: the one under the finger while dragging, the real
-            // selection otherwise. `derivedStateOf` earns its keep — dragX changes
-            // every frame, but the *slot* it lands in changes twice a gesture.
+            // selection otherwise — and nothing at all when the screen is not a tab.
+            // `derivedStateOf` earns its keep — dragX changes every frame, but the *slot*
+            // it lands in changes twice a gesture.
             val highlighted by remember(slotWidthPx) {
                 derivedStateOf {
                     dragX?.let { slotIndexAt(it, slotWidthPx, currentItems.size) } ?: currentSelected
@@ -153,20 +176,30 @@ fun FloatingTabBar(
             }
             val dragging by remember { derivedStateOf { dragX != null } }
 
-            LaunchedEffect(selected, slotWidthPx, dragging) {
+            LaunchedEffect(restingSlot, slotWidthPx, dragging) {
                 if (dragging) return@LaunchedEffect
                 releasedAt?.let {
                     indicator.snapTo(it)
                     releasedAt = null
                 }
                 indicator.animateTo(
-                    targetValue = selected * slotWidthPx,
+                    targetValue = restingSlot * slotWidthPx,
                     animationSpec = spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessMediumLow,
                     ),
                 )
             }
+
+            // Faded out rather than removed while no tab is current. Removing it would
+            // drop the pill's position along with it, so returning from the pass to Map
+            // would slide it in from wherever it happened to rebuild; fading leaves it
+            // parked under the tab you will come back to.
+            val indicatorAlpha by animateFloatAsState(
+                targetValue = if (highlighted != null) 1f else 0f,
+                animationSpec = tween(200),
+                label = "tabIndicator",
+            )
 
             Box(
                 // Both reads happen in the lambda, which is layout rather than
@@ -177,7 +210,7 @@ fun FloatingTabBar(
                     .fillMaxHeight()
                     .padding(IndicatorInset)
                     .clip(PillShape)
-                    .background(indicatorFill),
+                    .background(Color.White.copy(alpha = IndicatorAlpha * indicatorAlpha)),
             )
 
             Row(
@@ -264,6 +297,9 @@ private val BarHeight = 62.dp
 private val BarGap = 12.dp
 
 /** How far the sliding indicator sits inside the bar, so it reads as within the glass. */
+/** The sliding pill's fill strength when a tab is current. */
+private const val IndicatorAlpha = 0.18f
+
 private val IndicatorInset = 6.dp
 
 /**

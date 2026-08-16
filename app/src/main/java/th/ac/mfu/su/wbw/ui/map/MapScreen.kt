@@ -2,7 +2,6 @@ package th.ac.mfu.su.wbw.ui.map
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Bitmap
@@ -12,6 +11,11 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -20,11 +24,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,10 +42,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Terrain
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,19 +71,16 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMapOptions
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.JointType
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.RoundCap
-import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.model.Place
-import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
-import com.google.android.libraries.places.widget.Autocomplete
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
@@ -107,40 +112,71 @@ import kotlin.math.roundToInt
  *  - **3D** tilts the native camera and lets buildings extrude — the Maps SDK's own 3D, so
  *    the forest styling stays on (a photorealistic WebView would have thrown it away and
  *    needed the JavaScript API, which this does not).
- *  - **Search** is Places autocomplete: find somewhere and the camera flies to it.
- *  - **Places markers** are a nearby search around the trail, drawn as the app's own green
- *    dots rather than Google's red pins.
  *
  * Location is one fix, not a stream — "where am I on the trail", not turn-by-turn.
  *
- * The Maps/Places key comes from `local.properties` via the manifest ([mapsApiKey]); with
- * no key the tiles come back blank and search/markers are skipped, but nothing here crashes.
+ * **Maps SDK only — no Places.** This screen once had an autocomplete search box and a
+ * scatter of markers for whatever Google POIs sat near the walker. Both are gone. The
+ * search answered a question nobody on a fixed 8.4km loop was asking, and the nearby
+ * markers came from `findCurrentPlace`, one of the priciest Places calls, fired
+ * automatically on every visit to this tab rather than on a tap — a per-participant cost
+ * for decoration. Everything that matters here (the route, its endpoints, "where am I")
+ * comes from the baked polyline and the fused location provider, neither of which is
+ * billed. Don't reintroduce Places without a feature that needs it.
+ *
+ * The Maps key comes from `local.properties` via the manifest, read by the SDK itself; with
+ * no key the tiles come back blank but nothing here crashes.
  */
 @Composable
 fun MapScreen(contentPadding: PaddingValues) {
     val colors = wbwColors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val apiKey = remember { context.mapsApiKey() }
-    val hasKey = apiKey.isNotBlank()
-
-    // Legacy init on purpose. The "Places API (New)" endpoint (places.googleapis.com) is a
-    // separate switch in the Cloud console and returns "blocked" until it is flipped; the
-    // classic Places API — which the autocomplete widget and findCurrentPlace below use —
-    // is the one already enabled for this key.
-    LaunchedEffect(apiKey) {
-        if (hasKey && !Places.isInitialized()) {
-            Places.initialize(context.applicationContext, apiKey)
-        }
-    }
-
     fun granted() = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_COARSE_LOCATION,
     ) == PackageManager.PERMISSION_GRANTED
 
     var hasLocation by remember { mutableStateOf(granted()) }
     var is3d by remember { mutableStateOf(false) }
-    var places by remember { mutableStateOf<List<TrailPlace>>(emptyList()) }
+
+    // False until the SDK says it has drawn a frame — see the loading cover at the bottom
+    // of this Box.
+    var mapReady by remember { mutableStateOf(false) }
+
+    /**
+     * The map's own padded region, which is a different thing from the screen's
+     * [contentPadding] and has to be, because the Maps SDK draws the Google wordmark at the
+     * bottom of it.
+     *
+     * Given the screen's padding, the wordmark landed 96dp up — above the floating nav bar,
+     * in the gap between it and the walk button, where it read as a stray label rather than
+     * as an attribution. Given only the system inset, it sits under the nav bar and along
+     * the bottom edge of the screen, which is where a watermark belongs and where the
+     * wordmark is on every other map anyone has used.
+     *
+     * The band under the floating bar is not tall enough to hold the wordmark outright. On
+     * this screen, measured: the bar's lower edge is 110px off the bottom, the wordmark plus
+     * the margin the Maps SDK gives it is 65px, and the system inset takes the lowest 63px.
+     * 110 − 63 = 47px of genuinely free space for a 65px thing. Something has to give, and
+     * which thing depends on what the system inset actually *is*:
+     *
+     *  - **Gesture navigation** (a shallow inset, ~24dp) is empty apart from the centred
+     *    home pill. The wordmark is at the far left and never comes near it, so it may sit
+     *    inside that band — [WordmarkLift] drops it there, clear of the bar by ~9dp.
+     *  - **Three-button navigation** (~48dp) *is* the buttons. Nothing may sit in it, so the
+     *    lift is skipped and the wordmark rests on top of the inset, accepting that the
+     *    bar's translucent lower edge grazes it. Readable-through-glass beats hidden-behind-
+     *    hardware-buttons; neither is lovely.
+     *
+     * At exactly the system inset with no lift, which is what this did first, the wordmark's
+     * top 15px sat under the bar on gesture navigation too — 3px of clearance, which is to
+     * say none once a shadow or a different device is involved.
+     */
+    val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val mapPadding = remember(systemNavInset) {
+        val lifted = if (systemNavInset <= GestureInsetCeiling) systemNavInset - WordmarkLift else systemNavInset
+        PaddingValues(bottom = lifted.coerceAtLeast(0.dp))
+    }
 
     // The route is the screen's subject, so it is read before anything else — the camera
     // below is framed from it rather than from a guessed centre.
@@ -149,6 +185,29 @@ fun MapScreen(contentPadding: PaddingValues) {
     val routeWidthPx = remember(density) { with(density) { RouteWidth.toPx() } }
     val routeCasingPx = remember(density) { with(density) { (RouteWidth + RouteCasing * 2).toPx() } }
     val fitPaddingPx = remember(density) { with(density) { FitPadding.roundToPx() } }
+
+    /**
+     * The leash. The camera's *target* may not leave this box, so the map cannot be
+     * dragged off to another province and left there.
+     *
+     * It is the route's own bounds grown by [RoamMargin] on each side rather than the
+     * bounds themselves, for two reasons. A walker standing at the far end of the trail is
+     * *on* the boundary, and a camera pinned exactly to it cannot centre on them — the map
+     * would fight the recentre button. And a target locked to the route's edge still lets
+     * half the screen show what is past it, so a hard edge buys nothing except the feeling
+     * of a map that is stuck.
+     *
+     * This restricts the centre, not the view: at low zoom the surrounding province is
+     * still visible around the trail, which is what makes the restriction feel like a map
+     * of an area rather than a bug. [MinZoom] is what stops that going as far as the
+     * whole country.
+     */
+    val roamBounds = remember(route) {
+        LatLngBounds(
+            LatLng(route.bounds.southwest.latitude - RoamMargin, route.bounds.southwest.longitude - RoamMargin),
+            LatLng(route.bounds.northeast.latitude + RoamMargin, route.bounds.northeast.longitude + RoamMargin),
+        )
+    }
 
     val cameraPositionState = rememberCameraPositionState {
         // A holding frame only. The exact fit needs the map's pixel size, which does not
@@ -170,7 +229,6 @@ fun MapScreen(contentPadding: PaddingValues) {
     val icons = remember {
         MapsInitializer.initialize(context)
         MapIcons(
-            place = dotDescriptor(WbwGreenDark.toArgb()),
             start = endpointDescriptor(WbwGreenDark.toArgb(), hollow = false),
             finish = endpointDescriptor(WbwGreenDark.toArgb(), hollow = true),
         )
@@ -189,60 +247,11 @@ fun MapScreen(contentPadding: PaddingValues) {
             .addOnSuccessListener { loc -> if (loc != null) flyTo(LatLng(loc.latitude, loc.longitude), MeZoom) }
     }
 
-    // Places around the device — legacy findCurrentPlace, which the classic Places API
-    // serves. Needs a location fix, so it is called once permission is in hand rather than
-    // on first composition. A best-effort decoration: any failure just leaves the map
-    // unmarked, never crashes.
-    @SuppressLint("MissingPermission")
-    fun loadNearby() {
-        if (!hasKey || !granted() || !Places.isInitialized()) return
-        runCatching {
-            val client = Places.createClient(context)
-            val request = FindCurrentPlaceRequest.newInstance(
-                listOf(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG),
-            )
-            client.findCurrentPlace(request)
-                .addOnSuccessListener { response ->
-                    places = response.placeLikelihoods
-                        .mapNotNull { likely ->
-                            val p = likely.place
-                            val ll = p.latLng ?: return@mapNotNull null
-                            TrailPlace(p.id ?: ll.toString(), p.name.orEmpty(), ll)
-                        }
-                        .take(MaxPlaces)
-                }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("WbwMap", "nearby failed: ${e.message}", e)
-                }
-        }
-    }
-
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         hasLocation = result.values.any { it }
-        if (hasLocation) {
-            flyToMe()
-            loadNearby()
-        }
-    }
-
-    val searchLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data ?: return@rememberLauncherForActivityResult
-            Autocomplete.getPlaceFromIntent(data).latLng?.let { flyTo(it, MeZoom) }
-        }
-    }
-
-    fun openSearch() {
-        if (!hasKey || !Places.isInitialized()) return
-        val intent = Autocomplete.IntentBuilder(
-            AutocompleteActivityMode.OVERLAY,
-            listOf(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG),
-        ).build(context)
-        searchLauncher.launch(intent)
+        if (hasLocation) flyToMe()
     }
 
     fun requestLocation() {
@@ -333,12 +342,16 @@ fun MapScreen(contentPadding: PaddingValues) {
         }
     }
 
-    // Permission and nearby places on open — but no longer a fly-to-me. The opening
-    // camera belongs to the route: this screen exists to show where the walk goes, and
-    // someone standing on the trail already knows where they are standing. Recentring on
-    // yourself is one tap away on the button below, which is the right way round.
+    // Ask for permission on open, but do not fly to the walker. The opening camera belongs
+    // to the route: this screen exists to show where the walk goes, and someone standing on
+    // the trail already knows where they are standing. Recentring on yourself is one tap
+    // away on the button below, which is the right way round.
+    //
+    // Permission is still worth asking for here rather than at the first tap of that
+    // button, because the walk tracker below needs it too and one dialog on open beats two
+    // interruptions later.
     LaunchedEffect(Unit) {
-        if (hasLocation) loadNearby() else requestLocation()
+        if (!hasLocation) requestLocation()
     }
 
     // 3D is the native camera tilting, so it belongs to the camera, not to a separate view.
@@ -346,12 +359,23 @@ fun MapScreen(contentPadding: PaddingValues) {
     // The first pass is skipped. This effect runs once at composition with `is3d` already
     // false, which animated the camera to a tilt it was, and that animation raced the route
     // fit for the same camera — the map opened somewhere between the two.
-    // It also holds its zoom instead of forcing one. It used to jump to zoom 18, which was
-    // survivable when the map opened at a guessed centre and became useless once it opened
-    // fitted to the whole 8.4km loop: tapping 3D threw the route off-screen and left an
-    // empty field. Tilt is the thing the button is for; how far in the user is zoomed is
-    // their business.
+    // It also zooms in far enough for buildings to exist, and gives the previous zoom back
+    // on the way out.
+    //
+    // Tilt alone does not produce a 3D scene. The SDK only extrudes buildings from about
+    // [BuildingZoom] upward — below that the footprints are drawn as flat coloured polygons
+    // no matter how far the camera is leaned over, so tapping 3D at the trail-overview zoom
+    // gave a flat map seen at an angle, which is exactly what it looked like.
+    //
+    // This used to force zoom 18 unconditionally and that was removed for a good reason:
+    // once the map opened fitted to the whole 8.4km loop, tapping 3D threw the route off
+    // screen and left an empty field. The fix is not to drop the zoom but to make it
+    // reversible — remember where the user was, go in far enough to see something, and
+    // restore it when they leave 3D. Losing the overview *while in 3D* is not a bug; you
+    // cannot see extruded buildings from 8km up, so the button either goes in or does
+    // nothing.
     val tiltSettled = remember { mutableStateOf(false) }
+    var zoomBefore3d by remember { mutableStateOf<Float?>(null) }
     LaunchedEffect(is3d) {
         if (!tiltSettled.value) {
             tiltSettled.value = true
@@ -361,11 +385,19 @@ fun MapScreen(contentPadding: PaddingValues) {
         // user sees as stutter.
         if (WalkTracker.stats.value.active) return@LaunchedEffect
         val cur = cameraPositionState.position
+        val zoom = if (is3d) {
+            zoomBefore3d = cur.zoom
+            // Only ever closer, never further out — somebody already zoomed past this and
+            // pressing 3D should not pull them back.
+            maxOf(cur.zoom, BuildingZoom)
+        } else {
+            (zoomBefore3d ?: cur.zoom).also { zoomBefore3d = null }
+        }
         cameraPositionState.animate(
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(cur.target)
-                    .zoom(cur.zoom)
+                    .zoom(zoom)
                     .tilt(if (is3d) TiltDegrees else 0f)
                     .bearing(cur.bearing)
                     .build(),
@@ -378,12 +410,21 @@ fun MapScreen(contentPadding: PaddingValues) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            contentPadding = contentPadding,
+            contentPadding = mapPadding,
+            // The white flash, killed at its source. Before the first tiles arrive the
+            // MapView paints its default background, which is near-white — a full-screen
+            // flash of it every time the tab is opened, on an app that is otherwise a dark
+            // forest. Setting it to the same near-black the route's casing uses means the
+            // worst case is now the screen staying dark a moment longer.
+            googleMapOptionsFactory = {
+                GoogleMapOptions().backgroundColor(WbwForestVoid.toArgb())
+            },
             // Fired once the map has a size, which is the first moment newLatLngBounds is
             // legal — it throws outright if asked to fit a bounds into a zero-sized map.
             // Wrapped anyway: a camera that failed to frame the route is a worse map, not a
             // broken app, and the holding position above is already a reasonable view.
             onMapLoaded = {
+                mapReady = true
                 // Not while walking. Coming back to the map tab mid-walk would otherwise
                 // yank the camera off the walker to re-frame a route they are standing on.
                 if (!WalkTracker.stats.value.active) {
@@ -401,6 +442,14 @@ fun MapScreen(contentPadding: PaddingValues) {
                 // Extruded buildings — what makes the tilted camera read as 3D rather than
                 // as a flat map seen at an angle.
                 isBuildingEnabled = true,
+                // Keep the map on the event. This is a map *of the trail*, not a world
+                // map that happens to open there, and every pixel outside the event is a
+                // way to get lost in an app whose whole job is the opposite.
+                latLngBoundsForCameraTarget = roamBounds,
+                // The bounds alone would not hold: pinching out far enough puts the whole
+                // country on screen with the target still dutifully inside the box. This
+                // is the other half of the same fence.
+                minZoomPreference = MinZoom,
             ),
             uiSettings = MapUiSettings(
                 compassEnabled = false,
@@ -458,15 +507,6 @@ fun MapScreen(contentPadding: PaddingValues) {
                 anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
                 zIndex = EndpointZ,
             )
-
-            places.forEach { place ->
-                Marker(
-                    state = rememberMarkerState(key = place.id, position = place.position),
-                    title = place.name.ifBlank { null },
-                    icon = icons.place,
-                    anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
-                )
-            }
         }
 
         val layoutDir = LocalLayoutDirection.current
@@ -479,30 +519,27 @@ fun MapScreen(contentPadding: PaddingValues) {
                 .statusBarsPadding()
                 .fillMaxWidth()
                 .padding(
-                    start = contentPadding.calculateStartPadding(layoutDir) + 18.dp,
-                    end = contentPadding.calculateEndPadding(layoutDir) + 18.dp,
+                    start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
+                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
                     top = 14.dp,
                 ),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                GlassPill {
-                    Text(
-                        stringResource(R.string.map_title).uppercase(),
-                        color = colors.onBackdrop,
-                        fontSize = 11.sp,
-                        letterSpacing = 2.4.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                if (hasKey) {
-                    GlassIcon(
-                        icon = Icons.Outlined.Search,
-                        description = stringResource(R.string.map_search),
-                        tint = colors.onBackdrop,
-                        onClick = { openSearch() },
-                    )
-                }
+                // The same treatment as Home's greeting: the screen's name, set large, on
+                // the ground rather than in a chip. It was an 11sp tracked label inside a
+                // glass pill, which is the app's vocabulary for a *tag* — a small fact
+                // about something else — and a screen title is not that. It also meant the
+                // map opened with a tiny word in a box while Home opened with a sentence.
+                //
+                // Nothing under it now. The pill was carrying legibility as well as style,
+                // but the map style is dark on both themes (it is a scene, like the
+                // backdrop) so onBackdrop reads on it unaided.
+                Text(
+                    stringResource(R.string.map_title),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = colors.onBackdrop,
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             // Stays up after Stop. Somebody who has just walked the loop should not lose the
@@ -521,21 +558,27 @@ fun MapScreen(contentPadding: PaddingValues) {
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(
-                    start = contentPadding.calculateStartPadding(layoutDir) + 18.dp,
+                    start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
                     bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
                 ),
         )
 
-        // Bottom-right: 3D toggle + recenter, above the nav bar.
-        Row(
+        // Bottom-right: 3D stacked above recentre, above the nav bar.
+        //
+        // A column rather than a row, so the bottom row of the screen is the walk button
+        // and one map control — the two things you reach for — instead of a walk button
+        // and a pair of glyphs competing with it for the same line. Recentre keeps the
+        // bottom slot because it is the one used mid-walk, so it stays under the thumb
+        // while 3D moves up out of the way.
+        Column(
             Modifier
                 .align(Alignment.BottomEnd)
                 .padding(
-                    end = contentPadding.calculateEndPadding(layoutDir) + 18.dp,
+                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
                     bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
                 ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Hidden mid-walk. A walk is 3D by definition and drives the camera itself, so
             // the button would either do nothing or fight it — and a control that visibly
@@ -554,6 +597,42 @@ fun MapScreen(contentPadding: PaddingValues) {
                 tint = colors.onBackdrop,
                 onClick = { if (hasLocation) flyToMe() else requestLocation() },
             )
+        }
+
+        // The cover. Last in the Box, so it hides the controls as well as the map — a
+        // search field and a walk button floating over an empty green rectangle look
+        // broken, where a plain loading screen looks like loading.
+        //
+        // The map's own background colour already handles the white flash; this handles the
+        // second or two after it, where a correctly-coloured but empty map is
+        // indistinguishable from a map that has failed. It only ever fades *out*: appearing
+        // is the initial state, so an enter animation would be a fade-in from nothing on
+        // the very first frame.
+        AnimatedVisibility(
+            visible = !mapReady,
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(400)),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(
+                Modifier.fillMaxSize().background(WbwForestVoid),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator(
+                    color = colors.onBackdropMuted,
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(28.dp),
+                )
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    stringResource(R.string.map_loading).uppercase(),
+                    color = colors.onBackdropMuted,
+                    fontSize = 11.sp,
+                    letterSpacing = 2.4.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
@@ -664,16 +743,6 @@ private fun formatPace(speedMps: Float): String {
 }
 
 @Composable
-private fun GlassPill(content: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .glass(RoundedCornerShape(50), fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) { content() }
-}
-
-@Composable
 private fun GlassIcon(
     icon: ImageVector,
     description: String,
@@ -691,9 +760,6 @@ private fun GlassIcon(
     }
 }
 
-/** A place returned by the nearby search, flattened to what a marker needs. */
-private data class TrailPlace(val id: String, val name: String, val position: LatLng)
-
 /**
  * Every marker bitmap the screen draws, built together.
  *
@@ -702,29 +768,9 @@ private data class TrailPlace(val id: String, val name: String, val position: La
  * across recompositions rather than redrawn per frame.
  */
 private class MapIcons(
-    val place: BitmapDescriptor,
     val start: BitmapDescriptor,
     val finish: BitmapDescriptor,
 )
-
-/**
- * The marker: a small filled dot with a white ring, drawn once to a bitmap.
- *
- * A drawn dot rather than `defaultMarker`, which is Google's red-with-shadow teardrop —
- * on a screen this green it is the one thing that does not belong. The ring keeps it legible
- * where two greens meet.
- */
-private fun dotDescriptor(fillArgb: Int): BitmapDescriptor {
-    val px = 46
-    val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bmp)
-    val c = px / 2f
-    val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF2FFFFFF.toInt() }
-    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fillArgb or 0xFF000000.toInt() }
-    canvas.drawCircle(c, c, c, ring)
-    canvas.drawCircle(c, c, c - 5f, fill)
-    return BitmapDescriptorFactory.fromBitmap(bmp)
-}
 
 /**
  * The route's two endpoints: a filled disc for the start, the same disc with its middle
@@ -733,8 +779,8 @@ private fun dotDescriptor(fillArgb: Int): BitmapDescriptor {
  * The hole is a real transparency (PorterDuff CLEAR) rather than a circle painted in the
  * map's background colour — the ground under a marker is whatever the route, a road or a
  * field happens to be there, and a fake hole in one fixed colour only lines up over empty
- * ground. The white ring is the same device [dotDescriptor] uses, for the same reason: two
- * greens meeting need something achromatic between them.
+ * ground. The white ring is there for the same kind of reason: two greens meeting need
+ * something achromatic between them.
  */
 private fun endpointDescriptor(fillArgb: Int, hollow: Boolean): BitmapDescriptor {
     val px = 62
@@ -760,6 +806,32 @@ private fun endpointDescriptor(fillArgb: Int, hollow: Boolean): BitmapDescriptor
  * looks when it opens.
  */
 private const val DefaultZoom = 14.5f
+
+/**
+ * How far past the route the camera's centre may roam, in degrees on each side.
+ *
+ * About 650m. Enough that the recentre button can still frame a walker who has wandered
+ * off the line, and enough that the trail does not sit against a wall you can feel.
+ *
+ * It was double this, and double was too much: what is clamped is the camera's *target*,
+ * so the furthest the map can get from the route is this margin plus half a screen. At
+ * 1.3km that sum was more than a screen wide and the trail could be panned entirely out of
+ * view — bounded, but not visibly so, which is the same experience as unbounded for anyone
+ * who did not push until it stopped. At 650m some part of the route stays on screen
+ * wherever you drag to, so the map reads as being about the trail at all times.
+ */
+private const val RoamMargin = 0.006
+
+/**
+ * The furthest out the map may be zoomed.
+ *
+ * The camera-target bounds do not survive zooming out on their own: pinch far enough and
+ * the whole country is on screen with the target still dutifully inside its box. At 12.5
+ * the view spans roughly 11km, so the trail keeps its surroundings and loses the rest of
+ * Thailand. Comfortably below the ~14.3 the route fits at, so the opening frame is never
+ * clamped by it.
+ */
+private const val MinZoom = 12.5f
 private const val MeZoom = 16f
 
 /** The route line, and the casing drawn on each side of it. */
@@ -776,7 +848,20 @@ private const val EndpointZ = 3f
 // Near the SDK's tilt ceiling (~67.5°) and zoomed in, so buildings stand tall and the
 // scene reads as a low aerial rather than a flat map at an angle.
 private const val TiltDegrees = 67.5f
-private const val MaxPlaces = 14
+
+/**
+ * How far in the 3D button goes, if the user is not already closer.
+ *
+ * The Maps SDK starts extruding buildings somewhere around zoom 17 and draws them as flat
+ * footprints below it — this sits just above that line so the first frame after the tilt
+ * already has geometry in it, rather than arriving a moment later when the tiles refine.
+ *
+ * If buildings still look flat here, the cause is upstream and not fixable in this file:
+ * extruded geometry only exists where Google has modelled it, and coverage outside major
+ * cities is patchy. Check the same spot in the Google Maps app — if it is flat there too,
+ * there is no 3D data for MFU and no camera setting will invent it.
+ */
+private const val BuildingZoom = 17.5f
 
 // ===== Walking =====
 
@@ -800,14 +885,52 @@ private const val MinPaceSpeedMps = 0.35f
 private val HudShape = RoundedCornerShape(22.dp)
 
 /**
- * How far the bottom controls sit above the map's padded edge.
+ * How far the bottom controls sit above the screen's padded edge.
  *
- * Not a spacing choice. The Maps SDK draws the Google wordmark at the bottom of that padded
- * region, and the terms of service require it to stay visible — at the previous 14dp the
- * walk button's corner sat straight on top of it. This clears the wordmark's own height and
- * margin, and both bottom rows use it so they stay on one line.
+ * It was 38dp, and that was not a spacing choice: the Google wordmark used to be drawn
+ * inside the screen's padded region, and the walk button had to clear its height and margin
+ * or sit on top of it — which the Maps terms of service do not allow. The wordmark now sits
+ * at the bottom of the screen instead (see `mapPadding`), so the reason is gone and the
+ * 38dp of dead air it bought went with it.
+ *
+ * What is left is an ordinary gap. The screen's own bottom padding already clears the
+ * floating nav bar by 16dp, so this only has to keep the button from crowding it.
+ * Both bottom rows use the same value so they stay on one line.
  */
-private val ControlsBottom = 38.dp
+private val ControlsBottom = 8.dp
+
+/**
+ * How far the bottom controls are inset from the screen edge.
+ *
+ * **20dp because that is what the floating nav bar uses** (`HomeScaffold` gives it
+ * `padding(horizontal = 20.dp)`). It was 18dp, which put the walk button's left edge 5px
+ * outside the bar's and the recentre button's right edge 5px outside the other end — not
+ * enough to look deliberate, exactly enough to look wrong, since the two sit directly above
+ * one another with nothing between them.
+ *
+ * If the bar's inset ever changes, this has to follow it.
+ */
+private val ControlsInset = 20.dp
+
+/**
+ * How far the Google wordmark is dropped into the gesture inset. See `mapPadding`.
+ *
+ * Sized from the measurement, not chosen: at zero lift the wordmark's top cleared the
+ * floating bar by 3px. 16dp turns that into ~24px (9dp), and still leaves the wordmark's
+ * bottom above the home pill's row — which it would not have to, since the pill is centred
+ * and the wordmark is hard left, but a gap that survives a differently-sized pill is worth
+ * having for free.
+ */
+private val WordmarkLift = 16.dp
+
+/**
+ * The largest bottom inset still treated as gesture navigation.
+ *
+ * Gesture insets land around 24dp and three-button bars around 48dp, so anything in between
+ * is a safe place to split. Erring high would be the dangerous direction — it would let the
+ * wordmark drop behind hardware buttons — so the threshold sits nearer the gesture end.
+ */
+private val GestureInsetCeiling = 32.dp
 
 /** Tap with no ripple — a ripple on a glass pane paints a grey disc over the refraction. */
 private fun Modifier.tapNoRipple(onClick: () -> Unit): Modifier = composed {

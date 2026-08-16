@@ -93,9 +93,30 @@
     <string name="home_stage_preview_hint">A look ahead — tap your own stage to go back</string>
 
     <!-- Home -->
-    <string name="home_good_morning">GOOD MORNING</string>
-    <string name="home_good_evening">GOOD EVENING</string>
     <string name="home_greeting">Hi, %1$s</string>
+
+    <!-- Trail conditions (Open-Meteo). Weather names collapse the WMO 4677 code set. -->
+    <string name="home_weather_feels">Feels %1$d°</string>
+    <string name="home_air_aqi">AQI %1$d</string>
+    <string name="home_air_quality">Air quality</string>
+    <string name="weather_clear">Clear</string>
+    <string name="weather_mainly_clear">Mainly clear</string>
+    <string name="weather_partly_cloudy">Partly cloudy</string>
+    <string name="weather_overcast">Overcast</string>
+    <string name="weather_fog">Fog</string>
+    <string name="weather_drizzle">Drizzle</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_showers">Showers</string>
+    <string name="weather_snow">Snow</string>
+    <string name="weather_thunderstorm">Thunderstorm</string>
+    <!-- US EPA AQI bands. "Sensitive groups" is the shortened form of the EPA's
+         "Unhealthy for Sensitive Groups", which does not fit the row. -->
+    <string name="aqi_good">Good</string>
+    <string name="aqi_moderate">Moderate</string>
+    <string name="aqi_sensitive">Sensitive groups</string>
+    <string name="aqi_unhealthy">Unhealthy</string>
+    <string name="aqi_very_unhealthy">Very unhealthy</string>
+    <string name="aqi_hazardous">Hazardous</string>
     <string name="home_checked_in">Checked in %1$d / %2$d bases</string>
     <string name="home_phase_hint">%1$d more bases to reach the “%2$s” stage</string>
     <string name="home_next_base">NEXT BASE</string>
@@ -107,8 +128,8 @@
     <string name="tab_home">Home</string>
     <string name="tab_map">Map</string>
     <string name="map_title">Trail map</string>
+    <string name="map_loading">Loading the trail</string>
     <string name="map_recenter">Recentre on me</string>
-    <string name="map_search">Search</string>
     <string name="map_mode_3d">3D view</string>
     <string name="map_mode_2d">2D view</string>
     <string name="map_route_start">Start</string>
@@ -159,9 +180,15 @@
     <string name="coming_soon_desc">This part of the trail is still being built.</string>
 
     <!-- Notifications -->
-    <string name="notifications_mark_all_read">Mark all read</string>
+    <string name="notifications_subtitle">The latest from the trail team</string>
     <string name="notif_today">Today</string>
     <string name="notif_earlier">Earlier</string>
+    <string name="notif_new">New</string>
+    <!-- The three members of the backend's noti_level enum. Wording follows the
+         participant-facing announcements page on su-wbw-website. -->
+    <string name="notif_level_info">Info</string>
+    <string name="notif_level_warning">Important</string>
+    <string name="notif_level_emergency">Urgent</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -195,17 +222,14 @@
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">OFFICIAL</string>
     <!-- Was hardcoded in ProfileScreen before the pass was redesigned. -->
-    <string name="profile_event_dates">22–23 Nov 2026</string>
     <string name="profile_group_n">Group %1$d</string>
-    <string name="profile_student_n">Student %1$s</string>
     <string name="profile_bib_number">Bib number</string>
     <string name="profile_trail_stamps">TRAIL STAMPS</string>
-    <string name="profile_stamps_progress">%1$d / %2$d · %3$s</string>
     <string name="profile_label_group">Group</string>
     <string name="profile_label_blood">Blood</string>
     <string name="profile_label_rank">Rank</string>
     <string name="profile_row_height_weight">Height / Weight</string>
     <string name="profile_hw_value">%1$s cm · %2$s kg</string>
-    <string name="profile_label_student_id">STUDENT ID</string>
+    <string name="profile_qr_label">Check-in QR code</string>
     <string name="profile_checkin_status">Checked in</string>
 </resources>

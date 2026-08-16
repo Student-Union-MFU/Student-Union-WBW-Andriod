@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,6 +38,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -49,9 +50,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.remote.dto.ParticipantDetail
 import th.ac.mfu.su.wbw.ui.common.ErrorState
+import th.ac.mfu.su.wbw.ui.common.QrCode
 import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
-import th.ac.mfu.su.wbw.ui.home.GrowthPhase
 import th.ac.mfu.su.wbw.ui.theme.Kanit
 import th.ac.mfu.su.wbw.ui.theme.PassFaint
 import th.ac.mfu.su.wbw.ui.theme.PassHairline
@@ -103,10 +104,14 @@ private fun ProfileContent(
     onOpenSettings: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
-        // No title bar. This screen is pushed from Home's avatar and closed again, so it
-        // needs a way back and nothing else — a header repeating "Participant Pass" over
-        // a pass that already says so was spending the top of the screen on nothing.
-        // Settings keeps its button here because this is the only route to it.
+        // No title bar. This screen is opened from the QR button in the nav bar and closed
+        // again, so it needs a way back and nothing else — a header repeating "Participant
+        // Pass" over a pass that already says so was spending the top of the screen on
+        // nothing.
+        //
+        // Settings keeps its button here even though Home's corner now reaches it too.
+        // Two doors to a screen nobody visits often is not clutter; it is one fewer thing
+        // to remember, and this one is already drawn.
         //
         // Outside the scroll on purpose: the pass is taller than the screen, and a back
         // button that scrolls away is one you have to scroll back up to reach.
@@ -157,7 +162,6 @@ private fun Pass(p: ParticipantDetail) {
     val shape = RoundedCornerShape(28.dp)
     val total = 8
     val done = if (p.checkedIn) 3 else 0
-    val phase = GrowthPhase.forProgress(done, total)
 
     Row(
         Modifier
@@ -168,9 +172,18 @@ private fun Pass(p: ParticipantDetail) {
         Column(Modifier.weight(1f)) {
             Kicker(stringResource(R.string.profile_pass_title))
 
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinePill(stringResource(R.string.profile_event_dates))
-                p.groupNumber?.let { OutlinePill(stringResource(R.string.profile_group_n, it)) }
+            // The event dates used to sit here in a pill of their own. They are the one
+            // fact on the pass that is identical on every pass ever issued — it is a
+            // two-day event — so the card was opening by telling the holder something
+            // about the event rather than about them.
+            //
+            // The whole row goes when there is no group, rather than staying as an empty
+            // box: it exists to hold pills, and its top padding would otherwise leave a
+            // gap that reads as a missing element.
+            p.groupNumber?.let {
+                Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinePill(stringResource(R.string.profile_group_n, it))
+                }
             }
 
             // Identity and QR share a row: they are the two things a marshal looks at,
@@ -191,33 +204,86 @@ private fun Pass(p: ParticipantDetail) {
                     p.schoolName?.let {
                         Text(it, color = PassMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
                     }
+                    // The major, under the school it belongs to. Same size, one step down
+                    // the ink scale — they are the same kind of fact at two levels of
+                    // detail, so the type stays put and only the strength moves. A second
+                    // 12sp line at full muted would have read as a second school.
+                    //
+                    // Tighter to the school than the school is to the name (4dp against 8),
+                    // because the two of them are one address and should read as one block
+                    // rather than two facts that happen to be adjacent.
+                    p.major?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, color = PassFaint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
+                    }
+                    // The student id, bare. It read "Student 6931503028" at 11sp, which
+                    // spent most of its width telling you what a ten-digit number starting
+                    // 693 already is — on a card headed "Participant Pass", next to a
+                    // school name, at a university event. The digits are the part anyone
+                    // needs to read out or copy down, so they get the space the label was
+                    // using.
+                    //
+                    // Three things were making it hard to see and only one of them was the
+                    // size. It was set in `colors.accent`, which is a *theme* token: near
+                    // white on a dark card, near black (#1B2A1B) on a light one — and this
+                    // pass is a fixed dark design in both themes, so half the users had
+                    // near-black digits on dark glass. [PassInk] is the pass's own scale
+                    // and does not move. And it is Kanit now, the app's numeral face, the
+                    // same one the bib below is set in: its digits are squarer and hold
+                    // apart at a glance in a way Sarabun's do not.
+                    //
+                    // 18sp sits between the school line and the name on purpose. Bigger
+                    // than it was by half again, and still visibly not the headline.
                     p.studentId?.let {
                         Text(
-                            stringResource(R.string.profile_student_n, it),
-                            color = colors.accent,
-                            fontSize = 11.sp,
-                            letterSpacing = 1.5.sp,
+                            it,
+                            color = PassInk,
+                            fontFamily = Kanit,
+                            fontSize = 18.sp,
+                            letterSpacing = 1.2.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 5.dp),
+                            modifier = Modifier.padding(top = 6.dp),
                         )
                     }
                 }
                 // The one solid thing amongst the glass, and deliberately the brightest
                 // rectangle on the panel — a code that will be scanned in low light
                 // under trees should not be competing with a translucent surface.
-                Box(
-                    Modifier
-                        .size(116.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(PassInk),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.QrCode2,
-                        stringResource(R.string.profile_label_student_id),
-                        tint = Color(0xFF16241A),
-                        modifier = Modifier.size(96.dp),
-                    )
+                //
+                // This was an `Icons.Outlined.QrCode2` until now: a Material *drawing* of a
+                // QR code, identical on every participant's pass, encoding nothing. It
+                // looked exactly like the real thing and would have scanned as nothing at
+                // all, at a checkpoint, on the day.
+                //
+                // What it encodes is `qr_token`, never the id or the student number — see
+                // [ParticipantDetail.qrToken]. Pure black on pure white rather than the
+                // panel's greens: contrast is the whole job here, and a scanner has no
+                // opinion about the design system.
+                //
+                // No token means no block. A participant whose row predates the column
+                // checks in by bib, which the server supports; drawing an empty white
+                // square would suggest a code that failed to load and invite them to stand
+                // there waiting for it.
+                p.qrToken?.takeIf { it.isNotBlank() }?.let { token ->
+                    val label = stringResource(R.string.profile_qr_label)
+                    Box(
+                        Modifier
+                            .size(116.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(PassInk)
+                            // Labelled on the container, because the code itself is a
+                            // Canvas and a screen reader would otherwise walk straight past
+                            // the most important object on the pass without announcing it.
+                            // The label names the thing; reading out a 24-character hex
+                            // token would help nobody.
+                            .semantics { contentDescription = label },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        QrCode(
+                            content = token,
+                            foreground = Color(0xFF16241A),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
 
@@ -246,18 +312,12 @@ private fun Pass(p: ParticipantDetail) {
             // Trail stamps: eight cells, filled ones solid. The old version drew a tree
             // glyph in every cell and a second progress bar underneath — two readings of
             // one number, in a design that has room for neither.
-            Row(
-                Modifier.fillMaxWidth().padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            // Just the label now. The "3 / 8 · Sapling" readout that sat opposite it was a
+            // third telling of a number the eight cells below already show, after Home's
+            // bloom and Home's own count — and the growth-phase word belongs to the flower,
+            // which is not on this card.
+            Box(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 Kicker(stringResource(R.string.profile_trail_stamps))
-                Text(
-                    stringResource(R.string.profile_stamps_progress, done, total, stringResource(phase.labelRes)),
-                    color = colors.accent,
-                    fontSize = 10.sp,
-                    letterSpacing = 1.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 10.dp),

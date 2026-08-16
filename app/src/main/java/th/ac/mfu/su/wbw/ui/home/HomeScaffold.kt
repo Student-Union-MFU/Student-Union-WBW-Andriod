@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.QrCode2
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,6 +36,7 @@ import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.ui.activities.ActivitiesScreen
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
 import th.ac.mfu.su.wbw.ui.map.MapScreen
+import th.ac.mfu.su.wbw.ui.notifications.NotificationsScreen
 import th.ac.mfu.su.wbw.ui.profile.ProfileScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
@@ -47,14 +47,25 @@ private fun routeOrder(route: String?): Int = when (route) {
     "map" -> 1
     "chat" -> 2
     "activities" -> 3
-    "profile" -> 4
-    "settings" -> 5
-    "checkin" -> 6
+    "notifications" -> 4
+    "profile" -> 5
+    "settings" -> 6
     else -> 0
 }
 
-/** The QR destination. Split out of [tabs] because it is a button beside the bar, not in it. */
-private const val QrRoute = "checkin"
+/**
+ * Where the QR button beside the bar goes: the participant pass.
+ *
+ * Split out of [tabs] because it is a button beside the bar, not in it — and it keeps the
+ * QR glyph because the pass *is* a QR code. The thing a participant holds up at a
+ * checkpoint is their own pass, so the button that looks like a QR code should produce
+ * one, rather than opening a scanner for reading somebody else's.
+ *
+ * It used to point at a `checkin` stub that only ever said "coming soon". Scanning — the
+ * marshal's side of the same transaction — still has no server behind it; when it arrives
+ * it needs its own route rather than this one back.
+ */
+private const val QrRoute = "profile"
 
 /** Signed-in participant shell: forest background, floating glass nav, routed screens. */
 @Composable
@@ -114,15 +125,24 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     composable("home") {
                         HomeScreen(
                             contentPadding = contentPadding,
-                            // Pushed rather than tab-switched: profile is opened from
+                            // Pushed rather than tab-switched: settings is opened from
                             // Home and closed back to it, so back should return there
                             // instead of unwinding to a tab you were never on.
-                            onOpenProfile = { nav.navigate("profile") },
+                            onOpenSettings = { nav.navigate("settings") },
+                            // Same push, for the same reason — announcements are read and
+                            // dismissed, not walked between.
+                            onOpenNotifications = { nav.navigate("notifications") },
                         )
                     }
                     composable("map") { MapScreen(contentPadding = contentPadding) }
                     composable("chat") { ChatScreen(contentPadding = contentPadding) }
                     composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
+                    composable("notifications") {
+                        NotificationsScreen(
+                            contentPadding = contentPadding,
+                            onBack = { nav.popBackStack() },
+                        )
+                    }
                     composable("profile") {
                         ProfileScreen(
                             contentPadding = contentPadding,
@@ -133,7 +153,6 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     composable("settings") {
                         SettingsScreen(contentPadding = contentPadding, onBack = { nav.popBackStack() }, onLogout = onLogout)
                     }
-                    composable(QrRoute) { ComingSoonScreen(R.string.home_scan_qr, Icons.Outlined.QrCodeScanner, contentPadding) }
                 }
 
             // Inside the Box so it can align to the bottom, and inside ForestBackground
@@ -142,13 +161,13 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                 items = tabs,
                 currentRoute = currentRoute,
                 onSelect = { route -> navigateTab(nav, route) },
-                // QR is always present, not only on Home. It used to be a FAB that
-                // appeared on one screen; on iOS it is a permanent tab, and a checkpoint
-                // is the last place to make someone navigate home first.
+                // Always present, not only on Home. It used to be a FAB that appeared on
+                // one screen, and a checkpoint is the last place to make someone navigate
+                // home first before they can show anyone anything.
                 qrSelected = currentRoute == QrRoute,
                 onSelectQr = { navigateTab(nav, QrRoute) },
                 qrIcon = Icons.Outlined.QrCode2,
-                qrContentDescription = stringResource(R.string.home_scan_qr),
+                qrContentDescription = stringResource(R.string.profile_pass_title),
                 // Insets measured off the iOS screenshot: the pill clears the screen
                 // edge by about 20dp and floats well above the gesture bar.
                 modifier = Modifier

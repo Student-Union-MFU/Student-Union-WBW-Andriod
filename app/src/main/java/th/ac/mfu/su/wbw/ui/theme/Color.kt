@@ -127,6 +127,54 @@ val PassDeepInk = Color(0xFF16241A)
 val DangerDark = Color(0xFFE88B7A)
 val DangerLight = Color(0xFFC0503A)
 
+// ===== Conditions =====
+//
+// The one place in the app that uses hue to mean something, and the exception is narrow on
+// purpose: these tint the two 17dp glyphs on Home's weather line and nothing else. A sun
+// that is the same grey as a raincloud is a sun doing no work — the glyph is the only part
+// of that line carrying *what kind* of day it is, since the words next to it are numbers.
+//
+// Every one is desaturated hard, at roughly the saturation of the backdrop photograph
+// itself (15–25%). Straight yellow or straight blue at full chroma is the "corporate
+// weather widget" look the rest of this palette was built to avoid, and it would put the
+// brightest pixels on screen next to the least important sentence on it. These read as
+// tinted light rather than as colour.
+//
+// **Fixed in both themes, deliberately.** They sit directly on the backdrop, and the
+// backdrop is the same dark photograph whether the user picked light or dark — the same
+// reason [WbwColors.onBackdrop] does not follow the theme. A light-theme variant would be
+// a darker colour on an equally dark ground.
+
+/** Clear sky. Warm sand rather than yellow — a low sun through haze, not a cartoon sun. */
+val SkySunTint = Color(0xFFDEC183)
+
+/** Cloud and overcast. The neutral of the set: barely off the muted ink, a shade cooler. */
+val SkyCloudTint = Color(0xFFAEB8AC)
+
+/** Fog. Cooler and paler than cloud, so the two are not the same grey. */
+val SkyFogTint = Color(0xFFB4BEBD)
+
+/** Drizzle, rain, showers. Dusty blue — the only cool hue that survives this backdrop. */
+val SkyRainTint = Color(0xFF93B2C2)
+
+/** Snow. Pale ice; never seen on this trail, kept so the mapping is complete. */
+val SkySnowTint = Color(0xFFC4D5DA)
+
+/** Thunderstorm. Deeper than [SkySunTint] and pushed toward amber, so it reads as caution. */
+val SkyStormTint = Color(0xFFD2A264)
+
+/**
+ * Air quality, as the conventional green–amber–red ramp with the volume turned down.
+ *
+ * Worth keeping recognisable — this ramp is the one piece of colour language people have
+ * already learned from every air app and every burning-season news graphic — but at the
+ * chroma of the rest of this file rather than the chroma those graphics use.
+ */
+val AirGoodTint = Color(0xFF8CC29B)
+val AirModerateTint = SkySunTint
+val AirSensitiveTint = Color(0xFFDFA671)
+val AirUnhealthyTint = DangerDark
+
 // ===== Legacy names =====
 //
 // Screens outside this package reference these directly. Kept as aliases pointing at
