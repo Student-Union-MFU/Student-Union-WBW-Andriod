@@ -128,7 +128,12 @@ fun ChatScreen(
     fun send() {
         val body = draft.trim()
         if (body.isEmpty()) return
-        viewModel.send(body)
+        // The draft is cleared only if the message was actually accepted. It used to clear
+        // unconditionally, so anything the view model refused — a body over the server's
+        // 2000-rune limit — was destroyed on the spot: no bubble, no error, and the text
+        // gone from the box it was typed into. Keeping it leaves the participant holding
+        // what they wrote, next to a composer that visibly will not take more.
+        if (!viewModel.send(body)) return
         draft = ""
         emojiOpen = false
         // Jump to the message just sent. Without this it lands below the fold and the
@@ -283,7 +288,14 @@ fun ChatScreen(
                 // background back onto a field that is deliberately clear.
                 BasicTextField(
                     value = draft,
-                    onValueChange = { draft = it },
+                    // Capped where the typing happens, not only where the sending does, so
+                    // the limit can never be reached in the first place. Code points, to
+                    // agree with the server's rune count — `length` counts an emoji twice.
+                    onValueChange = { next ->
+                        if (next.codePointCount(0, next.length) <= ChatViewModel.MaxBodyChars) {
+                            draft = next
+                        }
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onBackdrop),
                     cursorBrush = SolidColor(colors.onBackdrop),
                     maxLines = 4,

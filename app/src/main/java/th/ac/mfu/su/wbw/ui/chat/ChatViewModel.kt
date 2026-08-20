@@ -189,7 +189,14 @@ class ChatViewModel(
     suspend fun heartbeat() {
         while (currentCoroutineContext().isActive) {
             val groupId = _state.value.groupId
-            if (groupId != null && lastId > 0) {
+            // `lastId` of 0 is sent, not skipped. The old guard held the heartbeat back
+            // until something had been read, which is precisely backwards: a member sitting
+            // in a group with no messages yet, or in the window before the first sync
+            // lands, was not registered as having the screen open — so the server pushed
+            // them a notification for the very first message while they were looking at it.
+            // That is the failure `docs/chat-v2-deploy.md` records against an earlier build.
+            // The server takes 0 happily; `MarkRead` rejects only null and negatives.
+            if (groupId != null) {
                 chat.markRead(groupId, lastId)
             }
             delay(ReadHeartbeatMillis)
@@ -203,14 +210,18 @@ class ChatViewModel(
      * round trip is routinely seconds and a composer that clears with nothing to show for
      * it reads as a dropped message.
      */
-    fun send(body: String) {
+    fun send(body: String): Boolean {
         val text = body.trim()
-        if (text.isEmpty()) return
-        val groupId = _state.value.groupId ?: return
-        if (text.length > MaxBodyChars) {
-            _state.update { it.copy(error = null) }
-            return
-        }
+        if (text.isEmpty()) return false
+        val groupId = _state.value.groupId ?: return false
+        // Counted in code points, as the server counts runes — `length` is UTF-16 units, so
+        // every emoji counts twice and the two sides disagree about what 2000 means.
+        //
+        // Returning false rather than swallowing it. This used to `return` after setting
+        // `error = null`, and the screen cleared the composer regardless, so a long message
+        // was destroyed silently: no bubble, no error, and the text the participant had
+        // written was gone. The screen now keeps the draft when this is false.
+        if (text.codePointCount(0, text.length) > MaxBodyChars) return false
         val clientId = UUID.randomUUID().toString()
         _state.update { it.copy(pending = it.pending + PendingMessage(clientId, text)) }
 
@@ -239,6 +250,7 @@ class ChatViewModel(
                 }
             }
         }
+        return true
     }
 
     /** Retry a message that failed to send, reusing its client id so it cannot double-post. */
@@ -300,8 +312,9 @@ class ChatViewModel(
         private const val MaxBackoffMillis = 30_000L
         private const val NoGroupRetryMillis = 5_000L
 
-        /** `maxBodyLen` in `wbw_chat_service.go`, in runes. */
-        private const val MaxBodyChars = 2_000
+        /** `maxBodyLen` in `wbw_chat_service.go`, in runes. Shared with the composer, which
+         *  refuses to take more than the server will accept. */
+        const val MaxBodyChars = 2_000
 
         val Factory = viewModelFactory {
             initializer {
