@@ -465,6 +465,15 @@ private class BloomField {
         val maxR = step * 0.60f
         val coreR = if (withCore) 3.5f + 3f * stage else 0f
 
+        // The strip's chips are drawn back up to the ink they had before the cup shading.
+        //
+        // The depth model still runs on them — the *relative* tones are part of what makes a
+        // chip read as a flower rather than as a smudge — but its absolute level is set for a
+        // hero the height of the screen. At 50dp the shading is below what the eye can
+        // resolve anyway, and all it did there was take the two faintest stages, seed and
+        // bud, below the threshold where an unreached chip is visible at all.
+        val gain = if (kind == Botanical.Head) HeadGain else 1f
+
         // Everything drawn, in flower space, so the scan can skip the empty canvas around
         // it. The core and the stem are in here as well as the petals: the stem is not a
         // petal and stage 0 has no petals at all.
@@ -473,7 +482,9 @@ private class BloomField {
         var minY = minOf(fan.minY, CY - coreR)
         var maxY = maxOf(fan.maxY, CY + coreR)
         if (withStem) {
-            minX = minOf(minX, CX - 17f); maxX = maxOf(maxX, CX + 17f)
+            // The sway carries the stem to about 13 either side of centre; the widened
+            // taper adds its half-width on top of that.
+            minX = minOf(minX, CX - 19f); maxX = maxOf(maxX, CX + 19f)
             minY = minOf(minY, CY - 6f); maxY = maxOf(maxY, CY + StemLength + 4f)
         }
 
@@ -501,9 +512,15 @@ private class BloomField {
                     val t = ((fy - CY) / StemLength).coerceIn(0f, 1f)
                     val sx = cubic(CX, CX + 13f, CX - 11f, CX + 3f, t)
                     val d = abs(fx - sx)
-                    // Tapers: thick at the root, fine where it meets the head.
-                    val halfW = 3.4f * (0.45f + 0.55f * t)
-                    if (d < halfW) cover = maxOf(cover, 1f - d / halfW)
+                    // Tapers: thick at the root, finer where it meets the head — but far
+                    // less finely than it used to. At 0.45 of 3.4 units the top of the stem
+                    // came out narrower than a single halftone cell and simply dropped out
+                    // of the picture, leaving the head floating clear of its own stalk. The
+                    // old flower hid that: its petals wrapped down past horizontal and
+                    // covered the junction. A head that opens upward does not, so the stem
+                    // now has to survive on its own up there.
+                    val halfW = 4.4f * (0.70f + 0.30f * t)
+                    if (d < halfW) cover = maxOf(cover, StemShade * (1f - d / halfW))
                 }
 
                 // The core: dots crowd where every petal meets, so it is drawn as solid.
@@ -512,14 +529,23 @@ private class BloomField {
                 // stage 1 left the first chip in the strip completely blank — stage 0 has
                 // no petals, and the strip draws heads without stems, so there was nothing
                 // at all to see under a label reading "Seed".
+                //
+                // Held down by [CoreShade] rather than drawn at full strength. As the
+                // brightest thing on the canvas it turned the open stages into a starburst;
+                // as the dimmest it is the eye of the cup, and the head gains a near side.
                 if (withCore) {
                     val dc = hypot(fx - CX, fy - CY)
-                    if (dc < coreR) cover = maxOf(cover, 1f - (dc / coreR) * 0.35f)
+                    if (dc < coreR) cover = maxOf(cover, CoreShade * (1f - (dc / coreR) * 0.35f))
                 }
 
                 if (cover <= 0.02f) continue
+                if (gain != 1f) cover = (cover * gain).coerceAtMost(1f)
                 val n = hash(ix * 31f + iy * 57f)
-                val r = maxR * cover.coerceAtMost(1f) * (0.55f + 0.45f * n)
+                // Less radius scatter than there was. At +-45% the noise between one dot and
+                // its neighbour was larger than the tonal differences the shading is drawing
+                // with, so the depth was there in the numbers and invisible on the screen.
+                // Enough jitter is kept to break up the grid; not enough to bury the tone.
+                val r = maxR * cover.coerceAtMost(1f) * (0.75f + 0.25f * n)
                 if (r <= 0.25f) continue
                 add(
                     x = gx + (n - 0.5f) * step * 0.35f,
@@ -553,6 +579,7 @@ private class PetalFan(petals: List<Petal>) {
     private val sinA = FloatArray(n)
     private val len = FloatArray(n)
     private val halfWidth = FloatArray(n)
+    private val shade = FloatArray(n)
     private val bx0 = FloatArray(n)
     private val bx1 = FloatArray(n)
     private val by0 = FloatArray(n)
@@ -570,7 +597,7 @@ private class PetalFan(petals: List<Petal>) {
             val ca = cos(a)
             val sa = sin(a)
             ox[i] = p.cx; oy[i] = p.cy; cosA[i] = ca; sinA[i] = sa
-            len[i] = p.len; halfWidth[i] = p.halfWidth
+            len[i] = p.len; halfWidth[i] = p.halfWidth; shade[i] = p.shade
             // The widest a petal ever gets is at its waist; 1.1 leaves room for the
             // shoulder in the taper below.
             val pad = p.halfWidth * 1.1f
@@ -584,9 +611,22 @@ private class PetalFan(petals: List<Petal>) {
         if (n == 0) { minX = CX; maxX = CX; minY = CY; maxY = CY }
     }
 
-    /** How much petal covers a point in flower space, 0..1. */
+    /**
+     * How much ink a point in flower space takes, 0..1.
+     *
+     * Petals are *composited* back to front, not maxed. `max` was the whole reason the open
+     * stages had no depth: it keeps only the strongest petal at each point and throws away
+     * every fact about which petal is in front, so a pile of overlapping petals came out the
+     * same value as one petal — saturated, everywhere.
+     *
+     * Compositing keeps that ordering. Each petal lays its own [shade] over whatever is
+     * already there, using its cross-section as its alpha, so the frontmost petal wins where
+     * it is solid and lets the one behind show through at its edges. The list order *is* the
+     * depth order — [petalsFor] emits the outer whorl, then the inner one on top of it, then
+     * the leaves — so nothing needs sorting here.
+     */
     fun coverAt(x: Float, y: Float): Float {
-        var cover = 0f
+        var acc = 0f
         for (i in 0 until n) {
             if (x < bx0[i] || x > bx1[i] || y < by0[i] || y > by1[i]) continue
             val dx = x - ox[i]
@@ -600,9 +640,15 @@ private class PetalFan(petals: List<Petal>) {
             val hw = halfWidth[i] * 4f * u * (1f - u) * (1.15f - 0.15f * u)
             if (hw <= 0f) continue
             val d = abs(s) / hw
-            if (d < 1f) cover = maxOf(cover, (1f - d * d) * 0.9f + 0.1f)
+            if (d >= 1f) continue
+            // A flat body with a soft edge, so the petal actually occludes what is under it.
+            val a = minOf(1f, (1f - d) / PetalEdge)
+            // Darker toward its rim — the seam against the petal below — and darker toward
+            // its root, because the head is a cup lit from its tips inward.
+            val tone = shade[i] * (1f - RimShade * d * d * d) * (RootShade + (1f - RootShade) * u)
+            acc = a * tone + (1f - a) * acc
         }
-        return cover
+        return acc
     }
 }
 
@@ -682,8 +728,93 @@ fun stageLabel(stage: Int): Int = when (stage.coerceIn(0, 5)) {
     else -> R.string.bloom_stage_5
 }
 
-/** One petal, in flower space: origin, axis angle, length, half-width at the waist. */
-private data class Petal(val cx: Float, val cy: Float, val ang: Float, val len: Float, val halfWidth: Float)
+/**
+ * One petal, in flower space: origin, axis angle, length, half-width at the waist, and how
+ * brightly it takes the ink.
+ *
+ * [shade] is the whole of the depth model. There is no z coordinate and no projection —
+ * petals are still flat shapes on a flat canvas — but they are composited in list order and
+ * each one carries its own tone, which is enough for the eye to sort them into layers. See
+ * [PetalFan.coverAt].
+ */
+private data class Petal(
+    val cx: Float,
+    val cy: Float,
+    val ang: Float,
+    val len: Float,
+    val halfWidth: Float,
+    val shade: Float = 1f,
+)
+
+/**
+ * The depth palette.
+ *
+ * Stages 4 and 5 used to be a flat white mass with a ragged edge — the only part of the
+ * drawing you could actually read was the fringe where the petals finally stopped
+ * overlapping. The cause was [PetalFan.coverAt] combining petals with `max`: 16 outer petals
+ * and 8 inner ones all radiate from the same point across a 332-degree splay, so at the
+ * densest stages every petal overlaps its neighbours more than twice over, and `max` means
+ * that wherever *any* petal's spine falls the coverage saturates. That is the entire head.
+ * Every dot came out at full radius and full alpha, and a shape with one value everywhere
+ * has no depth to read.
+ *
+ * These are the tones that replace it. All of them are multipliers on coverage, because
+ * coverage is the only channel a halftone has — it drives both dot radius and dot alpha, and
+ * there is no second colour to shade with.
+ */
+private const val PetalBack = 0.80f
+private const val PetalFront = 1.0f
+
+/** The inner whorl, which sits down inside the cup rather than out in the light. */
+private const val InnerShade = 0.70f
+
+/** The eye of the flower. Dim on purpose — see [RootShade]. */
+private const val CoreShade = 0.62f
+
+/** Leaves and stem, kept just under the head so the bloom stays the brightest thing. */
+private const val LeafShade = 0.88f
+private const val StemShade = 0.85f
+
+/**
+ * How dark a petal is at its root, rising to full at the tip.
+ *
+ * The head is a cup: its centre is in shadow and the tips are what catch the light. The old
+ * drawing lit it the other way round — a solid core drawn at coverage 1.0, brighter than
+ * anything around it — and a blazing centre with an even surround is precisely the shape of
+ * a splat. Turning the gradient over is the single change that made the head read as
+ * something with a near side and a far side.
+ */
+private const val RootShade = 0.62f
+
+/**
+ * How much a petal darkens toward its own rim.
+ *
+ * This is the line that separates one petal from the one underneath it. Without it two
+ * overlapping petals at similar tones still merge into a single blob.
+ */
+private const val RimShade = 0.30f
+
+/**
+ * How far a petal recedes for turning its edge to the viewer.
+ *
+ * The head opens at the sky, so a petal aimed up shows us its lit inner face while one aimed
+ * outward is seen edge-on. On its own this is a plain vertical gradient, but laid over a fan
+ * of petals it is what gives the cup an inside.
+ */
+private const val LeanShade = 0.76f
+
+/**
+ * The fraction of a petal's half-width given over to its soft edge.
+ *
+ * The rest is a flat body at full alpha, so a petal *hides* what is behind it instead of
+ * averaging with it. The old cross-section was a dome that faded from its spine all the way
+ * out to its edge, which composites into mush: with a dome there is no part of a petal that
+ * is unambiguously in front.
+ */
+private const val PetalEdge = 0.30f
+
+/** How far a chip's head is lifted back toward its pre-shading ink. See [BloomField.build]. */
+private const val HeadGain = 1.4f
 
 private const val CX = 150f
 private const val CY = 176f
@@ -751,15 +882,27 @@ private fun petalsFor(stage: Float, withLeaves: Boolean = true): List<Petal> {
     val i = s.toInt().coerceAtMost(4)
     val t = s - i
 
-    // Stage 5 used to be 18 petals at a full 180-degree splay, which closed the fan into
-    // a disc — every gap filled, no silhouette left, and it read as worse than stage 4
-    // rather than as more. Fewer petals, stopped short of the half-turn, and longer, so
-    // the last stage is bigger and still has an outline.
-    val counts = intArrayOf(0, 1, 6, 9, 13, 16)
+    // The splay is what decides which way the flower faces, and it is the whole reason the
+    // last stages read as a starburst rather than as a bloom.
+    //
+    // A splay of 166 is a 332-degree sweep: the petals wrap almost the entire way round, and
+    // a fan that closes on itself is by definition a flower seen face-on, pointed at the
+    // viewer. Held under about 90 the fan cannot close — every petal keeps an upward
+    // component, they converge on the stem at the bottom, and the head reads as a cup
+    // opening at the sky. That is the flower this is meant to be: it opens upward through
+    // every stage and never turns to face us.
+    //
+    // The counts come down with it. Petal spacing is the splay divided by the count, so
+    // keeping 16 petals inside a 76-degree fan would pack them tighter than the 166-degree
+    // one they came from and undo the gaps that let the layering be seen.
+    val counts = intArrayOf(0, 1, 6, 9, 12, 14)
     val lengths = floatArrayOf(0f, 30f, 40f, 52f, 64f, 80f)
-    val splays = floatArrayOf(0f, 0f, 42f, 96f, 140f, 166f)
-    // Wide and blunt as a bud, narrowing as the petals separate.
-    val ratios = floatArrayOf(0.35f, 0.35f, 0.24f, 0.21f, 0.20f, 0.20f)
+    val splays = floatArrayOf(0f, 0f, 36f, 54f, 66f, 76f)
+    // Wide and blunt as a bud, narrowing as the petals separate. The last two are narrower
+    // than they were: at 0.20 a stage-5 petal is about 46 degrees wide with only 21 degrees
+    // between it and the next, so the fan closed into a solid disc no amount of shading
+    // could open up. Narrower petals leave the gaps that let the layering be seen.
+    val ratios = floatArrayOf(0.35f, 0.35f, 0.24f, 0.21f, 0.17f, 0.17f)
 
     val fromCount = counts[i]
     val toCount = counts[minOf(i + 1, 5)]
@@ -783,7 +926,19 @@ private fun petalsFor(stage: Float, withLeaves: Boolean = true): List<Petal> {
         val grow = if (k < fromCount) 1f else t
         val len = length * (0.72f + 0.28f * hash(k * 70.3f)) * grow
         if (len <= 0.01f) continue
-        out.add(Petal(CX, CY, ang, len, len * ratio))
+        // Two depth cues, both carried as tone.
+        //
+        // Imbrication: petals alternate forward and back, the way a real whorl tucks each
+        // petal under the next. A fan whose petals are all the same tone is a fan you cannot
+        // count, however many of them there are.
+        //
+        // Lean: the head is a cup opening upward, so a petal aimed at the sky turns its lit
+        // inner face toward us and a petal aimed outward is seen edge-on and loses the
+        // light. This is what stops the cup reading as a flat fan of identical strokes.
+        val lean = (1f - sin(ang * PI.toFloat() / 180f)) / 2f
+        val shade = (if (k % 2 == 0) PetalBack else PetalFront) *
+            (LeanShade + (1f - LeanShade) * lean)
+        out.add(Petal(CX, CY, ang, len, len * ratio, shade))
     }
 
     // Inner ring — shorter and tighter, which is what makes the centre read as dense
@@ -804,7 +959,7 @@ private fun petalsFor(stage: Float, withLeaves: Boolean = true): List<Petal> {
             val grow = if (k < innerFrom) 1f else t
             val len = length * 0.5f * innerGrow * grow
             if (len <= 0.01f) continue
-            out.add(Petal(CX, CY, ang, len, len * 0.26f))
+            out.add(Petal(CX, CY, ang, len, len * 0.26f, InnerShade))
         }
     }
 
@@ -819,7 +974,7 @@ private fun petalsFor(stage: Float, withLeaves: Boolean = true): List<Petal> {
         val len = leaf.length * grow
         if (len <= 0.01f) continue
         val jitter = 5f * (hash(n * 27.1f) - 0.5f)
-        out.add(Petal(lx, ly, leaf.angle + jitter, len, len * 0.30f))
+        out.add(Petal(lx, ly, leaf.angle + jitter, len, len * 0.30f, LeafShade))
     }
     return out
 }
