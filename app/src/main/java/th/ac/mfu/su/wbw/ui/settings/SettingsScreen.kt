@@ -59,7 +59,6 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.WbwApplication
 import th.ac.mfu.su.wbw.data.local.AppSettings
 import th.ac.mfu.su.wbw.ui.theme.DangerDark
-import th.ac.mfu.su.wbw.ui.theme.GlassPanel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
@@ -298,7 +297,7 @@ private fun SectionLabel(text: String) {
  * something the full width of the screen.
  */
 private fun Modifier.panel(): Modifier =
-    glass(RoundedCornerShape(PanelRadius), fill = GlassPanel, border = GlassSheerBorder)
+    glass(RoundedCornerShape(PanelRadius), fill = GlassSheer, border = GlassSheerBorder)
 
 private val PanelRadius = 18.dp
 

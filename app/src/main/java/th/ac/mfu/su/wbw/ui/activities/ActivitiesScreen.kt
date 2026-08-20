@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.GlassCard
-import th.ac.mfu.su.wbw.ui.theme.GlassPanel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -132,7 +131,7 @@ private fun EventCard(
     GlassCard(
         shape = RoundedCornerShape(EventCorner),
         contentPadding = PaddingValues(0.dp),
-        fill = GlassPanel,
+        fill = GlassSheer,
         border = GlassSheerBorder,
     ) {
         Column(Modifier.fillMaxWidth()) {
