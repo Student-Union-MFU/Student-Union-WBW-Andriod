@@ -87,6 +87,7 @@ import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.TileOverlay
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.launch
@@ -209,6 +210,11 @@ fun MapScreen(contentPadding: PaddingValues) {
         )
     }
 
+    // The wood is derived from the route and nothing else, so it is built once alongside it.
+    // A few thousand cells marked by one walk along the trail — cheap enough to sit in a
+    // `remember` next to the route's own decode, and never touched again after that.
+    val treeTiles = remember(route) { TreeTileProvider(TrailTrees.around(route)) }
+
     val cameraPositionState = rememberCameraPositionState {
         // A holding frame only. The exact fit needs the map's pixel size, which does not
         // exist until it has laid out, so it happens in onMapLoaded below; this just means
@@ -227,7 +233,19 @@ fun MapScreen(contentPadding: PaddingValues) {
     // on where in the function the call sits, which is not something the next person should
     // have to know. Add new marker icons to [MapIcons], not beside it.
     val icons = remember {
-        MapsInitializer.initialize(context)
+        // LATEST, not whatever this device happens to default to.
+        //
+        // The one-argument overload asks for no renderer in particular, which means the map
+        // is drawn by the legacy one on any device that still falls back to it — and the
+        // legacy renderer is where extruded buildings come out as pale, washed-out slabs
+        // you can read the ground through, rather than as solid shaded volumes. Pinning it
+        // also takes "which renderer did this phone give us" out of the set of things that
+        // can make the same build look different on two handsets.
+        //
+        // The preference only counts if it is expressed before the process creates its
+        // first map, which is why it stays here, above the GoogleMap below, rather than
+        // moving somewhere tidier.
+        MapsInitializer.initialize(context, MapsInitializer.Renderer.LATEST) { }
         MapIcons(
             start = endpointDescriptor(WbwGreenDark.toArgb(), hollow = false),
             finish = endpointDescriptor(WbwGreenDark.toArgb(), hollow = true),
@@ -332,9 +350,26 @@ fun MapScreen(contentPadding: PaddingValues) {
                         .target(LatLng(fix.latitude, fix.longitude))
                         .zoom(FollowZoom)
                         .tilt(TiltDegrees)
-                        // Keep the last heading when standing still, rather than snapping
-                        // north — the walker has not turned round, they have stopped.
-                        .bearing(fix.bearingDegrees ?: cameraPositionState.position.bearing)
+                        // The way ahead, in order of what is actually known.
+                        //
+                        // A measured bearing when there is one. Before that — the first
+                        // few fixes of a walk, while the tracker is still refusing to
+                        // believe a heading from somebody who has barely moved — the
+                        // trail's own direction under the walker's feet, which on a fixed
+                        // loop is where they are about to go. That gap used to fall
+                        // through to the camera's existing bearing, so starting a walk
+                        // pointed the camera north and left it there until the walker had
+                        // gone far enough to prove otherwise.
+                        //
+                        // The existing bearing is still the last resort, for a walker who
+                        // is neither moving nor near the route. Once the tracker has a
+                        // heading it keeps it, so standing still mid-walk still holds the
+                        // last direction rather than snapping anywhere.
+                        .bearing(
+                            fix.bearingDegrees
+                                ?: route.headingAt(fix.latitude, fix.longitude)
+                                ?: cameraPositionState.position.bearing,
+                        )
                         .build(),
                 ),
                 FollowAnimationMillis,
@@ -460,6 +495,16 @@ fun MapScreen(contentPadding: PaddingValues) {
                 tiltGesturesEnabled = true,
             ),
         ) {
+            // The wood, under everything else. Drawn by the app because the SDK has neither
+            // trees nor a way to say where a forest is — see [TrailTrees].
+            TileOverlay(
+                tileProvider = treeTiles,
+                zIndex = TreeZ,
+                // The tiles arrive a beat after the basemap under them; without this they
+                // pop in as a hard grid of squares.
+                fadeIn = true,
+            )
+
             // The route, drawn as two stacked lines.
             //
             // A single green stroke gets lost the moment it runs along a road, because the
@@ -630,7 +675,7 @@ fun MapScreen(contentPadding: PaddingValues) {
                     color = colors.onBackdropMuted,
                     fontSize = 11.sp,
                     letterSpacing = 2.4.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -681,14 +726,14 @@ private fun WalkStat(label: String, value: String, modifier: Modifier = Modifier
             color = colors.onBackdropMuted,
             fontSize = 9.sp,
             letterSpacing = 1.8.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.height(4.dp))
         Text(
             value,
             color = colors.onBackdrop,
             fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Normal,
         )
     }
 }
@@ -717,7 +762,7 @@ private fun WalkButton(active: Boolean, onClick: () -> Unit, modifier: Modifier 
             color = colors.onBackdrop,
             fontSize = 11.sp,
             letterSpacing = 1.8.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -842,6 +887,8 @@ private val FitPadding = 56.dp
 
 // Stacking order on the map. Explicit because the default is 0 for everything, which
 // leaves the casing painting over the line it exists to sit under.
+/** Under the route and its casing: the wood is ground, not information. */
+private const val TreeZ = 0.5f
 private const val RouteCasingZ = 1f
 private const val RouteZ = 2f
 private const val EndpointZ = 3f

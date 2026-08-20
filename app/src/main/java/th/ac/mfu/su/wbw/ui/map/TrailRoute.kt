@@ -6,6 +6,10 @@ import com.google.android.gms.maps.model.LatLngBounds
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import th.ac.mfu.su.wbw.R
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
 
 /**
  * The event's walking route, baked into the app.
@@ -49,8 +53,107 @@ class TrailRoute(
         points.forEach { include(it) }
     }.build()
 
+    /**
+     * The route in local metres, east and north of a fixed origin.
+     *
+     * A plain equirectangular projection about the route's own centre. Over a box two
+     * kilometres across the error against a proper geodesic is centimetres, and the question
+     * being asked of it — which way does the path run here — is answered in degrees.
+     */
+    private val originLat = bounds.center.latitude
+    private val originLng = bounds.center.longitude
+    private val metresPerDegLng = MetresPerDegree * cos(originLat * PI / 180.0)
+    private val east = DoubleArray(points.size) { (points[it].longitude - originLng) * metresPerDegLng }
+    private val north = DoubleArray(points.size) { (points[it].latitude - originLat) * MetresPerDegree }
+
+    /**
+     * Which way the trail runs nearest to a position, in degrees clockwise from north, or
+     * null if that position is further from the path than [OffRouteMetres].
+     *
+     * This exists for the first seconds of a walk. A heading derived from movement cannot
+     * exist until there has been movement — [th.ac.mfu.su.wbw.walk.WalkTrackingService]
+     * refuses to believe a bearing below 0.7 m/s, because a stationary phone reports one that
+     * wanders freely — so for the first few fixes there is nothing to point the camera with,
+     * and it sat facing north until the walker had gone far enough to prove otherwise.
+     *
+     * But the direction is not actually unknown: this is a fixed loop, the walker is standing
+     * on it, and the way the path runs under their feet is the way they are about to go. So
+     * the trail answers the question until the walk itself can.
+     *
+     * The heading is taken over [LookAheadMetres] rather than from the nearest segment alone.
+     * The track is a recorded GPX with points a few metres apart, and the direction of any
+     * single one of those is mostly the noise in the recording.
+     *
+     * It can be wrong exactly once: somebody walking the loop against its recorded direction
+     * gets pointed backwards until their own bearing arrives a few seconds later. Guessing
+     * with the trail beats facing north regardless of where the trail goes.
+     */
+    fun headingAt(latitude: Double, longitude: Double): Float? {
+        if (points.size < 2) return null
+        val px = (longitude - originLng) * metresPerDegLng
+        val py = (latitude - originLat) * MetresPerDegree
+
+        var bestSeg = -1
+        var bestT = 0.0
+        var bestDistSq = Double.MAX_VALUE
+        for (i in 0 until points.size - 1) {
+            val ax = east[i]; val ay = north[i]
+            val dx = east[i + 1] - ax; val dy = north[i + 1] - ay
+            val lenSq = dx * dx + dy * dy
+            val t = if (lenSq <= 0.0) 0.0 else (((px - ax) * dx + (py - ay) * dy) / lenSq).coerceIn(0.0, 1.0)
+            val qx = ax + t * dx - px
+            val qy = ay + t * dy - py
+            val distSq = qx * qx + qy * qy
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq
+                bestSeg = i
+                bestT = t
+            }
+        }
+        if (bestSeg < 0 || bestDistSq > OffRouteMetres * OffRouteMetres) return null
+
+        // Where on the path the walker actually is, then a look ahead from there.
+        val fromX = east[bestSeg] + bestT * (east[bestSeg + 1] - east[bestSeg])
+        val fromY = north[bestSeg] + bestT * (north[bestSeg + 1] - north[bestSeg])
+
+        var toX = fromX
+        var toY = fromY
+        var covered = 0.0
+        var i = bestSeg + 1
+        while (i < points.size && covered < LookAheadMetres) {
+            val nx = east[i]
+            val ny = north[i]
+            covered += hypot(nx - toX, ny - toY)
+            toX = nx
+            toY = ny
+            i++
+        }
+        // A walker on the final segment has nothing in front of them; the loop's own start is
+        // where the path continues, so the heading comes from behind them instead.
+        if (covered <= 0.0) {
+            toX = fromX + (fromX - east[bestSeg])
+            toY = fromY + (fromY - north[bestSeg])
+            if (toX == fromX && toY == fromY) return null
+        }
+
+        val deg = Math.toDegrees(atan2(toX - fromX, toY - fromY))
+        return ((deg + 360.0) % 360.0).toFloat()
+    }
+
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
+
+        /** Good to a fraction of a percent anywhere, and this is used over two kilometres. */
+        private const val MetresPerDegree = 111_320.0
+
+        /**
+         * Past this the walker is not on the trail and it has no opinion about where they
+         * are going. Wide enough to cover a car park or a wrong turn at a junction.
+         */
+        private const val OffRouteMetres = 120.0
+
+        /** How far along the path the heading is measured, to average out GPX jitter. */
+        private const val LookAheadMetres = 25.0
 
         /**
          * Read and decode the baked route. Cheap enough to call from composition — a
