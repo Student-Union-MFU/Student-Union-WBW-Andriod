@@ -144,7 +144,7 @@ private fun Reading(
         Text(
             lead,
             color = colors.onBackdrop,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Normal,
             fontSize = 15.sp,
         )
         if (trail != null) {
@@ -152,7 +152,7 @@ private fun Reading(
             Text(
                 trail.uppercase(),
                 color = trailTint,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 fontSize = 11.sp,
                 letterSpacing = 1.1.sp,
                 maxLines = 1,

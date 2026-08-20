@@ -22,27 +22,6 @@
     <string name="login_action_submit">Sign in</string>
     <string name="login_placeholder_username">Your student ID</string>
     <string name="login_placeholder_password">Your password</string>
-    <!-- Split from login_link_register so the call to action can be set apart from the
-         question in front of it. -->
-    <string name="login_no_account">No account yet?</string>
-    <string name="login_action_register">Register</string>
-    <string name="login_link_register">No account yet? Register</string>
-
-    <!-- Register -->
-    <string name="register_title">Register</string>
-    <string name="register_field_student_id">Student ID (10 digits, starts with 693)</string>
-    <string name="register_field_password">Password (at least 8 characters)</string>
-    <string name="register_field_first_name">First name</string>
-    <string name="register_field_last_name">Last name</string>
-    <string name="register_label_sex">Sex</string>
-    <string name="register_sex_male">Male</string>
-    <string name="register_sex_female">Female</string>
-    <string name="register_sex_other">Other</string>
-    <string name="register_field_contact_phone">Contact phone (optional)</string>
-    <string name="register_field_school">School (optional)</string>
-    <string name="register_consent_waiver">I accept the participation terms and conditions *</string>
-    <string name="register_consent_health">I consent to the collection of health data</string>
-    <string name="register_consent_emergency">I consent to emergency medical treatment</string>
 
     <!-- Notifications -->
     <string name="notifications_title">Announcements</string>
@@ -160,6 +139,24 @@
     <string name="chat_send">Send</string>
     <string name="chat_emoji">Emoji</string>
     <string name="chat_tag_staff">Staff</string>
+    <string name="chat_channel_group">Group %1$d</string>
+    <string name="chat_members">%1$d in this group</string>
+    <string name="chat_no_group">You are not in a group yet</string>
+    <string name="chat_offline">Reconnecting…</string>
+    <string name="chat_read_by">Read by %1$d</string>
+    <string name="chat_sending">Sending…</string>
+    <string name="chat_send_failed">Not sent — tap to try again</string>
+    <string name="group_pick_title">Choose your group</string>
+    <string name="group_pick_subtitle">You will walk and chat with this group. You can change it once.</string>
+    <string name="group_pick_group">Group %1$d</string>
+    <string name="group_pick_left">%1$d left</string>
+    <string name="group_pick_full">Full</string>
+    <string name="group_pick_confirm_q">Join this group?</string>
+    <string name="group_pick_confirm_body">You can only leave a group once, so choose the one your friends are in.</string>
+    <string name="group_pick_confirm_join">Join</string>
+    <string name="group_pick_cancel">Cancel</string>
+    <string name="group_pick_retry">Try again</string>
+    <string name="group_pick_joining">Joining…</string>
     <string name="tab_activities">Activities</string>
 
     <!-- Activities / events -->
@@ -222,7 +219,6 @@
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">OFFICIAL</string>
     <!-- Was hardcoded in ProfileScreen before the pass was redesigned. -->
-    <string name="profile_group_n">Group %1$d</string>
     <string name="profile_bib_number">Bib number</string>
     <string name="profile_trail_stamps">TRAIL STAMPS</string>
     <string name="profile_label_group">Group</string>

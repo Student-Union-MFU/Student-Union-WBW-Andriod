@@ -12,18 +12,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import th.ac.mfu.su.wbw.ui.auth.AuthNavHost
+import th.ac.mfu.su.wbw.ui.auth.LoginScreen
 import th.ac.mfu.su.wbw.ui.common.LoadingState
-import th.ac.mfu.su.wbw.ui.home.HomeScaffold
+import th.ac.mfu.su.wbw.ui.group.GroupGate
 import th.ac.mfu.su.wbw.ui.intro.IntroScreen
 
 /**
- * Root composable. Swaps the entire subtree on auth changes: logged out → auth
- * graph (login/register); logged in → the participant home scaffold.
+ * Root composable. Swaps the entire subtree on auth changes: logged out → the login
+ * screen; logged in → the participant home scaffold.
+ *
+ * Logged out is a single screen rather than a graph. It used to be a NavHost of login ⇄
+ * register, but participants do not make their own accounts — the organisers issue them —
+ * so registration is gone and a navigation graph with one destination in it is only
+ * indirection.
  *
  * In front of both, once per launch, is [IntroScreen] — the bloom opening from bud to full
  * flower. It is deliberately not conditional on being logged out: it is the app starting,
- * not a step in signing in, and it hands over to whichever graph the session resolves to.
+ * not a step in signing in, and it hands over to whichever screen the session resolves to.
  * For a signed-out participant that is the login screen, which is the path most people see.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -67,8 +72,11 @@ fun WbwApp() {
             } else {
                 when (val s = state) {
                     is AuthState.Loading -> LoadingState()
-                    is AuthState.LoggedOut -> AuthNavHost()
-                    is AuthState.LoggedIn -> HomeScaffold(
+                    is AuthState.LoggedOut -> LoginScreen()
+                    // Not HomeScaffold directly: a participant signing in for the first
+                    // time has no group yet, and [GroupGate] is what stands in front of the
+                    // app until they pick one.
+                    is AuthState.LoggedIn -> GroupGate(
                         session = s.session,
                         onLogout = appViewModel::logout,
                     )

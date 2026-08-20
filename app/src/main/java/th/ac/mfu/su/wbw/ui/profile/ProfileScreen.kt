@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,7 +56,7 @@ import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.QrCode
 import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
-import th.ac.mfu.su.wbw.ui.theme.Kanit
+import th.ac.mfu.su.wbw.ui.theme.Numerals
 import th.ac.mfu.su.wbw.ui.theme.PassFaint
 import th.ac.mfu.su.wbw.ui.theme.PassHairline
 import th.ac.mfu.su.wbw.ui.theme.PassInk
@@ -177,14 +180,10 @@ private fun Pass(p: ParticipantDetail) {
             // two-day event — so the card was opening by telling the holder something
             // about the event rather than about them.
             //
-            // The whole row goes when there is no group, rather than staying as an empty
-            // box: it exists to hold pills, and its top padding would otherwise leave a
-            // gap that reads as a missing element.
-            p.groupNumber?.let {
-                Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    OutlinePill(stringResource(R.string.profile_group_n, it))
-                }
-            }
+            // A "GROUP 14" outline pill sat here after them, and has moved down beside
+            // the bib — see that row for why. Nothing replaces it: this is the top of the
+            // card, and the pass reads better opening on the holder's name than on a
+            // chip repeating a number that now has display size of its own.
 
             // Identity and QR share a row: they are the two things a marshal looks at,
             // and the QR is the one that gets held up. Sitting it beside the name rather
@@ -193,13 +192,18 @@ private fun Pass(p: ParticipantDetail) {
             Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f).padding(end = 14.dp)) {
                     // The name is the headline, the way the reference sets its title —
-                    // the largest thing on the panel after the bib.
+                    // the largest thing on the panel after the bib. Its size steps down as
+                    // the name grows; see [nameSizeFor] for why the step is chosen the way
+                    // it is. Deliberately no `maxLines`: a long name is allowed to take two
+                    // or three lines, because the alternative is truncating somebody's name
+                    // on the card that exists to identify them.
+                    val nameSize = nameSizeFor(p.fullName)
                     Text(
                         p.fullName,
                         color = PassInk,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 28.sp,
-                        lineHeight = 31.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = nameSize,
+                        lineHeight = nameSize * 1.12f,
                     )
                     p.schoolName?.let {
                         Text(it, color = PassMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
@@ -227,9 +231,9 @@ private fun Pass(p: ParticipantDetail) {
                     // white on a dark card, near black (#1B2A1B) on a light one — and this
                     // pass is a fixed dark design in both themes, so half the users had
                     // near-black digits on dark glass. [PassInk] is the pass's own scale
-                    // and does not move. And it is Kanit now, the app's numeral face, the
-                    // same one the bib below is set in: its digits are squarer and hold
-                    // apart at a glance in a way Sarabun's do not.
+                    // and does not move. And it is Numerals now, the app's numeral face, the
+                    // same one the bib below is set in: its digits are round and evenly
+                    // weighted, and hold apart at a glance in a way the body face does not.
                     //
                     // 18sp sits between the school line and the name on purpose. Bigger
                     // than it was by half again, and still visibly not the headline.
@@ -237,10 +241,10 @@ private fun Pass(p: ParticipantDetail) {
                         Text(
                             it,
                             color = PassInk,
-                            fontFamily = Kanit,
+                            fontFamily = Numerals,
                             fontSize = 18.sp,
                             letterSpacing = 1.2.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Normal,
                             modifier = Modifier.padding(top = 6.dp),
                         )
                     }
@@ -289,22 +293,88 @@ private fun Pass(p: ParticipantDetail) {
 
             Rule(Modifier.padding(top = 20.dp))
 
-            // BIB, set as a number rather than a badge — it is the other thing on this
-            // screen someone reads out loud, so it gets display size too.
-            Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
+            // BIB and GROUP, set as numbers rather than badges — they are the two things
+            // on this screen someone reads out loud, so they get display size too.
+            //
+            // The group sits here, beside the bib, rather than in a pill up by the title
+            // where it used to live. They are one question asked twice — *which* walker,
+            // and which of the forty groups to send them back to — and a marshal holding
+            // the card wants both in the same glance, not one at the top and one at the
+            // bottom. Putting them side by side is also what stops the card telling the
+            // same fact in two registers, which is the thing the rest of this panel has
+            // been pruned to avoid.
+            //
+            // Both at the same size. An earlier pass set the group smaller, on the theory
+            // that the bib is the hero — it is the number shouted across a valley. But the
+            // two sit side by side under matching labels, which makes them read as a pair,
+            // and a pair at two sizes reads as a mistake rather than as a ranking. The
+            // labels already say which is which, so the type does not need to, and equal
+            // figures let the digits share a baseline instead of stepping.
+            // Aligned at the top, not the bottom. Bottom-aligning two columns whose
+            // figures are different sizes lines the *numbers* up but steps their labels
+            // down the card, and the labels are the part that reads as a row. Top puts
+            // the two kickers on one line, which is what makes them look like two fields
+            // of one record; the pill takes Bottom for itself so it still sits with the
+            // numbers rather than up against the labels.
+            Row(
+                Modifier.padding(top = 16.dp).height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column {
                     Kicker(stringResource(R.string.profile_bib_number))
                     Text(
                         p.bib?.toString() ?: "—",
-                        fontFamily = Kanit,
+                        fontFamily = Numerals,
                         color = PassInk,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Normal,
                         fontSize = 46.sp,
                         lineHeight = 48.sp,
+                        maxLines = 1,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                if (p.checkedIn) FilledPill(stringResource(R.string.profile_checkin_status))
+
+                // The same hairline the masthead uses, so the two figures read as two
+                // fields of one card rather than as two things that happen to be near
+                // each other.
+                Box(
+                    Modifier
+                        // Height comes from the row rather than a number picked by eye.
+                        // A fixed 34dp was tuned against the bib's line box and sat above
+                        // the figures instead of beside them; `IntrinsicSize.Min` on the
+                        // row makes this exactly as tall as the taller of the two fields,
+                        // so it keeps bracketing them if either type size ever moves.
+                        .padding(horizontal = 16.dp)
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(PassHairline),
+                )
+
+                Column {
+                    Kicker(stringResource(R.string.profile_label_group))
+                    Text(
+                        // A dash rather than a hidden column when there is no group yet.
+                        // The holder of a pass with no group needs to see that something
+                        // is missing — the gate will ask them for one on next launch —
+                        // and an absent field just looks like a card that never had one.
+                        p.groupNumber?.toString() ?: "—",
+                        fontFamily = Numerals,
+                        color = PassInk,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 46.sp,
+                        lineHeight = 48.sp,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                if (p.checkedIn) {
+                    Box(Modifier.align(Alignment.Bottom).padding(bottom = 6.dp)) {
+                        FilledPill(stringResource(R.string.profile_checkin_status))
+                    }
+                }
             }
 
             Rule(Modifier.padding(top = 18.dp))
@@ -364,6 +434,56 @@ private fun Pass(p: ParticipantDetail) {
 }
 
 /** Small letterspaced uppercase label — the panel's only secondary type style. */
+/**
+ * Headline size for a participant's name.
+ *
+ * Stepped from the **longest single word**, not from the total length, because the two
+ * cause different problems and only one of them is a defect. Total length decides how many
+ * lines a name takes, and a name is allowed two or three. A word that cannot fit the column
+ * at any break point is the actual failure: Compose has nowhere legal to break it and splits
+ * mid-word, which turned "Kanyarat Thongchaikoson Wattanapongse" into
+ * "Thongchaikos / on" and "Wattanapongs / e" — a name cut in half at an arbitrary letter.
+ *
+ * The column is roughly 190dp: the card, less the QR sitting beside it and the gutter
+ * between them. That is about thirteen characters of 28sp Athiti Medium, which is why the
+ * first step ends there. The total-length bound on each step is a second, looser guard — it
+ * keeps a name of many short words from running to five lines even when no single word is
+ * wide enough to trigger the word bound on its own.
+ *
+ * Splitting on space only, rather than on any whitespace: this is fed by [ParticipantDetail.fullName],
+ * which joins the name parts with exactly one.
+ *
+ * These bounds have moved twice with the body face, which is the point worth remembering:
+ * they encode a specific face's advance widths, not a general rule. Sarabun's 12 tightened
+ * to 11 for Prompt, which sets wider; Athiti is narrower than either — measured at 0.445 em
+ * against Prompt's 0.535 — so they open back up to 13. Character count is only a proxy for
+ * width, so each step keeps a margin rather than being fitted to whichever name happened to
+ * be on screen. **If the body face changes again, re-measure and re-check these numbers.**
+ *
+ * Re-measured when the scale stepped up a weight, because a weight moves advance widths too
+ * and this is exactly the kind of change that silently invalidates the numbers: Athiti Medium
+ * runs 2.2% wider than Regular across Latin and 1.1% across Thai. A worst-case thirteen-letter
+ * word at 28sp comes to about 177dp against the ~190dp column, so 13 survives on the margin
+ * that was left there deliberately — but it is now a 7% margin rather than a 9% one, and a
+ * further step would not fit.
+ *
+ * Thai needs no special case, and gets none. A Thai name part carries no spaces inside it, so
+ * it counts here as one long word and lands on a smaller step — which is the safe direction,
+ * and slightly over-cautious besides, since `length` counts combining vowels and tone marks
+ * that take no width of their own. The wrapping itself is Android's: the platform line
+ * breaker knows Thai and splits at real word boundaries inside the run, so
+ * `ณัฐวุฒิ ศรีสุวรรณวัฒนา` breaks as `ศรีสุวรรณ / วัฒนา` with no help from this function.
+ * Verified on device rather than assumed.
+ */
+private fun nameSizeFor(name: String): TextUnit {
+    val longestWord = name.split(' ').maxOfOrNull { it.length } ?: 0
+    return when {
+        longestWord <= 13 && name.length <= 26 -> 28.sp
+        longestWord <= 18 && name.length <= 38 -> 22.sp
+        else -> 18.sp
+    }
+}
+
 @Composable
 private fun Kicker(text: String) {
     Text(
@@ -371,7 +491,7 @@ private fun Kicker(text: String) {
         color = PassFaint,
         fontSize = 8.5.sp,
         letterSpacing = 3.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
     )
 }
 
@@ -389,7 +509,7 @@ private fun VerticalLabel(text: String, color: Color) {
         color = color,
         fontSize = 8.5.sp,
         letterSpacing = 4.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         maxLines = 1,
         textAlign = TextAlign.Center,
         modifier = Modifier
@@ -407,18 +527,6 @@ private fun VerticalLabel(text: String, color: Color) {
 }
 
 /** Hairline-outlined chip, straight from the reference's button treatment. */
-@Composable
-private fun OutlinePill(text: String) {
-    Box(
-        Modifier
-            .clip(CircleShape)
-            .border(1.dp, PassHairline, CircleShape)
-            .padding(horizontal = 13.dp, vertical = 6.dp),
-    ) {
-        Text(text.uppercase(), color = PassMuted, fontSize = 8.5.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
 /** The one solid-filled chip on the panel — the reference uses exactly one too. */
 @Composable
 private fun FilledPill(text: String) {
@@ -428,7 +536,7 @@ private fun FilledPill(text: String) {
             .background(PassInk)
             .padding(horizontal = 14.dp, vertical = 7.dp),
     ) {
-        Text(text.uppercase(), color = Color(0xFF16241A), fontSize = 8.5.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Bold)
+        Text(text.uppercase(), color = Color(0xFF16241A), fontSize = 8.5.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -448,8 +556,12 @@ private fun DetailRow(label: String, value: String, last: Boolean = false) {
         Text(
             value,
             color = PassInk,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.SemiBold,
+            // Normal, not SemiBold, and slightly larger to pay for it. These four rows are
+            // reference data — blood type, height, a phone number — read once by somebody
+            // who already went looking for them. They were set at the same weight as the
+            // name, which made the bottom of the card shout as loudly as the top.
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
             textAlign = TextAlign.End,
             modifier = Modifier.padding(start = 16.dp),
         )

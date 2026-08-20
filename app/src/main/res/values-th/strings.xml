@@ -18,25 +18,6 @@
     <string name="login_action_submit">เข้าสู่ระบบ</string>
     <string name="login_placeholder_username">รหัสนักศึกษาของคุณ</string>
     <string name="login_placeholder_password">รหัสผ่านของคุณ</string>
-    <string name="login_no_account">ยังไม่มีบัญชี?</string>
-    <string name="login_action_register">ลงทะเบียน</string>
-    <string name="login_link_register">ยังไม่มีบัญชี? ลงทะเบียน</string>
-
-    <!-- Register -->
-    <string name="register_title">ลงทะเบียน</string>
-    <string name="register_field_student_id">รหัสนักศึกษา (10 หลัก ขึ้นต้น 693)</string>
-    <string name="register_field_password">รหัสผ่าน (อย่างน้อย 8 ตัว)</string>
-    <string name="register_field_first_name">ชื่อ</string>
-    <string name="register_field_last_name">นามสกุล</string>
-    <string name="register_label_sex">เพศ</string>
-    <string name="register_sex_male">ชาย</string>
-    <string name="register_sex_female">หญิง</string>
-    <string name="register_sex_other">อื่นๆ</string>
-    <string name="register_field_contact_phone">เบอร์โทรติดต่อ (ไม่บังคับ)</string>
-    <string name="register_field_school">สำนักวิชา (ไม่บังคับ)</string>
-    <string name="register_consent_waiver">ยอมรับข้อตกลงและเงื่อนไขการเข้าร่วม *</string>
-    <string name="register_consent_health">ยินยอมให้เก็บข้อมูลสุขภาพ</string>
-    <string name="register_consent_emergency">ยินยอมให้รักษาพยาบาลกรณีฉุกเฉิน</string>
 
     <!-- Notifications -->
     <string name="notifications_title">ประกาศ</string>
@@ -146,6 +127,24 @@
     <string name="chat_send">ส่ง</string>
     <string name="chat_emoji">อีโมจิ</string>
     <string name="chat_tag_staff">เจ้าหน้าที่</string>
+    <string name="chat_channel_group">กลุ่ม %1$d</string>
+    <string name="chat_members">สมาชิก %1$d คน</string>
+    <string name="chat_no_group">คุณยังไม่ได้อยู่กลุ่มไหน</string>
+    <string name="chat_offline">กำลังเชื่อมต่อใหม่…</string>
+    <string name="chat_read_by">อ่านแล้ว %1$d คน</string>
+    <string name="chat_sending">กำลังส่ง…</string>
+    <string name="chat_send_failed">ส่งไม่สำเร็จ — แตะเพื่อลองใหม่</string>
+    <string name="group_pick_title">เลือกกลุ่มของคุณ</string>
+    <string name="group_pick_subtitle">คุณจะเดินและแชทกับกลุ่มนี้ เปลี่ยนกลุ่มได้ 1 ครั้ง</string>
+    <string name="group_pick_group">กลุ่ม %1$d</string>
+    <string name="group_pick_left">เหลือ %1$d</string>
+    <string name="group_pick_full">เต็ม</string>
+    <string name="group_pick_confirm_q">เข้ากลุ่มนี้ใช่ไหม?</string>
+    <string name="group_pick_confirm_body">ออกจากกลุ่มได้เพียงครั้งเดียว เลือกกลุ่มที่เพื่อนอยู่ให้ดี</string>
+    <string name="group_pick_confirm_join">เข้ากลุ่ม</string>
+    <string name="group_pick_cancel">ยกเลิก</string>
+    <string name="group_pick_retry">ลองใหม่</string>
+    <string name="group_pick_joining">กำลังเข้ากลุ่ม…</string>
     <string name="tab_activities">กิจกรรม</string>
 
     <!-- Activities / events -->
@@ -205,7 +204,6 @@
     <string name="profile_pass_title">บัตรผู้เข้าร่วม</string>
     <string name="profile_event_name">Walk Beyond the Wild</string>
     <string name="profile_official">ทางการ</string>
-    <string name="profile_group_n">กลุ่ม %1$d</string>
     <string name="profile_bib_number">หมายเลขบิบ</string>
     <string name="profile_trail_stamps">แสตมป์เส้นทาง</string>
     <string name="profile_label_group">กลุ่ม</string>

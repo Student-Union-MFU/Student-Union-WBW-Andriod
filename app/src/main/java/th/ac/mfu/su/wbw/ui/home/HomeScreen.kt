@@ -275,7 +275,7 @@ private fun HomeContent(
             color = colors.onBackdrop,
             fontSize = 15.sp,
             letterSpacing = 0.4.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Normal,
             modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
             textAlign = TextAlign.Center,
         )

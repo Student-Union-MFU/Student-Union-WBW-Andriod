@@ -33,6 +33,16 @@ suspend fun <T> apiCall(block: suspend () -> T): ApiResult<T> {
         ApiResult.Success(block())
     } catch (e: HttpException) {
         ApiResult.Error(parseError(e) ?: res.getString(R.string.error_http, e.code()), e.code())
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        // Cancellation is not a failure and must not be reported as one.
+        //
+        // It arrives whenever the caller goes away mid-request — a screen closed, a tab
+        // switched, a `LaunchedEffect` re-keyed — and the blanket `Exception` catch below
+        // was turning every one of those into a red error message on a screen that had
+        // already been dismissed. It also swallows the signal that keeps structured
+        // concurrency working: a caller that loops until cancelled would never learn it had
+        // been, and would loop forever. The chat long-poll is exactly that caller.
+        throw e
     } catch (e: IOException) {
         ApiResult.Error(res.getString(R.string.error_network))
     } catch (e: Exception) {

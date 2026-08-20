@@ -49,16 +49,21 @@ data class ParticipantDetail(
     @SerialName("consent_emergency_treatment") val consentEmergencyTreatment: Boolean? = null,
     @SerialName("waiver_accepted") val waiverAccepted: Boolean? = null,
 ) {
+    /**
+     * Parts trimmed before joining, not just concatenated.
+     *
+     * `first_name` arrives from the registrar's data with trailing whitespace often enough
+     * to matter — the live record for bib 5 is `"Thuta "` — and a plain join turns that into
+     * a visible double space in the middle of the name on the pass. It also throws off the
+     * word measurement the pass sizes the headline with.
+     */
     val fullName: String
-        get() = listOfNotNull(firstName, lastName).joinToString(" ").ifBlank { studentId ?: id }
+        get() = listOfNotNull(firstName, lastName)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+            .ifBlank { studentId ?: id }
 }
-
-/** GET /admin/schools item (public — used by the register form). */
-@Serializable
-data class School(
-    @SerialName("school_id") val schoolId: Int,
-    val name: String,
-)
 
 /** GET /groups item. */
 @Serializable

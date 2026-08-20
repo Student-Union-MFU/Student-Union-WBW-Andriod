@@ -59,6 +59,7 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.WbwApplication
 import th.ac.mfu.su.wbw.data.local.AppSettings
 import th.ac.mfu.su.wbw.ui.theme.DangerDark
+import th.ac.mfu.su.wbw.ui.theme.GlassPanel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
@@ -146,7 +147,7 @@ fun SettingsScreen(
                 // reads on a card that follows the theme; this panel is dark in both, and
                 // the light-theme oxblood goes muddy on it.
                 Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = DangerDark, modifier = Modifier.size(18.dp))
-                Text(stringResource(R.string.profile_action_logout), color = DangerDark, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.profile_action_logout), color = DangerDark, fontWeight = FontWeight.Normal, style = MaterialTheme.typography.bodyLarge)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -194,7 +195,7 @@ private fun LangSegment(label: String, selected: Boolean, onClick: () -> Unit) {
         Text(
             label,
             color = if (selected) colors.onBackdrop else colors.onBackdropMuted,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
         )
     }
@@ -225,7 +226,7 @@ private fun ThemeOption(label: String, icon: ImageVector, selected: Boolean, mod
             label,
             color = if (selected) colors.onBackdrop else colors.onBackdropMuted,
             fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Medium,
         )
     }
 }
@@ -283,7 +284,7 @@ private fun LinkRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Composable
 private fun SectionLabel(text: String) {
     Text(
-        text.uppercase(), color = wbwColors.onBackdropMuted, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, letterSpacing = 1.8.sp,
+        text.uppercase(), color = wbwColors.onBackdropMuted, fontWeight = FontWeight.Medium, fontSize = 10.5.sp, letterSpacing = 1.8.sp,
         modifier = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 8.dp),
     )
 }
@@ -297,7 +298,7 @@ private fun SectionLabel(text: String) {
  * something the full width of the screen.
  */
 private fun Modifier.panel(): Modifier =
-    glass(RoundedCornerShape(PanelRadius), fill = GlassSheer, border = GlassSheerBorder)
+    glass(RoundedCornerShape(PanelRadius), fill = GlassPanel, border = GlassSheerBorder)
 
 private val PanelRadius = 18.dp
 

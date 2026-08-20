@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.GlassCard
+import th.ac.mfu.su.wbw.ui.theme.GlassPanel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
@@ -131,7 +132,7 @@ private fun EventCard(
     GlassCard(
         shape = RoundedCornerShape(EventCorner),
         contentPadding = PaddingValues(0.dp),
-        fill = GlassSheer,
+        fill = GlassPanel,
         border = GlassSheerBorder,
     ) {
         Column(Modifier.fillMaxWidth()) {
@@ -157,7 +158,7 @@ private fun EventCard(
                         color = colors.onBackdropMuted,
                         fontSize = 11.sp,
                         letterSpacing = 1.6.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
 
@@ -188,7 +189,7 @@ private fun EventCard(
                         color = colors.onBackdrop,
                         fontSize = 11.sp,
                         letterSpacing = 1.2.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -210,7 +211,7 @@ private fun EventCard(
                     color = colors.onBackdrop,
                     fontSize = 11.sp,
                     letterSpacing = 1.8.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.weight(1f))
                 Icon(

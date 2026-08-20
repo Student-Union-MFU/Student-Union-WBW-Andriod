@@ -29,9 +29,37 @@ object NetworkModule {
         }
     }
 
+    /**
+     * The chat long-poll's read timeout, raised for that one path.
+     *
+     * `GET /groups/{id}/chat/sync?wait=25` is *supposed* to answer nothing for up to 25
+     * seconds — that is the whole design, and a quiet group will use every one of them. The
+     * client-wide 30s left five seconds of headroom over a hold the server is entitled to
+     * take in full, so any latency on top of a full-length hold would surface as a
+     * `SocketTimeoutException` on a request that was working perfectly.
+     *
+     * Raised per call rather than for the client, because 40 seconds is the right patience
+     * for a request designed to wait and the wrong patience for everything else: a stalled
+     * `/me` on a hill should give up long before that so the screen can fall back to cache.
+     */
+    private const val LongPollReadTimeoutSeconds = 40L
+
+    /** The one path that holds. Matched by suffix so the group id in the middle is irrelevant. */
+    private const val LongPollPathSuffix = "/chat/sync"
+
     fun createApi(sessions: SessionStore): WbwApi {
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(sessions))
+            .addInterceptor { chain ->
+                val request = chain.request()
+                if (request.url.encodedPath.endsWith(LongPollPathSuffix)) {
+                    chain
+                        .withReadTimeout(LongPollReadTimeoutSeconds.toInt(), TimeUnit.SECONDS)
+                        .proceed(request)
+                } else {
+                    chain.proceed(request)
+                }
+            }
             .addInterceptor(logging())
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

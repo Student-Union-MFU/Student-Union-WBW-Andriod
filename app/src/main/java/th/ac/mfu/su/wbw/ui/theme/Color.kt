@@ -252,6 +252,30 @@ val GlassSheer = Color(0x1FFFFFFF)
 val GlassSheerBorder = Color(0x21FFFFFF)
 
 /**
+ * The pane for anything carrying a **paragraph**. Dark, where [GlassSheer] is a pale wash.
+ *
+ * This exists because of a bug that no amount of choosing text colours could fix, and the
+ * measurement is worth keeping: on the Announcements screen the ground *inside* a
+ * [GlassSheer] card ranged from luminance 0.06 to **0.36**, because the pane is 12% white
+ * over a photograph that has bright passages in it. Light text needs a luminance of about
+ * 1.8 to reach WCAG AA against 0.36 ground — and white is 1.0. There was no ink that could
+ * pass. Body copy simply disappeared wherever a bright patch of forest sat behind it, and
+ * the same paragraph stayed perfectly readable two lines further down.
+ *
+ * A wash cannot fix that either, because the problem is *variance*, not level: the pane has
+ * to bury the artwork rather than tint it, so that a line of text meets the same tone at
+ * both ends. That is the trade — a card with a paragraph on it gives up showing the forest
+ * through itself, and gets a ground its text can actually sit on. Chrome keeps [GlassSheer]:
+ * a chip, a HUD or a nav bar holds two or three words at a size and weight that survive
+ * anything behind them, and those are the surfaces the glass is really for.
+ *
+ * Deep rather than black so it still reads as the same material — it is the backdrop's own
+ * near-black, at an alpha low enough for the refraction to keep bending light at the edges.
+ * The confirmation sheet in the group picker solves the same problem the same way.
+ */
+val GlassPanel = Color(0xD10D170F)
+
+/**
  * No pane at all: refraction and a hairline, nothing painted on top.
  *
  * [GlassSheer]'s 12% white is still a wash — enough to lighten a large surface into a

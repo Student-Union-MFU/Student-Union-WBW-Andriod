@@ -37,8 +37,9 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,7 +57,10 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
+import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
@@ -64,48 +68,72 @@ import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 import kotlinx.coroutines.launch
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 
 /**
- * Group chat — a placeholder, not a client.
+ * Group chat, against the server's long-poll.
  *
- * Nothing here talks to the server. The iOS app's chat is the single hardest piece in it
- * (an offline outbox, long-poll sync, read cursors, optimistic send, `ChatSession` alone
- * is 420 lines), and none of that exists on this side yet. What this screen is for is
- * the *shape*: a real reading of the layout at real message lengths, so the surrounding
- * design can be judged before the engine is written.
+ * The layout is unchanged from the placeholder this replaced; what changed is where the
+ * messages come from. [ChatViewModel] owns the engine — the hold, the retry backoff, the
+ * optimistic send and the read cursor — and this file is the column and the composer.
  *
- * The Discord grouping rule is the one thing worth getting right early, because it
- * drives the whole rhythm of the column: consecutive messages from the same author
- * inside a short window drop the avatar and the name and sit tight under the first. It
- * is what stops a conversation reading as a list of cards.
+ * The polling is driven from *here*, in effects tied to the screen's own lifetime, not from
+ * `viewModelScope`. That is deliberate: this view model outlives a tab switch, and a
+ * connection held open for a screen nobody is looking at is a hole in the battery.
  *
- * [SampleMessages] is fixed rather than random so the screen looks the same in every
- * screenshot and every review.
+ * The Discord grouping rule is what drives the rhythm of the column: consecutive messages
+ * from the same author, close together in time, drop the avatar and the name and sit tight
+ * under the first. It is what stops a conversation reading as a list of cards.
+ *
+ * No staff badge. The server does not put a role on a message, so a "STAFF" tag here would
+ * be decoration that could not be trusted; it comes back when the API carries one.
  */
 @Composable
-fun ChatScreen(contentPadding: PaddingValues) {
+fun ChatScreen(
+    contentPadding: PaddingValues,
+    viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory),
+) {
     val colors = wbwColors
-    // Local only. Messages live for as long as the screen does — there is no repository
-    // to put them in and inventing one would be pretending the wire exists.
-    val messages = remember { mutableStateListOf<ChatMessageStub>().also { it.addAll(SampleMessages) } }
-    val rows = remember(messages.size) { groupMessages(messages) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val rows = remember(state.messages, state.pending) { groupMessages(state.messages, state.pending) }
+    // The read cursor is only worth showing on the newest thing you said — a receipt under
+    // every one of your messages is noise, and the server only tells you the high-water mark
+    // per member anyway.
+    val lastMineId = remember(state.messages, state.meId) {
+        state.messages.lastOrNull { it.senderId == state.meId }?.id
+    }
     var draft by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var emojiOpen by rememberSaveable { mutableStateOf(false) }
 
+    // The two loops, held for exactly as long as the screen is on display. Leaving the
+    // screen cancels both, which closes the held connection and stops the heartbeat — the
+    // server then correctly stops treating this member as "looking at the chat".
+    LaunchedEffect(Unit) { viewModel.sync() }
+    LaunchedEffect(Unit) { viewModel.heartbeat() }
+
+    // Follow the conversation only when already at the bottom. Yanking somebody back down
+    // while they are reading history is the standard way to make a chat unusable.
+    val atBottom by remember {
+        derivedStateOf {
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            last >= listState.layoutInfo.totalItemsCount - 2
+        }
+    }
+    LaunchedEffect(rows.size) {
+        if (rows.isNotEmpty() && atBottom) listState.animateScrollToItem(rows.lastIndex)
+    }
+
     fun send() {
         val body = draft.trim()
         if (body.isEmpty()) return
-        messages.add(ChatMessageStub(author = "You", time = nowLabel(), body = body))
+        viewModel.send(body)
         draft = ""
         emojiOpen = false
         // Jump to the message just sent. Without this it lands below the fold and the
         // send reads as having done nothing.
-        scope.launch { listState.animateScrollToItem((rows.size + 1).coerceAtLeast(0)) }
+        scope.launch { listState.animateScrollToItem((rows.size).coerceAtLeast(0)) }
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -113,12 +141,21 @@ fun ChatScreen(contentPadding: PaddingValues) {
         // channel here — one per participant group, which is how the iOS app models it.
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 12.dp)) {
             Text(
-                stringResource(R.string.chat_channel),
+                state.groupNumber?.let { stringResource(R.string.chat_channel_group, it) }
+                    ?: stringResource(R.string.chat_channel),
                 style = MaterialTheme.typography.headlineSmall,
                 color = colors.onBackdrop,
             )
             Text(
-                stringResource(R.string.chat_channel_desc),
+                when {
+                    state.noGroup -> stringResource(R.string.chat_no_group)
+                    // A dropped long-poll is the normal condition on this hill, so it is
+                    // reported here in the muted line rather than as an alert over the
+                    // conversation — the messages already on screen are still true.
+                    state.error != null -> stringResource(R.string.chat_offline)
+                    state.memberCount > 0 -> stringResource(R.string.chat_members, state.memberCount)
+                    else -> stringResource(R.string.chat_channel_desc)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onBackdropMuted,
             )
@@ -145,7 +182,15 @@ fun ChatScreen(contentPadding: PaddingValues) {
             items(rows) { row ->
                 when (row) {
                     is Row_.Day -> DayDivider(row.label)
-                    is Row_.Message -> MessageRow(row)
+                    is Row_.Message -> MessageRow(
+                        row = row,
+                        readBy = if (row.message.id == lastMineId && state.readCount > 0) {
+                            state.readCount
+                        } else {
+                            0
+                        },
+                    )
+                    is Row_.Pending -> PendingRow(row.message, onRetry = { viewModel.retry(it) })
                 }
             }
         }
@@ -281,9 +326,8 @@ fun ChatScreen(contentPadding: PaddingValues) {
 private val ComposerShape = RoundedCornerShape(20.dp)
 private val SendShape = RoundedCornerShape(14.dp)
 
-/** The avatar and the staff tag, each rounded in proportion to its own size. */
+/** The avatar, rounded in proportion to its own size, like the stage chips. */
 private val AvatarShape = RoundedCornerShape(13.dp)
-private val TagShape = RoundedCornerShape(6.dp)
 
 /**
  * The emoji offered by the strip.
@@ -298,9 +342,6 @@ private val QuickEmoji = listOf(
     "\uD83D\uDE05", "\uD83D\uDC40", "\uD83D\uDE4F", "\u2705", "\u26A0\uFE0F",
 )
 
-/** Wall-clock label for a message sent right now, matching the stubs' HH:mm. */
-private fun nowLabel(): String = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-
 @Composable
 private fun DayDivider(label: String) {
     val colors = wbwColors
@@ -314,7 +355,7 @@ private fun DayDivider(label: String) {
             color = colors.onBackdropMuted,
             fontSize = 8.5.sp,
             letterSpacing = 2.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
         Box(Modifier.weight(1f).height(1.dp).background(colors.glassBorder))
@@ -322,7 +363,7 @@ private fun DayDivider(label: String) {
 }
 
 @Composable
-private fun MessageRow(row: Row_.Message) {
+private fun MessageRow(row: Row_.Message, readBy: Int = 0) {
     val colors = wbwColors
     val m = row.message
     Row(
@@ -335,25 +376,21 @@ private fun MessageRow(row: Row_.Message) {
         // itself so the text starts clear of it rather than tucked against it.
         Box(Modifier.width(52.dp), contentAlignment = Alignment.TopStart) {
             if (!row.grouped) {
-                // A rounded square with the app's hairline on it, like the stage chips and
-                // the profile button. Staff no longer get a solid fill of their own: the
-                // tag beside the name already says staff, and the full-strength disc made
-                // the avatar the loudest thing in the thread.
                 Box(
                     Modifier
                         .size(38.dp)
                         .clip(AvatarShape)
-                        .background(WbwGreenDark.copy(alpha = avatarAlpha(m.author)))
+                        .background(WbwGreenDark.copy(alpha = avatarAlpha(m.senderId)))
                         .border(1.dp, GlassSheerBorder, AvatarShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        m.author.take(1).uppercase(),
+                        m.authorName.take(1).uppercase(),
                         // Light, not WbwInkLight. These fills sit between 30% and 55% of
                         // the green over a dark backdrop, so they come out mid-dark and a
                         // near-black initial on them was around 2:1.
                         color = colors.onBackdrop,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Normal,
                         fontSize = 15.sp,
                     )
                 }
@@ -361,30 +398,16 @@ private fun MessageRow(row: Row_.Message) {
         }
         Column(Modifier.weight(1f).padding(end = 4.dp)) {
             if (!row.grouped) {
-                // CenterVertically, not Bottom: the badge and the timestamp are different
-                // heights, and hanging them off a shared baseline left the badge sitting
-                // low and looking dropped rather than set into the line.
-                //
-                // No fixed height. It was pinned to 20dp, which is a *maximum* as far as
-                // the children are concerned — the badge measures a little taller than
-                // that, so its bottom was sliced off square and the tag rendered as a pill
-                // with a flat foot. The row is as tall as what is in it, and the badge
-                // controls its own height; at large system font scales the old 20dp would
-                // have started cutting the name too.
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        m.author,
+                        m.authorName,
                         color = colors.onBackdrop,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
                     )
-                    if (m.staff) {
-                        Spacer(Modifier.width(8.dp))
-                        StaffTag()
-                    }
                     Spacer(Modifier.width(9.dp))
                     Text(
-                        m.time,
+                        m.timeLabel(),
                         color = colors.onBackdropMuted,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
@@ -398,105 +421,134 @@ private fun MessageRow(row: Row_.Message) {
                 lineHeight = 21.sp,
                 color = colors.onBackdrop.copy(alpha = 0.88f),
             )
+            if (readBy > 0) {
+                Text(
+                    stringResource(R.string.chat_read_by, readBy),
+                    color = colors.onBackdropMuted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+            }
         }
     }
-}
-
-@Composable
-private fun StaffTag() {
-    // Sheer glass and a hairline, like the nav bar — it was the last green-tinted chip
-    // left on a screen where nothing else is tinted, so it read as a sticker.
-    //
-    // An explicit height with the label centred in it, rather than padding around a line
-    // of text. A tag this small is judged entirely on whether it sits level with the name
-    // beside it, and text metrics — ascent, descent, the font's own top padding — do not
-    // centre caps for you.
-    //
-    // Which is exactly what went wrong: `contentAlignment = Center` centres the text's
-    // *line box*, and Sarabun is a Thai face, so its ascent carries room for tone marks
-    // stacked above the capitals — room that is empty in a Latin word like "STAFF". The
-    // line box came out top-heavy and the caps sat low inside the pill: 22px of space above
-    // them against 9px below, measured. The pill itself was level with the name all along;
-    // it was the label inside it that was off.
-    //
-    // [LineHeightStyle] with `Trim.Both` throws away that unused leading and re-centres
-    // what is left, so the pill is centred on the glyphs that are actually drawn. It is
-    // done here rather than by nudging the text with an offset, because an offset would be
-    // tuned to one font at one size and would drift the moment either changed.
-    Box(
-        Modifier
-            .height(TagHeight)
-            .clip(TagShape)
-            .background(GlassSheer)
-            .border(1.dp, GlassSheerBorder, TagShape)
-            .padding(horizontal = 7.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            stringResource(R.string.chat_tag_staff).uppercase(),
-            color = wbwColors.onBackdrop,
-            fontSize = TagTextSize,
-            lineHeight = TagTextSize,
-            letterSpacing = 1.2.sp,
-            fontWeight = FontWeight.Bold,
-            style = LocalTextStyle.current.copy(
-                lineHeightStyle = LineHeightStyle(
-                    alignment = LineHeightStyle.Alignment.Center,
-                    trim = LineHeightStyle.Trim.Both,
-                ),
-            ),
-        )
-    }
-}
-
-private val TagHeight = 18.dp
-private val TagTextSize = 8.5.sp
-
-/** A placeholder message. No ids, no state — this is not on its way to being a model. */
-data class ChatMessageStub(
-    val author: String,
-    val time: String,
-    val body: String,
-    val staff: Boolean = false,
-    val day: String? = null,
-)
-
-/** What the column actually renders: either a day divider or a message. */
-private sealed interface Row_ {
-    data class Day(val label: String) : Row_
-    data class Message(val message: ChatMessageStub, val grouped: Boolean) : Row_
 }
 
 /**
- * The Discord grouping rule: a message joins the one above it when the same author sent
- * it and no day divider intervenes.
+ * A message this device has sent but the server has not acknowledged.
  *
- * Real chat also breaks a group after a few minutes of silence. That needs timestamps
- * rather than the display strings these stubs carry, so it is left for the real model.
+ * Dimmed rather than hidden, and kept in the column rather than shown as a banner: the
+ * participant typed it, so it belongs in the conversation where they put it. A failed one
+ * offers a retry, which reuses the original client id and therefore cannot double-post.
  */
-private fun groupMessages(source: List<ChatMessageStub>): List<Row_> {
-    val out = ArrayList<Row_>(source.size + 4)
+@Composable
+private fun PendingRow(message: PendingMessage, onRetry: (String) -> Unit) {
+    val colors = wbwColors
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 1.dp)) {
+        Spacer(Modifier.width(52.dp))
+        Column(Modifier.weight(1f).padding(end = 4.dp)) {
+            Text(
+                message.body,
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = 21.sp,
+                color = colors.onBackdrop.copy(alpha = if (message.failed) 0.55f else 0.45f),
+            )
+            Text(
+                stringResource(
+                    if (message.failed) R.string.chat_send_failed else R.string.chat_sending,
+                ),
+                color = colors.onBackdropMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .then(
+                        if (message.failed) {
+                            Modifier.clickableTap { onRetry(message.clientId) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+
+/** What the column actually renders: a day divider, a message, or one still in flight. */
+private sealed interface Row_ {
+    data class Day(val label: String) : Row_
+    data class Message(val message: ChatMessage, val grouped: Boolean, val mine: Boolean) : Row_
+    data class Pending(val message: PendingMessage) : Row_
+}
+
+/**
+ * The Discord grouping rule: a message joins the one above it when the same author sent it,
+ * close enough in time, with no day divider between.
+ *
+ * The time part is what the placeholder could not do — it carried display strings, not
+ * timestamps — and it matters: without it, a run of messages from one person hours apart
+ * collapses into a single block with one timestamp at the top, which reads as though they
+ * were all sent at once.
+ *
+ * Unsent messages are appended after everything confirmed. They have no id and no server
+ * time, so they cannot be ordered against the thread by anything except "later than all of
+ * it", which is true by construction.
+ */
+private fun groupMessages(source: List<ChatMessage>, pending: List<PendingMessage>): List<Row_> {
+    val out = ArrayList<Row_>(source.size + pending.size + 4)
     var lastAuthor: String? = null
+    var lastDay: String? = null
+    var lastAt: Long = Long.MIN_VALUE
     for (m in source) {
-        m.day?.let {
-            out.add(Row_.Day(it))
+        val day = m.dayKey()
+        if (day.isNotEmpty() && day != lastDay) {
+            out.add(Row_.Day(dayLabel(day)))
+            lastDay = day
             lastAuthor = null
         }
-        out.add(Row_.Message(m, grouped = m.author == lastAuthor))
-        lastAuthor = m.author
+        val at = m.epochSecondOrZero()
+        val grouped = m.senderId == lastAuthor && at - lastAt in 0..GroupWindowSeconds
+        out.add(Row_.Message(m, grouped = grouped, mine = false))
+        lastAuthor = m.senderId
+        lastAt = at
     }
+    pending.forEach { out.add(Row_.Pending(it)) }
     return out
+}
+
+/** Messages from one author inside this window sit tight under each other. */
+private const val GroupWindowSeconds = 5L * 60L
+
+private fun ChatMessage.epochSecondOrZero(): Long {
+    val at = createdAt ?: deviceTime ?: return 0
+    return runCatching { java.time.OffsetDateTime.parse(at).toEpochSecond() }.getOrDefault(0)
+}
+
+/**
+ * A divider's label: today and yesterday by name, anything older by date.
+ *
+ * Computed against the device's own calendar rather than formatted from the timestamp
+ * alone, because "Today" is a fact about when it is being read, not about when it was sent.
+ */
+private fun dayLabel(key: String): String {
+    val date = runCatching { java.time.LocalDate.parse(key) }.getOrNull() ?: return key
+    val today = java.time.LocalDate.now()
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> date.toString()
+    }
 }
 
 /**
  * A stable per-author strength for the avatar tint.
  *
- * Hashed off the name so a person keeps the same shade for the life of the thread, and
- * kept inside a narrow band — the point is to tell speakers apart at a glance, not to
- * reintroduce the accent colour that was just taken out.
+ * Hashed off the sender id rather than the display name: two participants can share a first
+ * name, and an id is what actually identifies them.
  */
-private fun avatarAlpha(author: String): Float {
-    val h = author.fold(0) { acc, c -> acc * 31 + c.code } and 0xFFFF
+private fun avatarAlpha(key: String): Float {
+    val h = key.fold(0) { acc, c -> acc * 31 + c.code } and 0xFFFF
     // 0.30–0.54. The old 0.38–0.74 reached far enough up the green that the brightest
     // avatars stopped carrying a light initial — the range has to stay inside what one
     // ink colour can sit on, since the initial cannot pick a colour per author.
@@ -506,21 +558,3 @@ private fun avatarAlpha(author: String): Float {
 private fun Modifier.clickableTap(onClick: () -> Unit): Modifier = composed {
     clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
 }
-
-/**
- * Fixed sample traffic.
- *
- * Written to exercise the layout rather than to look pretty: a staff announcement, a
- * long wrapping message, a run of three from one author, and a one-word reply — the four
- * shapes that break a chat column if the spacing is wrong.
- */
-private val SampleMessages = listOf(
-    ChatMessageStub("Staff", "08:02", "Base 3 is open. Head up the ridge path — the shortcut is closed today.", staff = true, day = "Yesterday"),
-    ChatMessageStub("Ploy", "08:14", "we're at base 2, queue is short right now"),
-    ChatMessageStub("Ploy", "08:14", "if you're behind us just come straight up"),
-    ChatMessageStub("Nine", "08:20", "on our way 🙌"),
-    ChatMessageStub("Bank", "09:41", "Does anyone have water left? We ran out somewhere between base 3 and 4 and the next refill point is apparently at the summit.", day = "Today"),
-    ChatMessageStub("Ploy", "09:43", "yeah we have two bottles spare"),
-    ChatMessageStub("Bank", "09:44", "legend"),
-    ChatMessageStub("Staff", "10:15", "Reminder: last check-in closes at 16:00. Anyone still below base 5 after 14:30 should turn back.", staff = true),
-)

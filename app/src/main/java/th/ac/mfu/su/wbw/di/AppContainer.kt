@@ -8,6 +8,7 @@ import th.ac.mfu.su.wbw.data.local.SessionStore
 import th.ac.mfu.su.wbw.data.remote.OpenMeteoApi
 import th.ac.mfu.su.wbw.data.remote.WbwApi
 import th.ac.mfu.su.wbw.data.repository.AuthRepository
+import th.ac.mfu.su.wbw.data.repository.ChatRepository
 import th.ac.mfu.su.wbw.data.repository.ConditionsRepository
 import th.ac.mfu.su.wbw.data.repository.NotificationRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
@@ -42,4 +43,5 @@ class AppContainer(context: Context) {
     val profileRepository: ProfileRepository by lazy { ProfileRepository(api, responseCache) }
     val notificationRepository: NotificationRepository by lazy { NotificationRepository(api, responseCache) }
     val conditionsRepository: ConditionsRepository by lazy { ConditionsRepository(openMeteoApi, responseCache) }
+    val chatRepository: ChatRepository by lazy { ChatRepository(api, responseCache) }
 }

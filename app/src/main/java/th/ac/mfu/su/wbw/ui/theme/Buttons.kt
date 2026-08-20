@@ -50,7 +50,7 @@ fun PillButton(
         if (loading) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = content)
         } else {
-            Text(text, color = if (enabled) content else content.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+            Text(text, color = if (enabled) content else content.copy(alpha = 0.7f), fontWeight = FontWeight.Normal)
         }
     }
 }
@@ -72,6 +72,6 @@ fun OutlinePillButton(
             .padding(contentPadding),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = c.textMuted, fontWeight = FontWeight.SemiBold)
+        Text(text, color = c.textMuted, fontWeight = FontWeight.Normal)
     }
 }

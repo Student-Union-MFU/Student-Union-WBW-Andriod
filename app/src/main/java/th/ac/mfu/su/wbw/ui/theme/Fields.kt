@@ -56,18 +56,18 @@ fun PassField(
             color = PassFaint,
             fontSize = 8.5.sp,
             letterSpacing = 3.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
         )
         // Built from the app's own typography rather than a bare `TextStyle`.
         //
         // A `TextStyle()` with no family gets the platform default — Roboto — while the
-        // placeholder beside it, being a `Text`, inherits Sarabun from the theme. The
+        // placeholder beside it, being a `Text`, inherits the body face from the theme. The
         // field therefore changed typeface the moment you typed into it, which is the kind
         // of mismatch you see immediately and cannot name.
         val entry = MaterialTheme.typography.bodyLarge.copy(
             color = PassInk,
             fontSize = 17.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Normal,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f).padding(top = 6.dp), contentAlignment = Alignment.CenterStart) {

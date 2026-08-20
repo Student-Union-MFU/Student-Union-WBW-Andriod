@@ -8,7 +8,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +84,6 @@ import th.ac.mfu.su.wbw.ui.theme.glass
  */
 @Composable
 fun LoginScreen(
-    onNavigateToRegister: () -> Unit,
     viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -214,26 +212,6 @@ fun LoginScreen(
                     modifier = Modifier.form().padding(top = 20.dp),
                 )
 
-                Row(
-                    Modifier.padding(top = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.login_no_account),
-                        color = PassMuted,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        stringResource(R.string.login_action_register),
-                        color = PassInk,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .tapNoRipple(onNavigateToRegister)
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
-                }
             }
         }
     }
@@ -253,7 +231,7 @@ private fun Heading(text: String) {
         color = PassMuted,
         fontSize = 13.sp,
         letterSpacing = 2.4.sp,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Normal,
     )
 }
 
@@ -285,7 +263,7 @@ private fun SignInButton(
                 color = if (enabled) PassDeepInk else PassInk.copy(alpha = 0.55f),
                 fontSize = 12.sp,
                 letterSpacing = 2.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
             )
         }
     }
