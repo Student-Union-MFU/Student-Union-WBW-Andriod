@@ -1,0 +1,20 @@
+## Local machine config — do NOT commit. Points Gradle at the Android SDK.
+sdk.dir=/home/yion/Android/Sdk
+
+# Google Maps SDK for Android key. Get one at:
+#   https://console.cloud.google.com/  (enable "Maps SDK for Android", restrict to this app)
+# Then paste it after the = below. This file is gitignored; the key is never committed.
+MAPS_API_KEY=AIzaSyAM4NAiLIkbQhYjDelX8WKoIQSvm5w8KZ4
+
+# This machine's LAN address, for running the debug build on a real phone.
+# Emulator testing does not need it (the default 10.0.2.2:8080 covers that).
+WBW_DEV_HOST=172.25.9.14:8080
+
+# Release signing. The keystore lives OUTSIDE the repo on purpose — a file that can never
+# be committed cannot be committed by accident. Back up BOTH the .jks and this password:
+# lose them and you can never ship an update over an installed copy again, every
+# participant has to uninstall and reinstall, and they lose their session doing it.
+WBW_STORE_FILE=/home/yion/keystores/wbw-release.jks
+WBW_STORE_PASSWORD=b38eWJH9bt3vCUU2e9hzzQMYl8Fo
+WBW_KEY_ALIAS=wbw
+WBW_KEY_PASSWORD=b38eWJH9bt3vCUU2e9hzzQMYl8Fo
