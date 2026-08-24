@@ -474,12 +474,13 @@ private fun Reticle(active: Boolean, accent: Color) {
 /**
  * Which checkpoint every stamp is being recorded against.
  *
- * Under the lens rather than over it, and a list rather than a strip of chips, because the
- * server does not hand every account the same set. `GET /wbw/staff/checkpoints` returns the
- * checkpoints this *user* is assigned to in `checkpoint_staff` — an admin sees all of them,
- * a staff account sees only its own, and both lists are already filtered to checkpoints
- * where `requires_checkin` is true, so the restroom and welfare points never appear as
- * somewhere to stamp anybody in.
+ * Under the lens rather than over it, and a list rather than a strip of chips, because
+ * there are eight of them and any staff member may be standing at any one.
+ * `GET /wbw/staff/checkpoints` returns every checkpoint where `requires_checkin` is true —
+ * the same set for staff and admin alike — so the restroom and welfare points never appear
+ * as somewhere to stamp anybody in. It is deliberately not scoped to whatever
+ * `checkpoint_staff` says: people swap bases all afternoon, and that table's job is
+ * deciding whose phone an SOS reaches, not who may check somebody in.
  *
  * The whole list stays on screen rather than collapsing to the chosen one. Every scan for
  * the rest of the afternoon is recorded against whatever is selected here, and a value
@@ -516,11 +517,10 @@ private fun CheckpointPicker(
             fontSize = 13.sp,
         )
 
-        // Not a failure, and not empty-state decoration either: the server answers with an
-        // empty list for a staff account that no admin has assigned to a checkpoint yet.
-        // Nothing on this screen can work until that is fixed, and saying so is the only
-        // useful thing to put here — the alternative is a scanner that reads codes and
-        // silently refuses to do anything with them.
+        // Not a failure, and not empty-state decoration either. Now that the list is the
+        // same for everybody this can only mean the event has no check-in checkpoints
+        // configured at all — rare, and completely blocking when it happens. Saying so
+        // beats a scanner that reads codes and silently declines to do anything with them.
         checkpoints.isEmpty() -> Text(
             stringResource(R.string.scan_no_checkpoints),
             color = colors.danger,

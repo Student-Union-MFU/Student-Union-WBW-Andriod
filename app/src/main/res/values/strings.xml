@@ -289,7 +289,7 @@
     <string name="scan_hint">Point at a participant\'s pass.</string>
     <string name="scan_paused">Hold on…</string>
     <string name="scan_checkpoint_heading">CHECKPOINT</string>
-    <string name="scan_no_checkpoints">You are not assigned to a checkpoint yet, so nothing can be checked in. Ask an admin to assign you.</string>
+    <string name="scan_no_checkpoints">No checkpoints are set up for check-in yet, so nothing can be scanned. An admin has to add one.</string>
     <string name="scan_loading_checkpoints">Loading checkpoints…</string>
     <string name="scan_checkpoints_failed">Could not load the checkpoints. Check the connection and reopen this screen.</string>
     <string name="scan_no_camera_permission">The camera is needed to scan a pass. Tap to allow.</string>

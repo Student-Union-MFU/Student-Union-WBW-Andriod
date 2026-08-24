@@ -84,35 +84,28 @@ fun StaffHomeScreen(
             .statusBarsPadding()
             .padding(horizontal = 18.dp),
     ) {
+        // The greeting and the settings button share one row, and the role pill sits on
+        // its own beneath.
+        //
+        // They used to be a two-line column with the button centred against the whole of
+        // it, which put the button's midpoint level with the *gap* between the greeting
+        // and the pill — so the name rode visibly above it and nothing on the row lined
+        // up with anything else. Centring works when both sides are one line; when one
+        // side is a stack, the thing to align to is its first line.
         Row(
             Modifier.fillMaxWidth().padding(top = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                // The username, because it is the only name this shell has. A staff account
-                // has no `participant_profile`, so there is no first name to greet them by
-                // and no request that would fetch one — see [StaffScaffold].
-                Text(
-                    stringResource(R.string.staff_greeting, session.username),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = colors.onBackdrop,
-                )
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RolePill(session.role)
-                    Spacer(Modifier.width(9.dp))
-                    Text(
-                        if (state.waiting > 0) {
-                            stringResource(R.string.staff_waiting_count, state.waiting)
-                        } else {
-                            stringResource(R.string.staff_all_clear)
-                        },
-                        color = if (state.waiting > 0) colors.danger else colors.onBackdropMuted,
-                        fontSize = 12.sp,
-                        fontWeight = if (state.waiting > 0) FontWeight.Medium else FontWeight.Normal,
-                    )
-                }
-            }
+            // The username, because it is the only name this shell has. A staff account
+            // has no `participant_profile`, so there is no first name to greet them by
+            // and no request that would fetch one — see [StaffScaffold].
+            Text(
+                stringResource(R.string.staff_greeting, session.username),
+                style = MaterialTheme.typography.displaySmall,
+                color = colors.onBackdrop,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(12.dp))
             Box(
                 Modifier
                     .size(42.dp)
@@ -127,6 +120,23 @@ fun StaffHomeScreen(
                     modifier = Modifier.fillMaxSize().clickableNoRipple(onOpenSettings),
                 )
             }
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RolePill(session.role)
+            Spacer(Modifier.width(9.dp))
+            Text(
+                if (state.waiting > 0) {
+                    stringResource(R.string.staff_waiting_count, state.waiting)
+                } else {
+                    stringResource(R.string.staff_all_clear)
+                },
+                color = if (state.waiting > 0) colors.danger else colors.onBackdropMuted,
+                fontSize = 12.sp,
+                fontWeight = if (state.waiting > 0) FontWeight.Medium else FontWeight.Normal,
+            )
         }
 
         Spacer(Modifier.height(18.dp))

@@ -269,7 +269,7 @@
     <string name="scan_hint">ส่องไปที่บัตรของผู้เข้าร่วม</string>
     <string name="scan_paused">รอสักครู่…</string>
     <string name="scan_checkpoint_heading">ฐาน</string>
-    <string name="scan_no_checkpoints">ยังไม่ได้ถูกกำหนดให้ประจำฐานใด จึงยังเช็คอินให้ใครไม่ได้ แจ้งผู้ดูแลให้กำหนดฐานให้ก่อน</string>
+    <string name="scan_no_checkpoints">ยังไม่มีฐานที่เปิดให้เช็คอิน จึงยังสแกนไม่ได้ ต้องให้ผู้ดูแลเพิ่มฐานก่อน</string>
     <string name="scan_loading_checkpoints">กำลังโหลดรายชื่อฐาน…</string>
     <string name="scan_checkpoints_failed">โหลดรายชื่อฐานไม่สำเร็จ ตรวจสอบสัญญาณแล้วเปิดหน้านี้ใหม่</string>
     <string name="scan_no_camera_permission">ต้องใช้กล้องเพื่อสแกนบัตร แตะเพื่ออนุญาต</string>
