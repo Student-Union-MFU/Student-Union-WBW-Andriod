@@ -15,7 +15,12 @@ import java.util.concurrent.TimeUnit
 /** Builds the Retrofit-backed [WbwApi] pointed at BuildConfig.API_BASE_URL. */
 object NetworkModule {
 
-    private val json = Json {
+    /**
+     * Public so the one place that has to decode a body by hand — the SOS "no emergency"
+     * null, see [th.ac.mfu.su.wbw.data.repository.SosRepository] — uses *these* settings
+     * rather than a second Json that drifts from them.
+     */
+    val json = Json {
         ignoreUnknownKeys = true // backend may add fields; don't crash on them
         coerceInputValues = true // null -> default for non-null Kotlin fields
         explicitNulls = false
@@ -44,15 +49,23 @@ object NetworkModule {
      */
     private const val LongPollReadTimeoutSeconds = 40L
 
-    /** The one path that holds. Matched by suffix so the group id in the middle is irrelevant. */
-    private const val LongPollPathSuffix = "/chat/sync"
+    /**
+     * The paths that hold. Matched by suffix so the group id in the middle is irrelevant.
+     *
+     * `/me/sos/active` is on this list for exactly the same reason as the chat sync: it is
+     * a request whose *correct* behaviour is to answer nothing for up to 25 seconds while
+     * it waits for a staff member to acknowledge an emergency. Left on the 30-second client
+     * default it would abort a working call, and on this one screen an aborted call reads
+     * as "nobody is coming".
+     */
+    private val LongPollPathSuffixes = listOf("/chat/sync", "/me/sos/active")
 
     fun createApi(sessions: SessionStore): WbwApi {
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(sessions))
             .addInterceptor { chain ->
                 val request = chain.request()
-                if (request.url.encodedPath.endsWith(LongPollPathSuffix)) {
+                if (LongPollPathSuffixes.any { request.url.encodedPath.endsWith(it) }) {
                     chain
                         .withReadTimeout(LongPollReadTimeoutSeconds.toInt(), TimeUnit.SECONDS)
                         .proceed(request)

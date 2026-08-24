@@ -33,12 +33,25 @@ data class ParticipantDetail(
      * spoken and shared, so anyone who saw one could present it as their own. This is a
      * capability — unguessable, unique, and revocable by rotating one column — and the
      * server treats it that way: `POST /wbw/staff/checkin` takes `qr_token` **or** `bib`,
-     * and prefers the token when both arrive, because a scan beats a marshal typing.
+     * and prefers the token when both arrive, because a scan beats a staff member typing.
      *
      * The server has been sending this on every `/me` since before the app had a field
      * for it; it was simply being dropped on the floor by the decoder.
      */
     @SerialName("qr_token") val qrToken: String? = null,
+    /**
+     * The account type — `participant`, `staff` or `admin`, straight from `wbw_user.role`.
+     *
+     * The server has been sending this on every `/me` all along and the decoder was
+     * dropping it, exactly as it did with [qrToken]. It is worth having on the pass because
+     * the pass is the one screen somebody else reads, and "which kind of account is this"
+     * is the first thing a checkpoint needs to know about the person holding it.
+     *
+     * Defaulted rather than nullable: a `/me` that answers at all belongs to *somebody*,
+     * and the participant case is both the overwhelming majority and the safe assumption —
+     * it grants nothing.
+     */
+    val role: String = "participant",
     @SerialName("checked_in") val checkedIn: Boolean = false,
     @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
     @SerialName("emergency_contact_phone") val emergencyContactPhone: String? = null,

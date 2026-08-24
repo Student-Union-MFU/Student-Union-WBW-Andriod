@@ -13,8 +13,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -90,6 +98,8 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.TileOverlay
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
@@ -129,7 +139,25 @@ import kotlin.math.roundToInt
  * no key the tiles come back blank but nothing here crashes.
  */
 @Composable
-fun MapScreen(contentPadding: PaddingValues) {
+fun MapScreen(
+    contentPadding: PaddingValues,
+    /**
+     * Whether this map carries the participant's emergency layer — the SOS button, and the
+     * long-poll watching for a case to be acknowledged.
+     *
+     * False for the staff shell, which shows this same map on its own tab. Not a matter of
+     * tidiness: both halves of that layer are scoped to a *participant*. `POST /wbw/me/sos`
+     * and `GET /wbw/me/sos/active` are `WHERE u.role = 'participant'` like the rest of
+     * `/me`, so on a staff account the button raises a case that cannot exist and the watch
+     * loop fails every round, backing off to a permanent thirty-second retry against an
+     * endpoint that will never answer differently.
+     *
+     * The staff equivalent is not a button on this screen. It is the alerts console in
+     * [th.ac.mfu.su.wbw.ui.staff.StaffHomeScreen] — staff answer emergencies rather than
+     * raise them.
+     */
+    emergency: Boolean = true,
+) {
     val colors = wbwColors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -284,6 +312,25 @@ fun MapScreen(contentPadding: PaddingValues) {
     // ===== The walk =====
 
     val walk by WalkTracker.stats.collectAsStateWithLifecycle()
+
+    // ===== The emergency =====
+    //
+    // Held here rather than inside the button, so an open case survives the button being
+    // replaced by the panel that reports on it — and survives a tab switch, since the
+    // view model is scoped to this navigation entry.
+    // Both null on the staff shell — see the `emergency` parameter. The view model is not
+    // merely unused there, it is not built at all: constructing it would start a profile
+    // fetch against `/me`, which a staff account has no row behind.
+    val sosViewModel: SosViewModel? =
+        if (emergency) viewModel(factory = SosViewModel.Factory) else null
+    val sos by (sosViewModel?.state ?: remember { MutableStateFlow(SosUiState()) })
+        .collectAsStateWithLifecycle()
+
+    // Driven from the screen, like the chat's long-poll and for the same reason: the held
+    // connection should live exactly as long as somebody is looking at it. Unlike the chat,
+    // what it is waiting for is a staff member pressing "on my way", which is why it keeps
+    // running even when there is no case — one can be raised from another device.
+    LaunchedEffect(sosViewModel) { sosViewModel?.watch() }
 
     fun holds(permission: String) =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
@@ -587,6 +634,12 @@ fun MapScreen(contentPadding: PaddingValues) {
                 )
             }
 
+            // The emergency, above the walk readout.
+            //
+            // Ordered deliberately: while a case is open it is the most important thing on
+            // the screen, and distance-and-pace is not. It sits at the top rather than over
+            // the button it replaced because this is something to *read*, and the top of
+            // the screen is where this app puts things to read.
             // Stays up after Stop. Somebody who has just walked the loop should not lose the
             // total to the same tap that ended the walk — the next Start clears it.
             if (walk.hasData) {
@@ -595,35 +648,25 @@ fun MapScreen(contentPadding: PaddingValues) {
             }
         }
 
-        // Bottom-left: the walk control, opposite the map controls rather than beside them.
-        // It is the one action on this screen, so it carries a label instead of a glyph.
-        WalkButton(
-            active = walk.active,
-            onClick = { toggleWalk() },
-            modifier = Modifier
+        // Bottom-left: the map controls, stacked above the walk control.
+        //
+        // Everything you operate the *map* with is on one side and the emergency is on the
+        // other, which is the point of the arrangement. Sharing a corner with 3D and
+        // recentre meant the SOS button lived a thumb's width from the two controls pressed
+        // most absent-mindedly on this screen; no amount of spacing inside a shared column
+        // fixes that as well as putting them on opposite edges does.
+        //
+        // Recentre sits directly above the walk button because it is the one used mid-walk,
+        // so it stays closest to the thumb while 3D moves further up.
+        Column(
+            Modifier
                 .align(Alignment.BottomStart)
                 .padding(
                     start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
                     bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
                 ),
-        )
-
-        // Bottom-right: 3D stacked above recentre, above the nav bar.
-        //
-        // A column rather than a row, so the bottom row of the screen is the walk button
-        // and one map control — the two things you reach for — instead of a walk button
-        // and a pair of glyphs competing with it for the same line. Recentre keeps the
-        // bottom slot because it is the one used mid-walk, so it stays under the thumb
-        // while 3D moves up out of the way.
-        Column(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(
-                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
-                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
-                ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
         ) {
             // Hidden mid-walk. A walk is 3D by definition and drives the camera itself, so
             // the button would either do nothing or fight it — and a control that visibly
@@ -642,6 +685,78 @@ fun MapScreen(contentPadding: PaddingValues) {
                 tint = colors.onBackdrop,
                 onClick = { if (hasLocation) flyToMe() else requestLocation() },
             )
+
+            // The one action on this screen, so it carries a label instead of a glyph.
+            WalkButton(active = walk.active, onClick = { toggleWalk() })
+        }
+
+        // Bottom-right: the emergency, alone on its own edge.
+        //
+        // The far corner from the map controls, and at the same height as the walk button
+        // so the bottom row of the screen reads as the two things you might actually need
+        // to do — walk, or call for help — rather than as a stack of glyphs.
+        //
+        // Gone while a case is open: [SosActivePanel] at the top of the screen takes over,
+        // because there is exactly one open case per participant and a second button could
+        // not do anything.
+        // Scales away as the card arrives and comes back the same way, so the two read as
+        // one movement — the button becoming the card — rather than as one thing vanishing
+        // and an unrelated thing appearing at the other end of the screen.
+        AnimatedVisibility(
+            visible = emergency && !sos.active,
+            enter = fadeIn(tween(240)) + scaleIn(tween(240), initialScale = 0.8f),
+            exit = fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.8f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
+                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
+                ),
+        ) {
+            SosButton(onFire = { sosViewModel?.raise(context) })
+        }
+
+        // The emergency, over everything.
+        //
+        // Placed here rather than in the column under the title because it is no longer a
+        // card on this screen — it *is* the screen while a case is open. It sits above the
+        // map and all of its controls, and below only the loading cover, which still has to
+        // win: a half-drawn map behind an emergency screen would be the one thing worse
+        // than either on its own.
+        //
+        // It arrives rather than appearing. It used to cut in between two frames, and a
+        // thing that is simply *there* on the next frame reads as a redraw rather than as
+        // an answer to what you just did. The one moment this screen has to feel like it
+        // did something is the moment after a three-second hold, and that moment was the
+        // one with nothing in it.
+        //
+        // Fade and a small scale-up, on a low-bounce spring: it grows into place from just
+        // under full size, the way something arriving in front of you does, rather than
+        // sliding in from an edge it has no relationship to. Leaving is faster and plain —
+        // a stood-down emergency should get out of the way, not take a bow.
+        AnimatedVisibility(
+            visible = sos.active,
+            enter = fadeIn(tween(220)) +
+                scaleIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    initialScale = 0.92f,
+                ),
+            exit = fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.96f),
+        ) {
+            // Held so the screen keeps its contents through the exit animation — reading
+            // `sos.case!!` here would throw the moment it became null.
+            sos.case?.let { open ->
+                SosFullScreen(
+                    case = open,
+                    me = sos.me,
+                    cancelRefused = sos.cancelRefused,
+                    onCancel = { sosViewModel?.cancel() },
+                    contentPadding = contentPadding,
+                )
+            }
         }
 
         // The cover. Last in the Box, so it hides the controls as well as the map — a

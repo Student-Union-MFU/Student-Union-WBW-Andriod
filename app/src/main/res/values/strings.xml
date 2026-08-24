@@ -106,10 +106,64 @@
     <!-- Tabs -->
     <string name="tab_home">Home</string>
     <string name="tab_map">Map</string>
+    <string name="tab_alerts">Alerts</string>
+    <string name="role_participant">Participant</string>
+    <string name="role_staff">Staff</string>
+    <string name="role_admin">Admin</string>
+    <string name="staff_greeting">Hi, %1$s</string>
+    <string name="staff_waiting_count">%1$d waiting for someone</string>
+    <string name="staff_all_clear">Nothing waiting</string>
+    <string name="staff_empty">No emergencies right now</string>
+    <string name="staff_recently_closed">Closed in the last 30 minutes</string>
+    <string name="staff_case_waiting">Needs someone</string>
+    <string name="staff_case_claimed">Someone is going</string>
+    <string name="staff_case_closed">Closed</string>
+    <string name="staff_case_for_other">Reported for someone else</string>
+    <string name="staff_case_bib">BIB %1$d</string>
+    <string name="staff_case_group">Group %1$d</string>
+    <string name="staff_case_near">Near %1$s</string>
+    <string name="staff_case_nowhere">No position — could be anywhere on the trail</string>
+    <string name="staff_case_phone">Phone %1$s</string>
+    <string name="staff_case_ack">I am going</string>
+    <string name="staff_case_claimed_by">%1$s is going</string>
+    <string name="staff_case_claimed_anon">Someone is already going</string>
     <string name="map_title">Trail map</string>
     <string name="map_loading">Loading the trail</string>
     <string name="map_recenter">Recentre on me</string>
     <string name="map_mode_3d">3D view</string>
+
+    <!-- Emergency SOS. Wording is deliberately plain and short: it is read by somebody
+         who is hurt or standing next to somebody who is. -->
+    <string name="sos_button_hint">Hold for emergency help</string>
+    <!-- Stacked one letter per line down the button. Kept as Latin "SOS" in every
+         locale on purpose: it is a distress mark rather than a word, and it is what
+         is painted on the event's own signage. -->
+    <string name="sos_button_label" translatable="false">SOS</string>
+    <string name="sos_state_sent">Help requested</string>
+    <string name="sos_state_coming">Help is coming</string>
+    <string name="sos_waiting">Sent to the staff. Stay where you are if you can.</string>
+    <string name="sos_acked_by">%1$s is on the way to you.</string>
+    <string name="sos_acked_anon">A staff member is on the way to you.</string>
+    <string name="sos_location_near">Your position was sent — near %1$s.</string>
+    <string name="sos_location_last_seen">No signal for your position. They will start from %1$s, your last checkpoint.</string>
+    <string name="sos_location_gps">Your position was sent.</string>
+    <string name="sos_location_unknown">Your position could not be sent. Call if you can.</string>
+    <string name="sos_cancel">Cancel — I am okay</string>
+    <string name="sos_notified_title">The staff have been notified</string>
+    <string name="sos_show_this">Show this to whoever reaches you</string>
+    <string name="sos_vital_name">Name</string>
+    <string name="sos_vital_bib">Bib</string>
+    <string name="sos_vital_group">Group</string>
+    <string name="sos_vital_blood">Blood type</string>
+    <string name="sos_card_title">Participant information</string>
+    <string name="sos_vital_contact">Emergency contact</string>
+    <string name="sos_contact_name">Name</string>
+    <string name="sos_contact_phone">Phone</string>
+    <string name="sos_blood_unknown">Unknown</string>
+    <string name="sos_qr_hint">Scan for full record</string>
+    <string name="sos_vital_phone">Phone</string>
+    <string name="sos_vital_missing">Not given</string>
+    <string name="sos_cancel_refused">A staff member is already on the way. Please call them instead of cancelling.</string>
     <string name="map_mode_2d">2D view</string>
     <string name="map_route_start">Start</string>
     <string name="map_route_finish">Finish</string>

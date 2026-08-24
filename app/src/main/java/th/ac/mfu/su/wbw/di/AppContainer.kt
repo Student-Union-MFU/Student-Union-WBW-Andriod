@@ -12,6 +12,8 @@ import th.ac.mfu.su.wbw.data.repository.ChatRepository
 import th.ac.mfu.su.wbw.data.repository.ConditionsRepository
 import th.ac.mfu.su.wbw.data.repository.NotificationRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
+import th.ac.mfu.su.wbw.data.repository.SosRepository
+import th.ac.mfu.su.wbw.data.repository.StaffRepository
 
 /**
  * Hand-rolled dependency container — one instance per process, created in
@@ -44,4 +46,10 @@ class AppContainer(context: Context) {
     val notificationRepository: NotificationRepository by lazy { NotificationRepository(api, responseCache) }
     val conditionsRepository: ConditionsRepository by lazy { ConditionsRepository(openMeteoApi, responseCache) }
     val chatRepository: ChatRepository by lazy { ChatRepository(api, responseCache) }
+
+    /** No cache argument, on purpose — see [SosRepository]. */
+    val sosRepository: SosRepository by lazy { SosRepository(api) }
+
+    /** Only ever built for a staff or admin session — see [StaffRepository]. */
+    val staffRepository: StaffRepository by lazy { StaffRepository(api) }
 }

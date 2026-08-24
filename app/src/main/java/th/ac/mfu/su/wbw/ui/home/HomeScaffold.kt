@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Map
@@ -33,12 +31,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
-import th.ac.mfu.su.wbw.ui.activities.ActivitiesScreen
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
 import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.notifications.NotificationsScreen
 import th.ac.mfu.su.wbw.ui.profile.ProfileScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
+import th.ac.mfu.su.wbw.ui.staff.StaffScaffold
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 
 // Left→right order of destinations, so tab changes slide toward the tapped tab.
@@ -46,10 +44,9 @@ private fun routeOrder(route: String?): Int = when (route) {
     "home" -> 0
     "map" -> 1
     "chat" -> 2
-    "activities" -> 3
-    "notifications" -> 4
-    "profile" -> 5
-    "settings" -> 6
+    "notifications" -> 3
+    "profile" -> 4
+    "settings" -> 5
     else -> 0
 }
 
@@ -62,22 +59,46 @@ private fun routeOrder(route: String?): Int = when (route) {
  * one, rather than opening a scanner for reading somebody else's.
  *
  * It used to point at a `checkin` stub that only ever said "coming soon". Scanning — the
- * marshal's side of the same transaction — still has no server behind it; when it arrives
+ * staff member's side of the same transaction — still has no server behind it; when it arrives
  * it needs its own route rather than this one back.
  */
 private const val QrRoute = "profile"
 
-/** Signed-in participant shell: forest background, floating glass nav, routed screens. */
+/**
+ * The signed-in shell, chosen by what kind of account this is.
+ *
+ * Staff and admin get an entirely separate scaffold rather than the participant one with
+ * pieces hidden. They are not participants with extra buttons: they have no
+ * `participant_profile` row at all, which is not a cosmetic difference — `GET /wbw/me` is
+ * scoped `WHERE u.role = 'participant'` and answers **404** for them. Every screen below
+ * this line is built on that call, so a staff account signing into the participant shell
+ * gets a retry card for a name, an empty pass, and a chat that believes they have no group.
+ *
+ * See [th.ac.mfu.su.wbw.ui.staff.StaffScaffold] for what they get instead.
+ */
 @Composable
 fun HomeScaffold(session: Session, onLogout: () -> Unit) {
+    if (session.isStaff) {
+        StaffScaffold(session = session, onLogout = onLogout)
+        return
+    }
+    ParticipantScaffold(session = session, onLogout = onLogout)
+}
+
+/** Signed-in participant shell: forest background, floating glass nav, routed screens. */
+@Composable
+private fun ParticipantScaffold(session: Session, onLogout: () -> Unit) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
 
     // Icons follow iOS `MainTabView.swift`: house.fill, map.fill, and — for the chat
-    // slot — the message glyph iOS uses once a participant has a group. `activities` has
-    // no iOS counterpart in the bar, so it keeps its own glyph rather than being forced
-    // onto an iOS symbol that means something else.
+    // slot — the message glyph iOS uses once a participant has a group.
+    //
+    // Three tabs, not four. `activities` was the fourth and is gone: it had no iOS
+    // counterpart in the bar, no backend behind it, and it was the only destination in
+    // the bar that a participant could open and find nothing to act on. A bar is a
+    // promise that each slot leads somewhere worth going.
     //
     // Profile is deliberately not here — it is the avatar in Home's header, which is
     // where iOS puts it too. A destination you open to check a detail and close again
@@ -86,7 +107,6 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
         TabItem("home", Icons.Filled.Home, Icons.Outlined.Home, stringResource(R.string.tab_home)),
         TabItem("map", Icons.Filled.Map, Icons.Outlined.Map, stringResource(R.string.tab_map)),
         TabItem("chat", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat, stringResource(R.string.tab_chat)),
-        TabItem("activities", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, stringResource(R.string.tab_activities)),
     )
     val currentRoute = current?.route
 
@@ -136,7 +156,6 @@ fun HomeScaffold(session: Session, onLogout: () -> Unit) {
                     }
                     composable("map") { MapScreen(contentPadding = contentPadding) }
                     composable("chat") { ChatScreen(contentPadding = contentPadding) }
-                    composable("activities") { ActivitiesScreen(contentPadding = contentPadding) }
                     composable("notifications") {
                         NotificationsScreen(
                             contentPadding = contentPadding,

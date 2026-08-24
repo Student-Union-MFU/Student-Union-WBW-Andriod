@@ -82,10 +82,18 @@ fun FloatingTabBar(
     items: List<TabItem>,
     currentRoute: String?,
     onSelect: (String) -> Unit,
-    qrSelected: Boolean,
-    onSelectQr: () -> Unit,
-    qrIcon: ImageVector,
-    qrContentDescription: String,
+    /**
+     * The button beside the bar, or null for no button at all.
+     *
+     * Optional because the staff shell has no use for it: it is the participant's pass, and
+     * a staff account has no pass. The alternative — pointing it at something else so the
+     * slot stays filled — would put a QR glyph on a button that does not produce a QR code,
+     * which is the one thing this button must never do at a checkpoint.
+     */
+    qrSelected: Boolean = false,
+    onSelectQr: (() -> Unit)? = null,
+    qrIcon: ImageVector? = null,
+    qrContentDescription: String = "",
     modifier: Modifier = Modifier,
 ) {
     /**
@@ -260,19 +268,23 @@ fun FloatingTabBar(
             }
         }
 
-        Box(Modifier.width(BarGap))
+        // Both the button and the gap before it, or neither — a bar that reserved the gap
+        // for a button it is not drawing would sit off-centre for no visible reason.
+        if (onSelectQr != null && qrIcon != null) {
+            Box(Modifier.width(BarGap))
 
-        QrButton(
-            backdrop = backdrop,
-            surface = barSurface,
-            edge = edge,
-            idle = idle,
-            accent = colors.accent,
-            selected = qrSelected,
-            onClick = onSelectQr,
-            icon = qrIcon,
-            contentDescription = qrContentDescription,
-        )
+            QrButton(
+                backdrop = backdrop,
+                surface = barSurface,
+                edge = edge,
+                idle = idle,
+                accent = colors.accent,
+                selected = qrSelected,
+                onClick = onSelectQr,
+                icon = qrIcon,
+                contentDescription = qrContentDescription,
+            )
+        }
     }
 }
 
