@@ -50,7 +50,6 @@ import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.theme.GlassCard
-import th.ac.mfu.su.wbw.ui.theme.GlassPanel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.PassInk
@@ -191,7 +190,14 @@ private fun NotificationCard(item: Notification, isNew: Boolean, zone: ZoneId) {
     GlassCard(
         shape = RoundedCornerShape(CardCorner),
         contentPadding = PaddingValues(18.dp),
-        fill = GlassPanel,
+        // The nav bar's own glass, like the event cards and the settings panels.
+        //
+        // This card was the last one still on [GlassPanel], an 82%-opaque near-black slab,
+        // while everything else it sits beside is [GlassSheer] — a 12% white sheen that
+        // lets the forest through. Against the bar floating below it that read as a
+        // different material rather than a different element, which is the one thing a
+        // screen made entirely of glass panes cannot afford.
+        fill = GlassSheer,
         border = GlassSheerBorder,
     ) {
         Column(Modifier.fillMaxWidth()) {

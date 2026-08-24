@@ -79,11 +79,87 @@ fun HomeScreen(
         viewModel.refreshConditions()
     }
 
+    // The corner buttons are drawn in *every* state, not only on success.
+    //
+    // They used to live inside [HomeContent], which meant a failed `/wbw/me` replaced the
+    // whole screen with a retry card and took settings away with it. Settings is where the
+    // language, the theme and — the one that matters here — **log out** live, and none of
+    // it needs the network: the screen reads SharedPreferences and nothing else. So the
+    // one state in which a participant is most likely to want to sign out and back in, or
+    // just change a setting while waiting for signal on a hill, was the one state that
+    // made it unreachable. The same is true of announcements, which are served from cache.
     when (val s = state) {
-        is UiState.Loading -> LoadingState()
-        is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
+        is UiState.Loading -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
+            LoadingState()
+        }
+        is UiState.Error -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
+            ErrorState(message = s.message, onRetry = viewModel::load)
+        }
         is UiState.Success ->
             HomeContent(s.data, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
+    }
+}
+
+/**
+ * The Home frame with only its corner buttons: what loading and error states get drawn in
+ * so that settings and announcements stay reachable while the profile call is failing.
+ */
+@Composable
+private fun HomeChrome(
+    contentPadding: androidx.compose.foundation.layout.PaddingValues,
+    onOpenSettings: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    hasUnread: Boolean,
+    body: @Composable () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(contentPadding)
+            .padding(horizontal = 18.dp),
+    ) {
+        HomeCornerRow(onOpenNotifications, onOpenSettings, hasUnread)
+        Box(Modifier.weight(1f)) { body() }
+    }
+}
+
+/**
+ * Announcements on the left, settings on the right — the far corners, so neither is
+ * reachable by accident from the other, and the one that can demand attention is on the
+ * side the eye starts from.
+ *
+ * Neither is in the nav bar, because they are not places you move back and forth between
+ * while walking the trail: you open them to read or change one thing and close them again.
+ * The pass is the opposite — it is held up at every checkpoint — which is why it is the
+ * one with a permanent slot in the bar rather than a corner up here.
+ */
+@Composable
+private fun HomeCornerRow(
+    onOpenNotifications: () -> Unit,
+    onOpenSettings: () -> Unit,
+    hasUnread: Boolean,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CornerButton(
+            icon = Icons.Outlined.Notifications,
+            contentDescription = stringResource(R.string.notifications_title),
+            onClick = onOpenNotifications,
+            badge = hasUnread,
+        )
+        CornerButton(
+            // Settings, not the profile pass. The pass moved to the QR button in the nav
+            // bar, where its own glyph is — see `QrRoute` in HomeScaffold. That left this
+            // corner free for the other thing you open once and close again, and settings
+            // had been reachable only by going through the pass first.
+            icon = Icons.Outlined.Settings,
+            contentDescription = stringResource(R.string.settings_title),
+            onClick = onOpenSettings,
+        )
     }
 }
 
@@ -141,36 +217,9 @@ private fun HomeContent(
         // of day — and pairing it with the buttons turned it into a header for a screen
         // that has no header.
         //
-        // Neither of these is in the nav bar, for the same reason: they are not places you
-        // move back and forth between while walking the trail. You open them to read or
-        // change one thing and close them again. The pass is the opposite — it is held up
-        // at every checkpoint — which is why it is the one that got a permanent slot in
-        // the bar rather than a corner up here.
-        //
-        // Announcements sit on the left and settings on the right — the far corners, so
-        // neither is reachable by accident from the other, and the one that can demand
-        // attention is the one on the side the eye starts from.
-        Row(
-            Modifier.fillMaxWidth().padding(top = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CornerButton(
-                icon = Icons.Outlined.Notifications,
-                contentDescription = stringResource(R.string.notifications_title),
-                onClick = onOpenNotifications,
-                badge = hasUnread,
-            )
-            CornerButton(
-                // Settings, not the profile pass. The pass moved to the QR button in the
-                // nav bar, where its own glyph is — see `QrRoute` in HomeScaffold. That
-                // left this corner free for the other thing you open once and close again,
-                // and settings had been reachable only by going through the pass first.
-                icon = Icons.Outlined.Settings,
-                contentDescription = stringResource(R.string.settings_title),
-                onClick = onOpenSettings,
-            )
-        }
+        // Shared with the loading and error states via [HomeCornerRow], which is where the
+        // rest of the reasoning about these two buttons lives.
+        HomeCornerRow(onOpenNotifications, onOpenSettings, hasUnread)
 
         // greeting — the first thing in the body
         //

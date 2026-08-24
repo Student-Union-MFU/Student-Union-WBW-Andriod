@@ -91,10 +91,57 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {
+        // Back and settings are drawn in every state, for the reason spelled out in
+        // `HomeScreen`: they used to live inside [ProfileContent], so a failed `/wbw/me`
+        // left a retry card with no way back to the trail and no way into settings — and
+        // settings is the only route to logging out. Neither button needs the pass to have
+        // loaded to do its job.
         when (val s = state) {
-            is UiState.Loading -> LoadingState()
-            is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
+            is UiState.Loading -> ProfileChrome(onBack, onOpenSettings) { LoadingState() }
+            is UiState.Error -> ProfileChrome(onBack, onOpenSettings) {
+                ErrorState(message = s.message, onRetry = viewModel::load)
+            }
             is UiState.Success -> ProfileContent(s.data, contentPadding, onBack, onOpenSettings)
+        }
+    }
+}
+
+/** The pass screen's header buttons alone, wrapped round whatever the state has to show. */
+@Composable
+private fun ProfileChrome(
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+    body: @Composable () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
+        ProfileHeaderRow(onBack, onOpenSettings)
+        Box(Modifier.weight(1f)) { body() }
+    }
+}
+
+/** Back on the left, settings on the right — outside the scroll, so neither scrolls away. */
+@Composable
+private fun ProfileHeaderRow(onBack: () -> Unit, onOpenSettings: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircleButton(onClick = onBack) {
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowBack,
+                stringResource(R.string.action_back),
+                tint = PassInk,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        CircleButton(onClick = onOpenSettings) {
+            Icon(
+                Icons.Outlined.Settings,
+                stringResource(R.string.settings_title),
+                tint = PassInk,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
@@ -116,30 +163,8 @@ private fun ProfileContent(
         // Two doors to a screen nobody visits often is not clutter; it is one fewer thing
         // to remember, and this one is already drawn.
         //
-        // Outside the scroll on purpose: the pass is taller than the screen, and a back
-        // button that scrolls away is one you have to scroll back up to reach.
-        Row(
-            Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CircleButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    stringResource(R.string.action_back),
-                    tint = PassInk,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            CircleButton(onClick = onOpenSettings) {
-                Icon(
-                    Icons.Outlined.Settings,
-                    stringResource(R.string.settings_title),
-                    tint = PassInk,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
+        // Shared with the loading and error states via [ProfileHeaderRow].
+        ProfileHeaderRow(onBack, onOpenSettings)
 
         Column(Modifier.verticalScroll(rememberScrollState()).padding(contentPadding)) {
             Pass(p)
@@ -173,7 +198,16 @@ private fun Pass(p: ParticipantDetail) {
             .padding(start = 24.dp, end = 10.dp, top = 26.dp, bottom = 24.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Kicker(stringResource(R.string.profile_pass_title))
+            // The kicker names the card; the badge names the account holding it.
+            //
+            // They share a line because they answer the same question from opposite ends —
+            // what this is, and who it belongs to — and because the top of the pass is the
+            // only place a badge can sit without competing with the name.
+            Row(Modifier.fillMaxWidth().padding(end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Kicker(stringResource(R.string.profile_pass_title))
+                Spacer(Modifier.weight(1f))
+                RoleBadge(p.role)
+            }
 
             // The event dates used to sit here in a pill of their own. They are the one
             // fact on the pass that is identical on every pass ever issued — it is a
@@ -185,7 +219,7 @@ private fun Pass(p: ParticipantDetail) {
             // card, and the pass reads better opening on the holder's name than on a
             // chip repeating a number that now has display size of its own.
 
-            // Identity and QR share a row: they are the two things a marshal looks at,
+            // Identity and QR share a row: they are the two things a staff member looks at,
             // and the QR is the one that gets held up. Sitting it beside the name rather
             // than in its own block above lets it be larger and puts the code next to
             // the person it belongs to.
@@ -298,7 +332,7 @@ private fun Pass(p: ParticipantDetail) {
             //
             // The group sits here, beside the bib, rather than in a pill up by the title
             // where it used to live. They are one question asked twice — *which* walker,
-            // and which of the forty groups to send them back to — and a marshal holding
+            // and which of the forty groups to send them back to — and a staff member holding
             // the card wants both in the same glance, not one at the top and one at the
             // bottom. Putting them side by side is also what stops the card telling the
             // same fact in two registers, which is the thing the rest of this panel has
@@ -483,6 +517,48 @@ private fun nameSizeFor(name: String): TextUnit {
         else -> 18.sp
     }
 }
+
+@Composable
+private fun RoleBadge(role: String) {
+    val known = RoleLabels[role.lowercase()]
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            // Outlined rather than filled. A solid chip at the top of the pass reads as a
+            // status the holder has *earned* — checked in, verified — and this is neither;
+            // it is a statement of which door the account came through. The outline keeps
+            // it legible on the photograph behind the glass without claiming that weight.
+            .border(1.dp, PassHairline, RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            // An unrecognised role prints itself rather than falling back to "participant".
+            // The enum can gain values (`user_role` is a Postgres enum and has grown once
+            // already), and a badge that quietly calls an unknown account a participant is
+            // worse than one that shows a word nobody has styled yet.
+            (known?.let { stringResource(it) } ?: role).uppercase(),
+            color = PassMuted,
+            fontSize = 8.5.sp,
+            letterSpacing = 2.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+/**
+ * The three values of `wbw_user.role`.
+ *
+ * Only the account type, deliberately — not `wbw_staff.staff_role`, which is a different
+ * enum with ten values (checkpoint, medical, security, guide and so on) describing the job
+ * somebody does at the event rather than the kind of account they hold. That one is not on
+ * `/me` at all, and it belongs to the staff screens rather than to this pass.
+ */
+private val RoleLabels = mapOf(
+    "participant" to R.string.role_participant,
+    "staff" to R.string.role_staff,
+    "admin" to R.string.role_admin,
+)
 
 @Composable
 private fun Kicker(text: String) {

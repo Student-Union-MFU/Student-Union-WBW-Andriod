@@ -237,11 +237,23 @@ private fun NotiToggle(settings: AppSettings, key: String, title: String, desc: 
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f, fill = false).padding(end = 12.dp)) {
+        // One weighted child, filling. This used to be `weight(1f, fill = false)` followed
+        // by a `Spacer(weight(1f))`, and the pair did two visible kinds of damage.
+        //
+        // The two weights split the row's free space evenly, so the label got half a row
+        // to live in and "Daily activity summary" wrapped onto a second line with an inch
+        // of empty glass beside it. And because `fill = false` lets the column keep only
+        // what it measures, the width it gave back was never redistributed — so the switch
+        // started wherever that row's text happened to end, and the four switches in this
+        // panel sat at four different distances from the edge.
+        //
+        // Filling the whole gap with the text column fixes both at once: the title gets
+        // the full width and stays on one line, and every switch is pushed flush right, so
+        // they line up down the panel.
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, color = colors.onBackdrop, style = MaterialTheme.typography.bodyLarge)
             Text(desc, color = colors.onBackdropMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 1.dp))
         }
-        Spacer(Modifier.weight(1f))
         Switch(
             checked = checked,
             onCheckedChange = { checked = it; settings.setNotificationEnabled(key, it) },
