@@ -158,6 +158,9 @@
     <!-- Walk tracking -->
     <string name="walk_start">เริ่มเดิน</string>
     <string name="walk_stop">หยุด</string>
+    <string name="walk_route_label">เส้นทาง</string>
+    <string name="walk_route_left">เหลืออีก %1$s</string>
+    <string name="walk_route_complete">เดินครบเส้นทางแล้ว</string>
     <string name="walk_stat_distance">ระยะทาง</string>
     <string name="walk_stat_steps">ก้าว</string>
     <string name="walk_stat_pace">เพซ</string>

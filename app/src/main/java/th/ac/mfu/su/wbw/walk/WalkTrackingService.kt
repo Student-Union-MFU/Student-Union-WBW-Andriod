@@ -27,6 +27,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import th.ac.mfu.su.wbw.MainActivity
 import th.ac.mfu.su.wbw.R
+import th.ac.mfu.su.wbw.ui.map.TrailRoute
 import kotlin.math.roundToInt
 
 /**
@@ -61,6 +62,19 @@ class WalkTrackingService : Service() {
     private var steps: Int? = null
 
     private var distanceMetres = 0.0
+
+    /**
+     * The event route, and how far along it this walk has got.
+     *
+     * Held by the service rather than by the map so that progress accrues with the screen
+     * off and the phone in a pocket, which is how the eight kilometres are actually
+     * walked. Loaded once — it is a resource read, and the trail does not change.
+     *
+     * -1 means no fix has landed near the route yet this walk, which [TrailRoute.progressFrom]
+     * reads as "search the whole line" rather than as "at the start".
+     */
+    private val route: TrailRoute by lazy { TrailRoute.load(this) }
+    private var routeMetres = -1.0
     private var speedMps = 0f
     private var bearing: Float? = null
 
@@ -163,6 +177,13 @@ class WalkTrackingService : Service() {
             bearing = bearing?.let { smoothBearing(it, next, BearingSmoothing) } ?: next
         }
 
+        // Where on the route that puts them. A null answer means this fix was further
+        // from the trail than the route's own tolerance — off on a side path, or a bad
+        // reading — and the right response is to keep the last known progress rather than
+        // to reset it. See [TrailRoute.progressFrom].
+        route.progressFrom(routeMetres, location.latitude, location.longitude)
+            ?.let { routeMetres = it }
+
         publish()
         updateNotification()
     }
@@ -175,6 +196,8 @@ class WalkTrackingService : Service() {
                 steps = steps,
                 speedMps = speedMps,
                 fix = anchor?.let { WalkFix(it.latitude, it.longitude, bearing) },
+                routeMetres = routeMetres.takeIf { it >= 0.0 },
+                routeLengthMetres = route.lengthMetres,
             ),
         )
     }

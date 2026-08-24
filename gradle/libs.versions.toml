@@ -33,6 +33,7 @@ camerax = "1.4.2"
 # one bar of signal, and an unbundled model would pick exactly that moment to fetch.
 mlkitBarcode = "17.3.0"
 secretsPlugin = "2.0.1"
+junit = "4.13.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -72,6 +73,7 @@ play-services-maps = { group = "com.google.android.gms", name = "play-services-m
 # Fused location, for the one "you are here" fix that centres the camera.
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }

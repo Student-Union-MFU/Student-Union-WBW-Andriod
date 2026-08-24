@@ -10,6 +10,7 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.hypot
 
 /**
  * The event's walking route, baked into the app.
@@ -65,6 +66,118 @@ class TrailRoute(
     private val metresPerDegLng = MetresPerDegree * cos(originLat * PI / 180.0)
     private val east = DoubleArray(points.size) { (points[it].longitude - originLng) * metresPerDegLng }
     private val north = DoubleArray(points.size) { (points[it].latitude - originLat) * MetresPerDegree }
+
+    /**
+     * Distance along the path at each point, metres, from the start.
+     *
+     * Summed from the same local projection the heading uses rather than from
+     * [distanceMetres], so a position projected onto segment *i* can be turned into "you
+     * are 3,140 m along" by interpolating within that segment. The last entry is the
+     * route's own length as measured here, which is within a few metres of the GPX's own
+     * figure and is the number progress is reported against — mixing the two would let
+     * the walk finish at 99.8%.
+     */
+    private val cumulative: DoubleArray = DoubleArray(points.size).also { c ->
+        for (i in 1 until points.size) {
+            val dx = east[i] - east[i - 1]
+            val dy = north[i] - north[i - 1]
+            c[i] = c[i - 1] + hypot(dx, dy)
+        }
+    }
+
+    /** The route's length in the projection progress is measured in. */
+    val lengthMetres: Double get() = cumulative.lastOrNull() ?: 0.0
+
+    /**
+     * How far along the route a position is, given how far along it was last time.
+     *
+     * Returns metres from the start, or null when the position is further from the path
+     * than [OffRouteMetres] — which the caller should treat as "keep the last known
+     * progress", not as "you are back at the beginning".
+     *
+     * **Why this takes the previous value.** The trail is a loop: it finishes within a few
+     * hundred metres of where it starts, and the two ends run alongside each other for
+     * part of that. A plain nearest-point search is therefore ambiguous exactly where it
+     * matters most — a walker on the final approach is genuinely near both the 8 km mark
+     * and the 0 km mark, and picking the wrong one resets a finished walk to nothing.
+     * Searching forward from where they already were resolves it the way a person would:
+     * you got here by walking, so you are near where you were.
+     *
+     * The window is asymmetric. [ForwardWindowMetres] ahead, because a phone that lost
+     * signal in a dip can legitimately reappear a few hundred metres up the trail, and
+     * only [BackWindowMetres] behind, because GPS jitter is metres and doubling back is
+     * rare — a wide backward window would let noise drag a walk's progress down again.
+     *
+     * Pass a negative [fromMetres] for the first fix of a walk, which searches the whole
+     * route: there is no previous position to be near, and somebody may well start
+     * halfway round.
+     */
+    fun progressFrom(fromMetres: Double, latitude: Double, longitude: Double): Double? {
+        if (points.size < 2) return null
+        val px = (longitude - originLng) * metresPerDegLng
+        val py = (latitude - originLat) * MetresPerDegree
+
+        val acquiring = fromMetres < 0.0
+        val lo = if (acquiring) Double.NEGATIVE_INFINITY else fromMetres - BackWindowMetres
+        val hi = if (acquiring) Double.POSITIVE_INFINITY else fromMetres + ForwardWindowMetres
+
+        var bestAlong = -1.0
+        var bestDistSq = Double.MAX_VALUE
+        for (i in 0 until points.size - 1) {
+            // Skip whole segments outside the window before doing any work on them.
+            if (cumulative[i + 1] < lo || cumulative[i] > hi) continue
+
+            val ax = east[i]; val ay = north[i]
+            val dx = east[i + 1] - ax; val dy = north[i + 1] - ay
+            val lenSq = dx * dx + dy * dy
+            val t = if (lenSq <= 0.0) 0.0 else (((px - ax) * dx + (py - ay) * dy) / lenSq).coerceIn(0.0, 1.0)
+            val qx = ax + t * dx - px
+            val qy = ay + t * dy - py
+            val distSq = qx * qx + qy * qy
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq
+                bestAlong = cumulative[i] + t * hypot(dx, dy)
+            }
+        }
+
+        if (bestAlong < 0.0 || bestDistSq > OffRouteMetres * OffRouteMetres) return null
+        // Never hand back less than we already had. Within the backward window a jittering
+        // fix would otherwise make the walked line twitch backwards on the map, which reads
+        // as the app losing track rather than as the metre of noise it is.
+        return if (acquiring) bestAlong else maxOf(fromMetres, bestAlong)
+    }
+
+    /**
+     * The route cut in two at [metres] along it: what has been walked, and what is left.
+     *
+     * The cut point is interpolated inside whichever segment it falls in and appears as
+     * the last point of the first list *and* the first point of the second, so the two
+     * polylines meet exactly rather than leaving a gap that widens with segment length.
+     *
+     * Either half can be empty — at the very start nothing is walked, at the finish
+     * nothing remains — and a caller should skip drawing a polyline of fewer than two
+     * points rather than hand the Maps SDK a degenerate line.
+     */
+    fun splitAt(metres: Double): Pair<List<LatLng>, List<LatLng>> {
+        if (points.size < 2) return emptyList<LatLng>() to points
+        val d = metres.coerceIn(0.0, lengthMetres)
+
+        var seg = 0
+        while (seg < points.size - 2 && cumulative[seg + 1] < d) seg++
+
+        val segLen = cumulative[seg + 1] - cumulative[seg]
+        val t = if (segLen <= 0.0) 0.0 else ((d - cumulative[seg]) / segLen).coerceIn(0.0, 1.0)
+        val a = points[seg]
+        val b = points[seg + 1]
+        val cut = LatLng(
+            a.latitude + t * (b.latitude - a.latitude),
+            a.longitude + t * (b.longitude - a.longitude),
+        )
+
+        val walked = points.subList(0, seg + 1) + cut
+        val remaining = listOf(cut) + points.subList(seg + 1, points.size)
+        return walked to remaining
+    }
 
     /**
      * Which way the trail runs nearest to a position, in degrees clockwise from north, or
@@ -154,6 +267,19 @@ class TrailRoute(
 
         /** How far along the path the heading is measured, to average out GPX jitter. */
         private const val LookAheadMetres = 25.0
+
+        /**
+         * How far ahead of the last known position [progressFrom] will look.
+         *
+         * Generous, because the gap it covers is a real one: the trail runs through dips
+         * with no signal, and a phone that goes quiet for two minutes of walking
+         * reappears a couple of hundred metres further on. Too small a window and that
+         * walker's progress sticks at the last place they had a fix.
+         */
+        private const val ForwardWindowMetres = 400.0
+
+        /** Jitter is metres. This is for that, not for doubling back. */
+        private const val BackWindowMetres = 30.0
 
         /**
          * Read and decode the baked route. Cheap enough to call from composition — a
