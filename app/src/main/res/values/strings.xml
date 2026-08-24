@@ -282,4 +282,19 @@
     <string name="profile_hw_value">%1$s cm · %2$s kg</string>
     <string name="profile_qr_label">Check-in QR code</string>
     <string name="profile_checkin_status">Checked in</string>
+
+    <!-- Staff check-in scanner -->
+    <string name="scan_title">Check in</string>
+    <string name="scan_torch">Torch</string>
+    <string name="scan_hint">Point at a participant\'s pass.</string>
+    <string name="scan_paused">Hold on…</string>
+    <string name="scan_loading_checkpoints">Loading checkpoints…</string>
+    <string name="scan_checkpoints_failed">Could not load the checkpoints. Check the connection and reopen this screen.</string>
+    <string name="scan_no_camera_permission">The camera is needed to scan a pass. Tap to allow.</string>
+    <string name="scan_counted">Checked in</string>
+    <string name="scan_already">Already checked in here</string>
+    <string name="scan_failed">Not checked in</string>
+    <string name="scan_medical_flag">Has declared a medical condition</string>
+    <string name="scan_bib_placeholder">Or type a bib number</string>
+    <string name="scan_bib_submit">Check in</string>
 </resources>

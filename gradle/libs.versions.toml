@@ -21,8 +21,17 @@ mapsCompose = "6.4.1"
 playServicesMaps = "19.2.0"
 playServicesLocation = "21.3.0"
 # QR encoding for the participant pass. `core` only — the `zxing-android-embedded`
-# wrapper is a scanner UI, which is the marshal's side and not built here.
+# wrapper is a scanner UI, and the staff scanner is built on CameraX + ML Kit below
+# rather than on that wrapper, so its dated UI never has to be restyled into the glass.
 zxing = "3.5.3"
+# The staff scanner's camera. `camera-view` for the PreviewView the Compose tree wraps,
+# `camera-lifecycle` to bind it to the screen rather than to the Activity.
+camerax = "1.4.2"
+# On-device barcode decoding, bundled rather than served by Play Services. The bundled
+# artifact costs a few MB of APK and needs no download on first use — which matters
+# because first use is a staff member at a checkpoint with a queue in front of them and
+# one bar of signal, and an unbundled model would pick exactly that moment to fetch.
+mlkitBarcode = "17.3.0"
 secretsPlugin = "2.0.1"
 
 [libraries]
@@ -63,6 +72,12 @@ play-services-maps = { group = "com.google.android.gms", name = "play-services-m
 # Fused location, for the one "you are here" fix that centres the camera.
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

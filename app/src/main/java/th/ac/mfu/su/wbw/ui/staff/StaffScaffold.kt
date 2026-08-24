@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,7 +38,8 @@ import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 private fun routeOrder(route: String?): Int = when (route) {
     "alerts" -> 0
     "map" -> 1
-    "settings" -> 2
+    "scan" -> 2
+    "settings" -> 3
     else -> 0
 }
 
@@ -62,10 +64,13 @@ private fun routeOrder(route: String?): Int = when (route) {
  *    nothing from `/me`, and knowing where the route runs is as much a staff need as a
  *    walker's.
  *
+ * Beside the bar, where a participant's phone keeps their pass, is the check-in scanner —
+ * `POST /wbw/staff/checkin`. A destination rather than a third tab: it is something a staff
+ * member goes and does and comes back from, while the two tabs are what the account watches.
+ *
  * Deliberately absent: chat (staff belong to no group, so there is no channel to open), the
- * pass and its QR (there is no pass to hold up), and the bloom (it counts a participant's
- * own check-ins). Check-in scanning — `POST /wbw/staff/checkin` — exists on the server and
- * has no screen here yet; it needs a camera scanner, which is its own piece of work.
+ * pass itself (there is no pass to hold up — the same slot reads codes here instead of
+ * showing one), and the bloom (it counts a participant's own check-ins).
  */
 @Composable
 fun StaffScaffold(session: Session, onLogout: () -> Unit) {
@@ -106,6 +111,12 @@ fun StaffScaffold(session: Session, onLogout: () -> Unit) {
                     )
                 }
                 composable("map") { MapScreen(contentPadding = contentPadding, emergency = false) }
+                composable("scan") {
+                    StaffScanScreen(
+                        contentPadding = contentPadding,
+                        onBack = { nav.popBackStack() },
+                    )
+                }
                 composable("settings") {
                     SettingsScreen(
                         contentPadding = contentPadding,
@@ -115,12 +126,25 @@ fun StaffScaffold(session: Session, onLogout: () -> Unit) {
                 }
             }
 
-            // No QR button beside the bar: that button is the participant's pass, and a
-            // staff account has no pass. Filling the slot with something else would put a
-            // QR glyph on a button that produces no QR code, at a checkpoint, on the day.
+            // The button beside the bar is the scanner, where a participant's phone puts
+            // their pass. The two are the same gesture from opposite sides of the table:
+            // one shows a code, the other reads it. It is a destination rather than a tab
+            // because it is a thing you go and do and come back from, not a place the
+            // staff shell rests — and because the bar's two tabs are what this account
+            // watches, while this is what it acts with.
             FloatingTabBar(
                 items = tabs,
                 currentRoute = currentRoute,
+                qrSelected = currentRoute == "scan",
+                onSelectQr = {
+                    nav.navigate("scan") {
+                        popUpTo(nav.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                qrIcon = Icons.Outlined.QrCodeScanner,
+                qrContentDescription = stringResource(R.string.scan_title),
                 onSelect = { route ->
                     nav.navigate(route) {
                         popUpTo(nav.graph.startDestinationId) { saveState = true }

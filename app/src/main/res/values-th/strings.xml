@@ -262,4 +262,19 @@
     <string name="profile_hw_value">%1$s ซม. · %2$s กก.</string>
     <string name="profile_qr_label">คิวอาร์โค้ดสำหรับเช็กอิน</string>
     <string name="profile_checkin_status">เช็คอินแล้ว</string>
+
+    <!-- Staff check-in scanner -->
+    <string name="scan_title">เช็คอิน</string>
+    <string name="scan_torch">ไฟฉาย</string>
+    <string name="scan_hint">ส่องไปที่บัตรของผู้เข้าร่วม</string>
+    <string name="scan_paused">รอสักครู่…</string>
+    <string name="scan_loading_checkpoints">กำลังโหลดรายชื่อฐาน…</string>
+    <string name="scan_checkpoints_failed">โหลดรายชื่อฐานไม่สำเร็จ ตรวจสอบสัญญาณแล้วเปิดหน้านี้ใหม่</string>
+    <string name="scan_no_camera_permission">ต้องใช้กล้องเพื่อสแกนบัตร แตะเพื่ออนุญาต</string>
+    <string name="scan_counted">เช็คอินแล้ว</string>
+    <string name="scan_already">เช็คอินที่ฐานนี้ไปแล้ว</string>
+    <string name="scan_failed">เช็คอินไม่สำเร็จ</string>
+    <string name="scan_medical_flag">แจ้งว่ามีโรคประจำตัว</string>
+    <string name="scan_bib_placeholder">หรือพิมพ์หมายเลข BIB</string>
+    <string name="scan_bib_submit">เช็คอิน</string>
 </resources>

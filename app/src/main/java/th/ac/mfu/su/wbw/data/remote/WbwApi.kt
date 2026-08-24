@@ -14,8 +14,11 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMembersResponse
 import th.ac.mfu.su.wbw.data.remote.dto.JoinGroupResponse
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SendMessageRequest
+import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
+import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckinRequest
+import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.SosRequest
 import th.ac.mfu.su.wbw.data.remote.dto.Group
 import th.ac.mfu.su.wbw.data.remote.dto.LoginRequest
@@ -195,4 +198,25 @@ interface WbwApi {
      */
     @POST("staff/sos/{id}/ack")
     suspend fun ackSos(@Path("id") id: Long): SosStaffCase
+
+    /**
+     * staff — the checkpoints this account may stamp people in at.
+     *
+     * Fetched once when the scanner opens. Small, static for the length of the event, and
+     * the picker cannot work without it, so a failure here disables scanning rather than
+     * letting a stamp be recorded against no place.
+     */
+    @GET("staff/checkpoints")
+    suspend fun staffCheckpoints(): List<StaffCheckpoint>
+
+    /**
+     * staff — stamp one participant in at one checkpoint.
+     *
+     * 200 for a repeat as well as for a first scan; the `already_checked_in` flag on the
+     * body is what tells them apart, and both carry the name. 404 when the token or bib
+     * matches nobody, which at a checkpoint means a pass from a different event or a
+     * mistyped number.
+     */
+    @POST("staff/checkin")
+    suspend fun staffCheckin(@Body body: StaffCheckinRequest): CheckinResult
 }

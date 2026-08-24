@@ -16,6 +16,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- The staff check-in scanner, and nothing else. Asked for at the moment the scanner
+         opens rather than on launch, because a participant account never reaches that
+         screen and should never be asked. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Not required: a phone with no camera is still a perfectly good participant phone,
+         and declaring the feature as required would hide the app from those devices on
+         Play for the sake of one screen most accounts cannot open. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
         android:name=".WbwApplication"
