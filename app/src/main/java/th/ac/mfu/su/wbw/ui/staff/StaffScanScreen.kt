@@ -18,7 +18,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -37,6 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -138,6 +138,7 @@ fun StaffScanScreen(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp),
         ) {
             Row(
@@ -160,16 +161,6 @@ fun StaffScanScreen(
                     ) { torch = !torch }
                 }
             }
-
-            CheckpointPicker(
-                checkpoints = state.checkpoints,
-                selected = state.selected,
-                loading = state.loadingCheckpoints,
-                error = state.checkpointError,
-                onSelect = viewModel::select,
-            )
-
-            Spacer(Modifier.height(16.dp))
 
             Box(
                 Modifier
@@ -225,6 +216,16 @@ fun StaffScanScreen(
                 color = colors.onBackdropMuted,
                 fontSize = 13.sp,
                 modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            CheckpointPicker(
+                checkpoints = state.checkpoints,
+                selected = state.selected,
+                loading = state.loadingCheckpoints,
+                error = state.checkpointError,
+                onSelect = viewModel::select,
             )
 
             Spacer(Modifier.height(14.dp))
@@ -471,12 +472,18 @@ private fun Reticle(active: Boolean, accent: Color) {
 }
 
 /**
- * Which checkpoint the stamps are being recorded at.
+ * Which checkpoint every stamp is being recorded against.
  *
- * A row of chips rather than a dropdown. It is chosen once and then read a hundred times —
- * every scan is recorded against it — so the value belongs on screen permanently rather
- * than behind a tap, where a staff member who drifted onto the wrong one would have no way
- * of noticing.
+ * Under the lens rather than over it, and a list rather than a strip of chips, because the
+ * server does not hand every account the same set. `GET /wbw/staff/checkpoints` returns the
+ * checkpoints this *user* is assigned to in `checkpoint_staff` — an admin sees all of them,
+ * a staff account sees only its own, and both lists are already filtered to checkpoints
+ * where `requires_checkin` is true, so the restroom and welfare points never appear as
+ * somewhere to stamp anybody in.
+ *
+ * The whole list stays on screen rather than collapsing to the chosen one. Every scan for
+ * the rest of the afternoon is recorded against whatever is selected here, and a value
+ * folded away behind a tap is one a staff member cannot notice has drifted.
  */
 @Composable
 private fun CheckpointPicker(
@@ -487,43 +494,100 @@ private fun CheckpointPicker(
     onSelect: (StaffCheckpoint) -> Unit,
 ) {
     val colors = wbwColors
+
+    Text(
+        stringResource(R.string.scan_checkpoint_heading),
+        color = colors.onBackdropMuted,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+    )
+    Spacer(Modifier.height(8.dp))
+
     when {
         loading -> Text(
             stringResource(R.string.scan_loading_checkpoints),
             color = colors.onBackdropMuted,
             fontSize = 13.sp,
         )
+
         error != null -> Text(
             stringResource(R.string.scan_checkpoints_failed),
             color = colors.danger,
             fontSize = 13.sp,
         )
-        else -> Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+
+        // Not a failure, and not empty-state decoration either: the server answers with an
+        // empty list for a staff account that no admin has assigned to a checkpoint yet.
+        // Nothing on this screen can work until that is fixed, and saying so is the only
+        // useful thing to put here — the alternative is a scanner that reads codes and
+        // silently refuses to do anything with them.
+        checkpoints.isEmpty() -> Text(
+            stringResource(R.string.scan_no_checkpoints),
+            color = colors.danger,
+            fontSize = 13.sp,
+        )
+
+        else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             checkpoints.forEach { cp ->
-                val active = cp.id == selected?.id
-                Text(
-                    cp.name,
-                    color = if (active) colors.forestVoid else colors.onBackdrop,
-                    fontSize = 13.sp,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .then(
-                            if (active) {
-                                Modifier.background(colors.accent, CircleShape)
-                            } else {
-                                Modifier
-                                    .glass(RoundedCornerShape(50), fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-                                    .clip(CircleShape)
-                            },
-                        )
-                        .clickable { onSelect(cp) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                CheckpointRow(
+                    checkpoint = cp,
+                    selected = cp.id == selected?.id,
+                    onSelect = { onSelect(cp) },
                 )
             }
+        }
+    }
+}
+
+/** One checkpoint. Its number when it has one — the trail is walked in order. */
+@Composable
+private fun CheckpointRow(
+    checkpoint: StaffCheckpoint,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    val colors = wbwColors
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(
+                if (selected) {
+                    Modifier.background(colors.accent, shape)
+                } else {
+                    Modifier.glass(shape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                },
+            )
+            .clip(shape)
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The sequence, where the checkpoint has one. Service points do not, and the
+        // server filters those out of this list anyway, so a blank here is rare rather
+        // than routine — a dot keeps the names aligned when it happens.
+        Box(Modifier.width(26.dp)) {
+            Text(
+                checkpoint.sequence?.toString() ?: "·",
+                color = if (selected) colors.forestVoid.copy(alpha = 0.7f) else colors.onBackdropMuted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text(
+            checkpoint.name,
+            color = if (selected) colors.forestVoid else colors.onBackdrop,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Icon(
+                Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                tint = colors.forestVoid,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
