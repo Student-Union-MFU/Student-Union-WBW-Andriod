@@ -13,6 +13,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -36,6 +38,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -573,15 +577,52 @@ fun MapScreen(
                 jointType = JointType.ROUND,
                 zIndex = RouteCasingZ,
             )
-            Polyline(
-                points = route.points,
-                color = WbwGreenDark,
-                width = routeWidthPx,
-                startCap = RoundCap(),
-                endCap = RoundCap(),
-                jointType = JointType.ROUND,
-                zIndex = RouteZ,
-            )
+            // Walked behind, still to walk ahead — the navigation idiom, and the one thing
+            // that makes an 8km loop legible at a glance: the answer to "how much is left"
+            // is the length of the bright half, read without any number at all.
+            //
+            // The split only exists once a walk has put the participant somewhere on the
+            // line. Before that the whole route draws in the one colour, because dimming
+            // a section nobody has walked would claim progress that has not happened.
+            val walkedMetres = walk.routeMetres
+            if (walkedMetres == null) {
+                Polyline(
+                    points = route.points,
+                    color = WbwGreenDark,
+                    width = routeWidthPx,
+                    startCap = RoundCap(),
+                    endCap = RoundCap(),
+                    jointType = JointType.ROUND,
+                    zIndex = RouteZ,
+                )
+            } else {
+                val (walked, remaining) = remember(route, walkedMetres) { route.splitAt(walkedMetres) }
+                if (walked.size >= 2) {
+                    Polyline(
+                        points = walked,
+                        // Dimmed rather than hidden. The part already walked is still the
+                        // route — it is how you get back — and erasing it would leave a
+                        // line that appears to start in the middle of a hillside.
+                        color = WbwGreenDark.copy(alpha = 0.38f),
+                        width = routeWidthPx,
+                        startCap = RoundCap(),
+                        endCap = RoundCap(),
+                        jointType = JointType.ROUND,
+                        zIndex = RouteZ,
+                    )
+                }
+                if (remaining.size >= 2) {
+                    Polyline(
+                        points = remaining,
+                        color = WbwGreenDark,
+                        width = routeWidthPx,
+                        startCap = RoundCap(),
+                        endCap = RoundCap(),
+                        jointType = JointType.ROUND,
+                        zIndex = RouteZ + 1f,
+                    )
+                }
+            }
 
             // Filled for the start, a ring for the finish — the usual reading, and one that
             // survives being 20dp across with no label attached to it.
@@ -806,13 +847,23 @@ fun MapScreen(
  */
 @Composable
 private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
             .glass(HudShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
             .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
+        // How much of the loop is left, which is the one thing the three numbers below
+        // cannot say. Distance walked counts every detour; this counts the route.
+        //
+        // Absent until a fix has landed near the trail. Somebody who opened the map at home
+        // has no position on this route, and a bar reading 0% would be a claim about their
+        // progress rather than an admission that there is nothing to report yet.
+        stats.routeFraction?.let { fraction ->
+            RouteProgressBar(fraction = fraction, remaining = stats.routeRemainingMetres, complete = stats.routeComplete)
+            Spacer(Modifier.height(14.dp))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
         WalkStat(
             label = stringResource(R.string.walk_stat_distance),
             value = formatDistance(stats.distanceMetres),
@@ -829,6 +880,66 @@ private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
             value = formatPace(stats.speedMps),
             modifier = Modifier.weight(1f),
         )
+        }
+    }
+}
+
+/**
+ * The route bar: how much of the loop is behind, and how far is left.
+ *
+ * A bar rather than a percentage on its own, because "68%" of a walk somebody is in the
+ * middle of is a number they have to convert into "about two and a half kilometres" before
+ * it means anything. The bar is read at a glance and the metres are underneath it for when
+ * the glance is not enough.
+ */
+@Composable
+private fun RouteProgressBar(fraction: Float, remaining: Double?, complete: Boolean) {
+    val colors = wbwColors
+    // Eased so the fill slides rather than stepping on each fix. GPS arrives about once a
+    // second and in jumps of a few metres; without this the bar twitches for eight
+    // kilometres.
+    val shown by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "routeProgress",
+    )
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.walk_route_label).uppercase(),
+                color = colors.onBackdropMuted,
+                fontSize = 9.sp,
+                letterSpacing = 1.8.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                if (complete || remaining == null) {
+                    stringResource(R.string.walk_route_complete)
+                } else {
+                    stringResource(R.string.walk_route_left, formatDistance(remaining))
+                },
+                color = if (complete) WbwGreenDark else colors.onBackdrop,
+                fontSize = 12.sp,
+                fontWeight = if (complete) FontWeight.Medium else FontWeight.Normal,
+            )
+        }
+        Spacer(Modifier.height(7.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(50))
+                .background(colors.onBackdrop.copy(alpha = 0.16f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(shown.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(WbwGreenDark),
+            )
+        }
     }
 }
 

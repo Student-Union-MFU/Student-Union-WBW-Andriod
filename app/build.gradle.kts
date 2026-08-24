@@ -166,6 +166,11 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
+
+    // The route-progress maths in TrailRoute is pure geometry over a list of points and
+    // is the one part of the walk that cannot be checked by looking at the screen —
+    // verifying it means walking eight kilometres. It gets unit tests instead.
+    testImplementation(libs.junit)
 }
 
 /**

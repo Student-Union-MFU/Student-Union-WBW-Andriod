@@ -38,10 +38,50 @@ data class WalkStats(
     /** Smoothed ground speed, metres per second. */
     val speedMps: Float = 0f,
     val fix: WalkFix? = null,
+
+    /**
+     * How far along the event's route the walker has got, metres, or null if the route
+     * has never had a fix near it this walk.
+     *
+     * Deliberately not the same number as [distanceMetres]. That one is how far the
+     * person has walked — every wander to a food stall included — and it only ever goes
+     * up. This one is how much of *the route* is behind them, which is what "am I nearly
+     * finished" actually asks. Somebody who walks 500 m to a viewpoint and back has
+     * added a kilometre to [distanceMetres] and nothing at all to this.
+     */
+    val routeMetres: Double? = null,
+    /** The route's full length, so a consumer can turn [routeMetres] into a fraction. */
+    val routeLengthMetres: Double = 0.0,
 ) {
     /** True once a walk has produced something worth showing, running or not. */
     val hasData: Boolean get() = active || distanceMetres > 0.0 || steps != null
+
+    /** 0..1 along the route, or null while it is unknown. */
+    val routeFraction: Float?
+        get() {
+            val m = routeMetres ?: return null
+            if (routeLengthMetres <= 0.0) return null
+            return (m / routeLengthMetres).toFloat().coerceIn(0f, 1f)
+        }
+
+    /** Metres of route still to walk, or null while unknown. */
+    val routeRemainingMetres: Double?
+        get() = routeMetres?.let { (routeLengthMetres - it).coerceAtLeast(0.0) }
+
+    /**
+     * Whether the loop has been walked.
+     *
+     * Short of the full length on purpose. The finish is a place on a hillside, not a
+     * line drawn to the metre, and a GPS fix that settles fifteen metres short of the
+     * last recorded track point is somebody standing at the finish — refusing them the
+     * completion for it would be the app arguing with what they can see.
+     */
+    val routeComplete: Boolean
+        get() = routeRemainingMetres?.let { it <= RouteCompleteSlackMetres } == true
 }
+
+/** How close to the end counts as finished. See [WalkStats.routeComplete]. */
+const val RouteCompleteSlackMetres = 40.0
 
 /**
  * Process-wide handle on the current walk.
