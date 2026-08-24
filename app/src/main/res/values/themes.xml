@@ -9,7 +9,16 @@
     -->
     <style name="Theme.Wbw.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/brand_forest</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!--
+          The event wordmark itself, cream on forest.
+
+          The system masks this drawable to a circle, so the art is laid out on the
+          288dp canvas Android expects and sized to sit inside the 192dp circle that
+          survives that mask — on a phone that is close to half the screen width, which
+          is enough for the Thai subline to stay readable. It used to be the launcher
+          icon's mountain mark; the logo is the thing to show at launch.
+        -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.Wbw</item>
     </style>
 </resources>

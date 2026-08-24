@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
+    <!-- The MFU Student Union mark from LOGO-02.png, recoloured from its supplied white to
+         the app's cream so it sits with the rest of the palette on the pine tile.
+
+         The monogram only: the "STUDENT UNION / MAE FAH LUANG UNIVERSITY" wordmark below it
+         in the source file is a smudge at a 48dp launcher size, and the event wordmark gets
+         its room on the splash instead, where there is space to read it. -->
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- Android 13+ themed icons: the same silhouette, tinted by the system palette. -->
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>
