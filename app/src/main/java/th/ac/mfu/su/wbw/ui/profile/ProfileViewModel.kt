@@ -21,7 +21,7 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
 
     init {
         // The pass opens on last run's data rather than a spinner. This is the screen where
-        // that matters most: it is held up to a marshal at a checkpoint, which is exactly
+        // that matters most: it is held up to a staff member at a checkpoint, which is exactly
         // where the signal is worst and where waiting is least acceptable.
         repository.cachedMe()?.let { _state.value = UiState.Success(it) }
         load()

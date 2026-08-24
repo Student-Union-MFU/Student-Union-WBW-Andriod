@@ -103,7 +103,7 @@ val WbwMedical = Color(0xFF421717)
 // ===== The pass =====
 //
 // The participant pass's own set: one white at four strengths, a hairline, and a pane.
-// Fixed in both themes because the pass is a thing you hold up to a marshal, not a
+// Fixed in both themes because the pass is a thing you hold up to a staff member, not a
 // surface that follows an appearance setting.
 //
 // These live here rather than inside the profile screen because the pass turned out to be

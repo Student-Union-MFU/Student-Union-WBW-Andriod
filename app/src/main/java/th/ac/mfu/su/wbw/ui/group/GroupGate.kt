@@ -77,7 +77,7 @@ private class GroupGateViewModel(
  *
  * Participants get their accounts from the website, so the first time one signs in here they
  * have no group yet — and a group is not optional decoration: it is the chat channel, the
- * roster a marshal reads, and the thing the whole walk is organised around. So it is asked
+ * roster a staff member reads, and the thing the whole walk is organised around. So it is asked
  * for on the way in rather than hidden in a settings screen nobody opens.
  *
  * It is a gate and not a step in a wizard, which means it is re-entrant by construction:

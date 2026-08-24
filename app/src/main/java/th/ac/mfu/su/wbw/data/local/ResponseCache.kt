@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
  * The last good copy of what the server said, kept on disk.
  *
  * The point is the *first frame*. Every screen used to open on `UiState.Loading`, which
- * meant that opening the app — or the pass, in front of a marshal — showed a spinner while
+ * meant that opening the app — or the pass, in front of a staff member — showed a spinner while
  * a round trip completed, every single time, to be replaced by data that had not changed
  * since yesterday. With a cache the screen opens on what it knew last and quietly corrects
  * itself when the network answers. Nothing about the request changes; what changes is that
@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
  * This matters more here than in most apps, because of where the app is used. Half of this
  * event happens on a hill with one bar of signal: a fetch that takes eight seconds, or
  * never finishes, is normal rather than exceptional. A cached pass is the difference
- * between showing a marshal your bib number and showing them a spinner.
+ * between showing a staff member your bib number and showing them a spinner.
  *
  * [SharedPreferences][android.content.SharedPreferences] rather than DataStore, matching
  * [AppSettings], because the reads have to be **synchronous**: a view model seeds its state
