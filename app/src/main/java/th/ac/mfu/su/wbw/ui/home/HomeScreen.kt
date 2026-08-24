@@ -79,6 +79,10 @@ fun HomeScreen(
         viewModel.refreshConditions()
     }
 
+    // The bloom's own poll, alive only while Home is. See [HomeViewModel.watchProgress].
+    val progress by viewModel.progress.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { viewModel.watchProgress() }
+
     // The corner buttons are drawn in *every* state, not only on success.
     //
     // They used to live inside [HomeContent], which meant a failed `/wbw/me` replaced the
@@ -96,7 +100,7 @@ fun HomeScreen(
             ErrorState(message = s.message, onRetry = viewModel::load)
         }
         is UiState.Success ->
-            HomeContent(s.data, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
+            HomeContent(s.data, progress, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
     }
 }
 
@@ -166,6 +170,7 @@ private fun HomeCornerRow(
 @Composable
 private fun HomeContent(
     model: HomeUiModel,
+    progress: th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress?,
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
     onOpenSettings: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -261,7 +266,12 @@ private fun HomeContent(
         // trail is walked. It replaced the 3D plant hero, the progress line, the phase
         // track and the next-base card — all four were saying the same number in
         // different shapes, and none of them was worth looking at twice.
-        val reached = stageFor(model.checkedInBases, model.totalBases)
+        // Null until the first answer lands — cache or network. A seed is the honest
+        // drawing for "we do not know yet"; it is also what somebody with no check-ins
+        // sees, and the two being identical is fine, because both mean "nothing yet".
+        val checkedIn = progress?.count ?: 0
+        val totalBases = progress?.total ?: 0
+        val reached = stageFor(checkedIn, totalBases)
         // Tapping a stage previews it; null means "show where I actually am". Preview
         // does not persist — leaving Home and coming back returns you to your own bloom,
         // because this is a peek at what is coming, not a setting.
@@ -316,10 +326,13 @@ private fun HomeContent(
         // reminder that it is not where you are — so the screen never shows a flower it
         // cannot account for.
         Text(
-            if (preview == null) {
-                stringResource(R.string.home_checked_in, model.checkedInBases, model.totalBases)
-            } else {
-                stringResource(stageLabel(shown))
+            when {
+                preview != null -> stringResource(stageLabel(shown))
+                // Nothing has answered yet — neither the cache nor the network. "0 / 0
+                // bases" would be a made-up denominator on the one screen this change
+                // exists to stop making numbers up on, so the line waits instead.
+                progress == null -> stringResource(R.string.home_checked_in_unknown)
+                else -> stringResource(R.string.home_checked_in, checkedIn, totalBases)
             },
             color = colors.onBackdrop,
             fontSize = 15.sp,
