@@ -10,32 +10,51 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.onError
 import th.ac.mfu.su.wbw.core.network.onSuccess
 import th.ac.mfu.su.wbw.data.local.AppSettings
+import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
 import th.ac.mfu.su.wbw.data.remote.dto.ParticipantDetail
 import th.ac.mfu.su.wbw.data.repository.ConditionsRepository
 import th.ac.mfu.su.wbw.data.repository.NotificationRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
+import th.ac.mfu.su.wbw.data.repository.ProgressRepository
 import th.ac.mfu.su.wbw.data.repository.TrailConditions
 import th.ac.mfu.su.wbw.ui.appContainer
 import th.ac.mfu.su.wbw.ui.common.UiState
 
 /**
- * Home dashboard state. Loads the participant profile for the greeting and pass
- * details. Base-camp / tree progress is a visual placeholder for now — the Go
- * backend has no bases/check-in-count endpoint yet (see [HomeUiModel.bases]).
+ * Home dashboard state: the greeting from the profile, and the bloom from real check-ins.
+ *
+ * The two are separate requests on purpose. `/me` and `/me/progress` fail independently —
+ * one is who you are, the other is how far you have got — and folding them into a single
+ * [UiState] would mean a failed progress poll blanking the participant's own name, or the
+ * greeting waiting on a second round trip before it could be drawn.
  */
 class HomeViewModel(
     private val repository: ProfileRepository,
     private val notifications: NotificationRepository,
     private val conditions: ConditionsRepository,
+    private val progressRepo: ProgressRepository,
     settings: AppSettings,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<UiState<HomeUiModel>>(UiState.Loading)
     val state = _state.asStateFlow()
+
+    /**
+     * Bases collected, as the server counts them.
+     *
+     * Its own flow rather than a field on [HomeUiModel], because it arrives from a
+     * different call at a different time and updates on its own schedule while the
+     * profile does not. Null only until the first answer — cache or network — lands.
+     */
+    private val _progress = MutableStateFlow<CheckinProgress?>(null)
+    val progress: StateFlow<CheckinProgress?> = _progress.asStateFlow()
 
     /**
      * Trail weather and air quality, or null while unknown.
@@ -72,6 +91,9 @@ class HomeViewModel(
         // The first emission is last run's profile, if there is one, so Home opens on the
         // participant's own name instead of a spinner. Synchronous — see [ResponseCache].
         repository.cachedMe()?.let { _state.value = UiState.Success(HomeUiModel.from(it)) }
+        // Same bargain as the greeting: last known progress first, corrected when the
+        // network answers. See [ProgressRepository].
+        _progress.value = progressRepo.cached()
         load()
         _trailConditions.value = conditions.cached()
     }
@@ -111,6 +133,25 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * Keeps the bloom current for as long as Home is on screen.
+     *
+     * A suspending loop the screen drives from its own effect, like the chat's sync and
+     * the SOS watch, so nothing polls while nobody is looking. Sixty seconds because a
+     * check-in is somebody walking up to a table and being scanned — minute-scale, not
+     * second-scale — and the server's own note on this endpoint assumes that cadence.
+     *
+     * A failed poll leaves the previous count alone. Losing signal is not the same as
+     * losing your petals, and a bloom that shrank every time a request timed out would be
+     * the most alarming possible way to say "no network".
+     */
+    suspend fun watchProgress() {
+        while (currentCoroutineContext().isActive) {
+            progressRepo.progress().onSuccess { _progress.value = it }
+            delay(ProgressPollMillis)
+        }
+    }
+
     fun refreshNotificationMark() {
         // Seeded from the cache first so the bell is already right in the opening frame —
         // otherwise an unread announcement takes a round trip to appear, and the dot pops
@@ -133,12 +174,15 @@ class HomeViewModel(
         items.filter { it.readAt == null }.maxOfOrNull { it.id } ?: 0L
 
     companion object {
+        private const val ProgressPollMillis = 60_000L
+
         val Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
                     appContainer.profileRepository,
                     appContainer.notificationRepository,
                     appContainer.conditionsRepository,
+                    appContainer.progressRepository,
                     appContainer.appSettings,
                 )
             }
@@ -146,27 +190,25 @@ class HomeViewModel(
     }
 }
 
+/**
+ * Who Home is greeting.
+ *
+ * Nothing about the bloom lives here any more. It used to carry `checkedInBases`,
+ * `totalBases` and a "next base" that were all invented in this file — three bases if the
+ * profile said you had checked in anywhere at all, out of a hard-coded eight, next stop
+ * "Pine Grove, 480 m" for everybody regardless of where they were standing. Those numbers
+ * are now `/wbw/me/progress`, which counts the real rows and reads `total` from the
+ * checkpoint table, so it stays right when an admin adds a base on the day.
+ */
 data class HomeUiModel(
     val displayName: String,
-    val checkedInBases: Int,
-    val totalBases: Int,
-    val nextBaseName: String,
-    val nextBaseDistance: String,
 ) {
-    val phase: GrowthPhase get() = GrowthPhase.forProgress(checkedInBases, totalBases)
-    val progress: Float get() = if (totalBases == 0) 0f else checkedInBases.toFloat() / totalBases
-
     companion object {
         fun from(p: ParticipantDetail): HomeUiModel = HomeUiModel(
             // The whole name, not just the given name. `fullName` already falls back to
             // the student id and then the uuid when the backend has neither half, so the
             // greeting still addresses *someone* on a half-filled profile.
             displayName = p.fullName,
-            // TODO: replace with real base check-in counts once the backend exposes them.
-            checkedInBases = if (p.checkedIn) 3 else 0,
-            totalBases = 8,
-            nextBaseName = "Pine Grove",
-            nextBaseDistance = "480 m",
         )
     }
 }

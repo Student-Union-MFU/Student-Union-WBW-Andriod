@@ -87,6 +87,7 @@
     <string name="aqi_unhealthy">มีผลต่อสุขภาพ</string>
     <string name="aqi_very_unhealthy">อันตราย</string>
     <string name="aqi_hazardous">อันตรายมาก</string>
+    <string name="home_checked_in_unknown">กำลังนับฐานของคุณ…</string>
     <string name="home_checked_in">เช็คอินแล้ว %1$d / %2$d ฐาน</string>
     <string name="home_phase_hint">อีก %1$d ฐานเพื่อไปถึงระดับ “%2$s”</string>
     <string name="home_next_base">ฐานถัดไป</string>

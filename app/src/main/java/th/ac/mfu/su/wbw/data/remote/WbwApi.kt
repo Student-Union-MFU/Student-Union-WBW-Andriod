@@ -14,6 +14,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMembersResponse
 import th.ac.mfu.su.wbw.data.remote.dto.JoinGroupResponse
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SendMessageRequest
+import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
@@ -119,6 +120,14 @@ interface WbwApi {
         @Path("groupId") groupId: Int,
         @Body body: SendMessageRequest,
     ): ChatMessage
+
+    /**
+     * bearer — this participant's own check-in progress, and what the Home bloom is built
+     * from. Polled while Home is open; cheap, and the server attaches the event's central
+     * emergency number to every answer so the device keeps a fresh copy of it.
+     */
+    @GET("me/progress")
+    suspend fun myProgress(): CheckinProgress
 
     // ===== Emergency =====
 
