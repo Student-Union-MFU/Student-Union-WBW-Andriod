@@ -20,13 +20,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -275,14 +273,14 @@ fun MapScreen(
     /** The base whose card is open, or null. Tapping a pin sets it; the card clears it. */
     var selectedCheckpoint by remember { mutableStateOf<ParticipantCheckpoint?>(null) }
 
-    // The two bottom-left heights, measured rather than assumed.
+    // The card's height, measured rather than assumed.
     //
-    // The card used to sit a fixed 92dp off the bottom, and that number is really a guess
-    // about how tall the walk button is — a guess this file is not entitled to make, since
-    // the button's height belongs to the type system and grows with the display font size.
-    // Measuring both means the card lands on the button at every font scale, and that the
-    // SOS knows exactly how far it has to travel to clear the card rather than approximately.
-    var walkButtonHeight by remember { mutableStateOf(0.dp) }
+    // The card used to be placed by a fixed 92dp off the bottom edge, which was really a
+    // guess at how tall the walk button is — a guess this file is not entitled to make,
+    // since the button's height belongs to the type system and grows with the display font
+    // size. Nothing is placed by arithmetic now: the card is the last thing in the column
+    // and the column stacks. This is the one height still needed, and only because the SOS
+    // lives in the other corner, where no amount of stacking can tell it what happened.
     var checkpointCardHeight by remember { mutableStateOf(0.dp) }
     // BitmapDescriptorFactory throws until the Maps SDK has been initialised, and building
     // a marker icon at composition runs before the GoogleMap below does that. Initialise
@@ -788,14 +786,27 @@ fun MapScreen(
         //
         // Recentre sits directly above the walk button because it is the one used mid-walk,
         // so it stays closest to the thumb while 3D moves further up.
+        //
+        // The checkpoint card is *in* this column rather than floating above it. Placed
+        // over the column it covered the recentre and 3D buttons, which is the same bug as
+        // covering the walk button and was the more visible half of it — those two are
+        // round, so the card cut them in half rather than hiding them outright. A card that
+        // is a member of the stack cannot land on the stack: the buttons above it are moved
+        // up by its arrival, which is what "above the walk button" has to mean when there
+        // are three things in the corner and not one.
+        //
+        // The gap is per-child padding rather than the column's own `spacedBy`, because
+        // `spacedBy` pays out a gap for every child it lays out and [AnimatedVisibility]
+        // is a child even with nothing in it — the corner would carry a 12dp hole at all
+        // times, held open for a card that is usually not there.
         Column(
             Modifier
                 .align(Alignment.BottomStart)
                 .padding(
                     start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
+                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
                     bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
                 ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.Start,
         ) {
             // Hidden mid-walk. A walk is 3D by definition and drives the camera itself, so
@@ -807,6 +818,7 @@ fun MapScreen(
                     description = stringResource(if (is3d) R.string.map_mode_2d else R.string.map_mode_3d),
                     tint = if (is3d) WbwGreenDark else colors.onBackdrop,
                     onClick = { is3d = !is3d },
+                    modifier = Modifier.padding(bottom = ControlsGap),
                 )
             }
             GlassIcon(
@@ -814,24 +826,66 @@ fun MapScreen(
                 description = stringResource(R.string.map_recenter),
                 tint = colors.onBackdrop,
                 onClick = { if (hasLocation) flyToMe() else requestLocation() },
+                modifier = Modifier.padding(bottom = ControlsGap),
             )
 
             // The one action on this screen, so it carries a label instead of a glyph.
-            WalkButton(
-                active = walk.active,
-                onClick = { toggleWalk() },
-                modifier = Modifier.onSizeChanged {
-                    walkButtonHeight = with(density) { it.height.toDp() }
-                },
-            )
+            WalkButton(active = walk.active, onClick = { toggleWalk() })
+
+            // The tapped base's card, underneath everything else in the corner.
+            //
+            // Last in the column rather than tucked in above the walk button, so the corner
+            // rises off it as one piece — 3D, recentre and the walk button keep the spacing
+            // and the order they have when no card is open, and the SOS stays level with
+            // the walk button the way it is meant to. Inserted higher up, the card split
+            // the stack in two and left the walk button behind at the bottom while the two
+            // round controls went up, which turned one group of controls into two.
+            //
+            // It expands rather than sliding in: everything above it travels the card's
+            // height to make room, and that has to be seen to be a push. Sliding the card
+            // in over its final height would claim the space in a single frame and the
+            // stack would jump while the card was still on its way.
+            AnimatedVisibility(
+                visible = selectedCheckpoint != null,
+                enter = fadeIn(tween(180)) + expandVertically(tween(220)),
+                exit = fadeOut(tween(140)) + shrinkVertically(tween(180)),
+            ) {
+                // Held through the exit animation — reading the state directly would empty
+                // the card the instant it started leaving.
+                val shown = remember(selectedCheckpoint) { selectedCheckpoint }
+                shown?.let { cp ->
+                    CheckpointCard(
+                        checkpoint = cp,
+                        thai = thai,
+                        // How far along the route it sits, and how far that is from here.
+                        // Absent when not walking: "600 m away" from a position the app
+                        // does not have would be a number made up to fill a line.
+                        metresAway = alongRoute.firstOrNull { it.first.id == cp.id }?.second
+                            ?.let { at -> walk.routeMetres?.let { now -> at - now } },
+                        onDismiss = { selectedCheckpoint = null },
+                        // The gap belongs to the card, not to the button above it: a gap
+                        // hung off the button would be paid whether or not a card is there.
+                        //
+                        // Measured inside that padding, and on the content — which holds
+                        // its full height while the container expands around it — so the
+                        // SOS is told where the card is going, not where it has got to.
+                        modifier = Modifier
+                            .padding(top = ControlsGap)
+                            .onSizeChanged {
+                                checkpointCardHeight = with(density) { it.height.toDp() }
+                            },
+                    )
+                }
+            }
         }
 
-        // How far the SOS has to rise to sit clear above the checkpoint card: the walk
-        // button it starts level with, the card stacked on that, and a gap at each joint.
-        // Zero with no card up, so its resting place is exactly where it was.
+        // How far the SOS rises: exactly what the card takes at the bottom of the other
+        // corner — its height and the gap above it — so it climbs the same distance the
+        // walk button does and the two stay on one line, which is the whole reason they sit
+        // at the same height. Zero with no card up, so its resting place is unchanged.
         val sosLift by animateDpAsState(
             targetValue =
-                if (selectedCheckpoint != null) walkButtonHeight + checkpointCardHeight + ControlsGap * 2
+                if (selectedCheckpoint != null) checkpointCardHeight + ControlsGap
                 else 0.dp,
             // Longer than the card's own 220ms entrance and on the same easing, so the
             // button is still travelling as the card finishes arriving. Matching the
@@ -872,53 +926,6 @@ fun MapScreen(
                 ),
         ) {
             SosButton(onFire = { sosViewModel?.raise(context) })
-        }
-
-        // The tapped base's card, fixed to the screen.
-        //
-        // Bottom-left, standing directly on the walk button rather than at a fixed height
-        // above the bottom edge. The fixed height was a second copy of the walk button's
-        // measurements kept in a constant, and the two drifted apart the moment the display
-        // font grew — which is what put the card through the controls underneath it. It is
-        // told where the button's top edge actually is now, so it cannot clip it.
-        //
-        // It arrives and leaves rather than cutting in — the map underneath does not move,
-        // so without the transition the card reads as a redraw rather than as an answer to
-        // the tap.
-        AnimatedVisibility(
-            visible = selectedCheckpoint != null,
-            enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 3 },
-            exit = fadeOut(tween(140)) + slideOutVertically(tween(180)) { it / 3 },
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(
-                    start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
-                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
-                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom +
-                        walkButtonHeight + ControlsGap,
-                ),
-        ) {
-            // Held through the exit animation — reading the state directly would empty the
-            // card the instant it started leaving.
-            val shown = remember(selectedCheckpoint) { selectedCheckpoint }
-            shown?.let { cp ->
-                CheckpointCard(
-                    checkpoint = cp,
-                    thai = thai,
-                    // How far along the route it sits, and how far that is from here.
-                    // Absent when not walking: "600 m away" from a position the app does
-                    // not have would be a number made up to fill a line.
-                    metresAway = alongRoute.firstOrNull { it.first.id == cp.id }?.second
-                        ?.let { at -> walk.routeMetres?.let { now -> at - now } },
-                    onDismiss = { selectedCheckpoint = null },
-                    // Read on the way in and held afterwards: the card keeps its size
-                    // through the exit animation, so the SOS descends the same distance it
-                    // climbed instead of snapping down from a height it no longer knows.
-                    modifier = Modifier.onSizeChanged {
-                        checkpointCardHeight = with(density) { it.height.toDp() }
-                    },
-                )
-            }
         }
 
         // The emergency, over everything.
@@ -1314,9 +1321,10 @@ private fun GlassIcon(
     description: String,
     tint: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        Modifier
+        modifier
             .size(52.dp)
             .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
             .tapNoRipple(onClick),
