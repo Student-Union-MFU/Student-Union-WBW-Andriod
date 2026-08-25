@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
  * Records a walk: distance, steps and speed, for as long as it is running.
  *
  * A foreground service rather than screen-scoped state because of how this app is used —
- * an 8.4km hike is walked with the phone in a pocket and the screen off, and anything tied
+ * a 5km hike is walked with the phone in a pocket and the screen off, and anything tied
  * to the composable would stop counting the moment that happened, then show a total that
  * silently omitted most of the walk. A wrong number presented confidently is worse than no
  * number, so the tracking outlives the UI or it does not exist.

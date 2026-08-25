@@ -109,7 +109,7 @@ class ConditionsRepository(
         /**
          * The centre of the baked trail (`res/raw/route_wbw.json`), which is MFU, Chiang
          * Rai. Written out rather than derived from `TrailRoute` at runtime so that this
-         * layer does not need a `Context` — and the route is 8.3km end to end, well inside
+         * layer does not need a `Context` — and the route is 5.1km end to end, well inside
          * one weather model cell, so any point on it would give the same answer.
          */
         private const val TrailLatitude = 20.0466
