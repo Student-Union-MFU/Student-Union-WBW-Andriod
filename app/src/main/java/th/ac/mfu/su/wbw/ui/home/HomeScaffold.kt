@@ -43,13 +43,21 @@ import th.ac.mfu.su.wbw.ui.staff.StaffScaffold
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 
 // Left→right order of destinations, so tab changes slide toward the tapped tab.
-private fun routeOrder(route: String?): Int = when (route) {
-    "home" -> 0
-    "map" -> 1
-    "chat" -> 2
-    "notifications" -> 3
-    "profile" -> 4
-    "settings" -> 5
+private fun routeOrder(route: String?): Int = when {
+    route == null -> 0
+    // Parameterised routes arrive here as their *pattern* — "groupInfo/{groupId}/{groupNumber}"
+    // — so they have to be matched by prefix. Missing this was the whole bug: the group page
+    // fell through to `else -> 0`, which put it *below* chat, so opening it slid in from the
+    // left like a step backwards, and closing it slid the same way again. Forward and back
+    // animating identically is what made it read as looping rather than as going somewhere
+    // and coming back.
+    route.startsWith("groupInfo") -> 6
+    route == "home" -> 0
+    route == "map" -> 1
+    route == "chat" -> 2
+    route == "notifications" -> 3
+    route == "profile" -> 4
+    route == "settings" -> 5
     else -> 0
 }
 
