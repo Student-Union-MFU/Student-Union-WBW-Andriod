@@ -189,6 +189,9 @@
     <!-- Walk tracking -->
     <string name="walk_start">Start walking</string>
     <string name="walk_stop">Stop</string>
+    <string name="map_checkpoint_away">%1$s ahead</string>
+    <string name="action_close">Close</string>
+    <string name="walk_next_base">Next</string>
     <string name="walk_route_label">Route</string>
     <string name="walk_route_left">%1$s left</string>
     <string name="walk_route_complete">Route complete</string>

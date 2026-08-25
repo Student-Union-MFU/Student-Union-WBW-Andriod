@@ -19,6 +19,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -50,6 +51,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -70,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -77,6 +80,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,6 +111,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.R
+import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.WbwForestVoid
@@ -264,6 +269,9 @@ fun MapScreen(
     val thai = LocalConfiguration.current.locales[0].language == "th"
     val checkpointsViewModel: MapCheckpointsViewModel = viewModel(factory = MapCheckpointsViewModel.Factory)
     val checkpoints by checkpointsViewModel.checkpoints.collectAsStateWithLifecycle()
+
+    /** The base whose card is open, or null. Tapping a pin sets it; the card clears it. */
+    var selectedCheckpoint by remember { mutableStateOf<ParticipantCheckpoint?>(null) }
     // BitmapDescriptorFactory throws until the Maps SDK has been initialised, and building
     // a marker icon at composition runs before the GoogleMap below does that. Initialise
     // explicitly first, then the icons are safe to make.
@@ -650,14 +658,19 @@ fun MapScreen(
                 val seq = cp.sequence
                 Marker(
                     state = rememberMarkerState(key = "cp-${cp.id}", position = LatLng(lat, lng)),
-                    title = cp.displayName(thai),
-                    // The activity, so a tap answers "what happens here" rather than only
-                    // naming the place. Null for a base with none, and the info window
-                    // then shows the title alone.
-                    snippet = cp.displayActivity(thai),
                     icon = seq?.let { icons.bases[it] } ?: icons.start,
                     anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
                     zIndex = CheckpointZ,
+                    // Returning true consumes the tap, which is what suppresses the Maps
+                    // SDK's own info window.
+                    //
+                    // That window is a white callout tethered above the pin: it follows the
+                    // map, so reading it means the thing you tapped has moved under your
+                    // thumb, it is drawn by Google rather than in this app's glass, and on
+                    // a pin near the top of the screen it opens off-screen. A card fixed to
+                    // the screen stays where the eye already is and can hold more than two
+                    // lines of text.
+                    onClick = { selectedCheckpoint = cp; true },
                 )
             }
 
@@ -680,6 +693,31 @@ fun MapScreen(
         }
 
         val layoutDir = LocalLayoutDirection.current
+
+        // Where each base sits along the route, in metres from the start.
+        //
+        // Computed once per route/checkpoint set rather than per frame: it is a projection
+        // of every pin onto a 504-point line, and the map recomposes on every camera move.
+        // A base further from the trail than the route's own tolerance has no place on it
+        // and is left out rather than given a wrong one.
+        val alongRoute = remember(route, checkpoints) {
+            checkpoints.mapNotNull { cp ->
+                val la = cp.lat
+                val ln = cp.lng
+                if (la == null || ln == null || !cp.requiresCheckin) null
+                else route.progressFrom(-1.0, la, ln)?.let { cp to it }
+            }.sortedBy { it.second }
+        }
+
+        // The next base ahead, while walking.
+        //
+        // "Ahead" is decided by distance along the route rather than by straight-line
+        // proximity, which is the difference between the base you are walking towards and
+        // the one you passed ten minutes ago that happens to be closer as the crow flies.
+        val nextBase = remember(alongRoute, walk.routeMetres) {
+            val at = walk.routeMetres
+            if (at == null) null else alongRoute.firstOrNull { it.second > at + NextBaseReachedMetres }
+        }
 
         // Top: title + search, with the walk's readout hanging under them. A column rather
         // than a second free-floating overlay, so the HUD's position is derived from the row
@@ -722,7 +760,9 @@ fun MapScreen(
             // total to the same tap that ended the walk — the next Start clears it.
             if (walk.hasData) {
                 Spacer(Modifier.height(12.dp))
-                WalkHud(walk)
+                WalkHud(walk, nextBase = nextBase?.let { (cp, at) ->
+                    cp.displayName(thai) to (at - (walk.routeMetres ?: 0.0)).coerceAtLeast(0.0)
+                })
             }
         }
 
@@ -792,6 +832,41 @@ fun MapScreen(
                 ),
         ) {
             SosButton(onFire = { sosViewModel?.raise(context) })
+        }
+
+        // The tapped base's card, fixed to the screen.
+        //
+        // Bottom-anchored and clear of the controls on both sides, so it never covers the
+        // walk button or the SOS. It arrives and leaves rather than cutting in — the map
+        // underneath does not move, so without the transition the card reads as a redraw
+        // rather than as an answer to the tap.
+        AnimatedVisibility(
+            visible = selectedCheckpoint != null,
+            enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 3 },
+            exit = fadeOut(tween(140)) + slideOutVertically(tween(180)) { it / 3 },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(
+                    start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
+                    end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
+                    bottom = contentPadding.calculateBottomPadding() + CheckpointCardBottom,
+                ),
+        ) {
+            // Held through the exit animation — reading the state directly would empty the
+            // card the instant it started leaving.
+            val shown = remember(selectedCheckpoint) { selectedCheckpoint }
+            shown?.let { cp ->
+                CheckpointCard(
+                    checkpoint = cp,
+                    thai = thai,
+                    // How far along the route it sits, and how far that is from here.
+                    // Absent when not walking: "600 m away" from a position the app does
+                    // not have would be a number made up to fill a line.
+                    metresAway = alongRoute.firstOrNull { it.first.id == cp.id }?.second
+                        ?.let { at -> walk.routeMetres?.let { now -> at - now } },
+                    onDismiss = { selectedCheckpoint = null },
+                )
+            }
         }
 
         // The emergency, over everything.
@@ -883,7 +958,12 @@ fun MapScreen(
  * against a single ink, the way the rest of the app does it — no highlight colour.
  */
 @Composable
-private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
+private fun WalkHud(
+    stats: WalkStats,
+    /** The base being walked towards and how far off it is, or null when not walking. */
+    nextBase: Pair<String, Double>? = null,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier
             .fillMaxWidth()
@@ -899,6 +979,40 @@ private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
         stats.routeFraction?.let { fraction ->
             RouteProgressBar(fraction = fraction, remaining = stats.routeRemainingMetres, complete = stats.routeComplete)
             Spacer(Modifier.height(14.dp))
+        }
+
+        // What you are walking towards.
+        //
+        // The bar above says how much of the whole route is left, which is the wrong scale
+        // for the next twenty minutes — five kilometres remaining is not an answer to "how
+        // far to the next base". Absent once the last base is behind: there is nothing
+        // ahead but the finish, and the bar is already reporting that.
+        nextBase?.let { (name, metres) ->
+            Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.walk_next_base).uppercase(),
+                    color = wbwColors.onBackdropMuted,
+                    fontSize = 9.sp,
+                    letterSpacing = 1.8.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    name,
+                    color = wbwColors.onBackdrop,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    formatDistance(metres),
+                    color = wbwColors.onBackdrop,
+                    fontSize = 13.sp,
+                )
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
         WalkStat(
@@ -917,6 +1031,97 @@ private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
             value = formatPace(stats.speedMps),
             modifier = Modifier.weight(1f),
         )
+        }
+    }
+}
+
+/**
+ * One base, as a card on the screen rather than a callout on the map.
+ *
+ * Carries what somebody tapping a pin is asking: which base this is, what happens there,
+ * and — while walking — how far off it is. Not a check-in: a participant is checked in by
+ * a staff member scanning their pass, and a button here would promise something this
+ * screen cannot do.
+ */
+@Composable
+private fun CheckpointCard(
+    checkpoint: ParticipantCheckpoint,
+    thai: Boolean,
+    metresAway: Double?,
+    onDismiss: () -> Unit,
+) {
+    val colors = wbwColors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .glass(HudShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+            .padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The number, in the same disc the pin uses, so the card and the marker that
+        // opened it are recognisably the same thing.
+        checkpoint.sequence?.let { seq ->
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(WbwGreenDark),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "$seq",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+        }
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                checkpoint.displayName(thai),
+                color = colors.onBackdrop,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            checkpoint.displayActivity(thai)?.let {
+                Text(
+                    it,
+                    color = colors.onBackdropMuted,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            // Behind you rather than ahead reads as a negative distance otherwise.
+            metresAway?.takeIf { it > 0 }?.let {
+                Text(
+                    stringResource(R.string.map_checkpoint_away, formatDistance(it)),
+                    color = colors.onBackdrop,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+
+        Spacer(Modifier.width(6.dp))
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .tapNoRipple(onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.action_close),
+                tint = colors.onBackdropMuted,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -1255,6 +1460,17 @@ private val HudShape = RoundedCornerShape(22.dp)
  * floating nav bar by 16dp, so this only has to keep the button from crowding it.
  * Both bottom rows use the same value so they stay on one line.
  */
+/**
+ * How far past a base counts as having reached it, for "next base" purposes.
+ *
+ * Without it the base you are standing at stays the next one until you have walked clear
+ * of it, which reads as the trail refusing to advance.
+ */
+private const val NextBaseReachedMetres = 25.0
+
+/** Clear of the walk button and the SOS, which both sit at [ControlsBottom]. */
+private val CheckpointCardBottom = 92.dp
+
 private val ControlsBottom = 8.dp
 
 /**
