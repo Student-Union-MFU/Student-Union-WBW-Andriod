@@ -131,6 +131,8 @@
     <string name="staff_case_phone">Phone %1$s</string>
     <string name="staff_case_no_maps">No maps app to open the location in.</string>
     <string name="staff_case_stage_one">Only your group and admins can see this yet</string>
+    <string name="staff_case_close">Close this case</string>
+    <string name="staff_case_close_confirm">Close it</string>
     <string name="staff_case_report_title">What did you find?</string>
     <string name="staff_case_false_alarm">False alarm</string>
     <string name="staff_case_minor">Minor</string>

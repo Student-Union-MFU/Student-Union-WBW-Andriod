@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -229,12 +230,13 @@ fun StaffHomeScreen(
                     // rather than absent — the card decides what to draw from its own
                     // state, and passing it live callbacks would be a lie about that.
                     if (showClosed) {
-                        CaseCard(case = case, onAck = {}, onReport = {})
+                        CaseCard(case = case, onAck = {}, onReport = {}, onClose = {})
                     } else {
                         CaseCard(
                             case = case,
                             onAck = { viewModel.ack(case.id) },
                             onReport = { viewModel.report(case.id, it) },
+                            onClose = { viewModel.resolve(case.id) },
                         )
                     }
                 }
@@ -266,9 +268,17 @@ fun StaffHomeScreen(
  * still wants people, amber means it does not.
  */
 @Composable
-private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcome) -> Unit) {
+private fun CaseCard(
+    case: SosStaffCase,
+    onAck: () -> Unit,
+    onReport: (SosOutcome) -> Unit,
+    onClose: () -> Unit,
+) {
     val colors = wbwColors
     val context = LocalContext.current
+    // Reset by the case id, so the confirm does not survive this card being recycled onto
+    // a different emergency as the list reorders.
+    var confirmingClose by remember(case.id) { mutableStateOf(false) }
 
     // How serious this is, as one colour, decided once.
     //
@@ -540,6 +550,39 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                         onReport(SosOutcome.Urgent)
                     }
                 }
+
+                // "It is over."
+                //
+                // A separate act from the verdict above, and the only end for a case
+                // reported major or urgent — those keep the case open on purpose, so
+                // without this the console would carry them for the rest of the event.
+                // Closing it as a false alarm to be rid of it would file a real emergency
+                // as one that never happened.
+                //
+                // Two taps. This is the button that takes a live emergency off every
+                // responder's screen, and a single mis-tap on a phone being carried is not
+                // a thing it should be able to do.
+                Spacer(Modifier.height(10.dp))
+                if (confirmingClose) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CaseTextButton(stringResource(R.string.action_cancel), Modifier.weight(1f)) {
+                            confirmingClose = false
+                        }
+                        CaseTextButton(
+                            stringResource(R.string.staff_case_close_confirm),
+                            Modifier.weight(1f),
+                            strong = true,
+                        ) {
+                            confirmingClose = false
+                            onClose()
+                        }
+                    }
+                } else {
+                    CaseTextButton(
+                        stringResource(R.string.staff_case_close),
+                        Modifier.fillMaxWidth(),
+                    ) { confirmingClose = true }
+                }
             }
             else -> {
                 Spacer(Modifier.height(14.dp))
@@ -638,6 +681,41 @@ private fun PanelTab(
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,
+        )
+    }
+}
+
+/**
+ * A quiet control on a card whose loud one is the verdict row.
+ *
+ * Colourless like everything else here except the alert, the blood group and the verdicts
+ * — closing a case is an administrative act, not an alarm, and it should not compete with
+ * the line saying somebody needs help.
+ */
+@Composable
+private fun CaseTextButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    strong: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val colors = wbwColors
+    val ink = colors.onBackdrop
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier
+            .clip(shape)
+            .background(if (strong) ink.copy(alpha = 0.9f) else ink.copy(alpha = 0.08f))
+            .border(1.dp, ink.copy(alpha = if (strong) 0.9f else 0.24f), shape)
+            .clickableNoRipple(onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (strong) colors.forestVoid else ink,
+            fontSize = 12.sp,
+            fontWeight = if (strong) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }
