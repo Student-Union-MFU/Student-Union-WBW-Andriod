@@ -132,7 +132,7 @@ import kotlin.math.roundToInt
  *
  * **Maps SDK only — no Places.** This screen once had an autocomplete search box and a
  * scatter of markers for whatever Google POIs sat near the walker. Both are gone. The
- * search answered a question nobody on a fixed 8.4km loop was asking, and the nearby
+ * search answered a question nobody on a fixed 5km route was asking, and the nearby
  * markers came from `findCurrentPlace`, one of the priciest Places calls, fired
  * automatically on every visit to this tab rather than on a tap — a per-participant cost
  * for decoration. Everything that matters here (the route, its endpoints, "where am I")
@@ -454,11 +454,11 @@ fun MapScreen(
     // gave a flat map seen at an angle, which is exactly what it looked like.
     //
     // This used to force zoom 18 unconditionally and that was removed for a good reason:
-    // once the map opened fitted to the whole 8.4km loop, tapping 3D threw the route off
+    // once the map opened fitted to the whole 5km route, tapping 3D threw the route off
     // screen and left an empty field. The fix is not to drop the zoom but to make it
     // reversible — remember where the user was, go in far enough to see something, and
     // restore it when they leave 3D. Losing the overview *while in 3D* is not a bug; you
-    // cannot see extruded buildings from 8km up, so the button either goes in or does
+    // cannot see extruded buildings from 5km up, so the button either goes in or does
     // nothing.
     val tiltSettled = remember { mutableStateOf(false) }
     var zoomBefore3d by remember { mutableStateOf<Float?>(null) }
@@ -578,7 +578,7 @@ fun MapScreen(
                 zIndex = RouteCasingZ,
             )
             // Walked behind, still to walk ahead — the navigation idiom, and the one thing
-            // that makes an 8km loop legible at a glance: the answer to "how much is left"
+            // that makes a 5km walk legible at a glance: the answer to "how much is left"
             // is the length of the bright half, read without any number at all.
             //
             // The split only exists once a walk has put the participant somewhere on the
@@ -681,7 +681,7 @@ fun MapScreen(
             // the screen, and distance-and-pace is not. It sits at the top rather than over
             // the button it replaced because this is something to *read*, and the top of
             // the screen is where this app puts things to read.
-            // Stays up after Stop. Somebody who has just walked the loop should not lose the
+            // Stays up after Stop. Somebody who has just walked the route should not lose the
             // total to the same tap that ended the walk — the next Start clears it.
             if (walk.hasData) {
                 Spacer(Modifier.height(12.dp))
@@ -853,7 +853,7 @@ private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
             .glass(HudShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
             .padding(horizontal = 18.dp, vertical = 14.dp),
     ) {
-        // How much of the loop is left, which is the one thing the three numbers below
+        // How much of the route is left, which is the one thing the three numbers below
         // cannot say. Distance walked counts every detour; this counts the route.
         //
         // Absent until a fix has landed near the trail. Somebody who opened the map at home
@@ -885,7 +885,7 @@ private fun WalkHud(stats: WalkStats, modifier: Modifier = Modifier) {
 }
 
 /**
- * The route bar: how much of the loop is behind, and how far is left.
+ * The route bar: how much of the route is behind, and how far is left.
  *
  * A bar rather than a percentage on its own, because "68%" of a walk somebody is in the
  * middle of is a number they have to convert into "about two and a half kilometres" before

@@ -95,13 +95,17 @@ class TrailRoute(
      * than [OffRouteMetres] — which the caller should treat as "keep the last known
      * progress", not as "you are back at the beginning".
      *
-     * **Why this takes the previous value.** The trail is a loop: it finishes within a few
-     * hundred metres of where it starts, and the two ends run alongside each other for
-     * part of that. A plain nearest-point search is therefore ambiguous exactly where it
-     * matters most — a walker on the final approach is genuinely near both the 8 km mark
-     * and the 0 km mark, and picking the wrong one resets a finished walk to nothing.
-     * Searching forward from where they already were resolves it the way a person would:
-     * you got here by walking, so you are near where you were.
+     * **Why this takes the previous value.** The trail doubles back near itself: around
+     * the 4.2 km mark it passes within about 120 m of the 4.6 km mark, which is inside the
+     * error a phone under tree cover can produce. A plain nearest-point search is
+     * therefore ambiguous exactly where being wrong costs the most — one bad fix and a
+     * walker is told they have 900 m still to do that they have already done, or the
+     * reverse. Searching forward from where they already were resolves it the way a person
+     * would: you got here by walking, so you are near where you were.
+     *
+     * The same reasoning covered the old route, which was a loop finishing where it
+     * started; this one runs point to point. The window is what makes the algorithm
+     * indifferent to which shape the trail happens to be.
      *
      * The window is asymmetric. [ForwardWindowMetres] ahead, because a phone that lost
      * signal in a dip can legitimately reappear a few hundred metres up the trail, and
@@ -109,8 +113,8 @@ class TrailRoute(
      * rare — a wide backward window would let noise drag a walk's progress down again.
      *
      * Pass a negative [fromMetres] for the first fix of a walk, which searches the whole
-     * route: there is no previous position to be near, and somebody may well start
-     * halfway round.
+     * route: there is no previous position to be near, and somebody may well join part
+     * way along.
      */
     fun progressFrom(fromMetres: Double, latitude: Double, longitude: Double): Double? {
         if (points.size < 2) return null
