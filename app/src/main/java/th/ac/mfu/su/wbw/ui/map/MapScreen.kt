@@ -3,6 +3,7 @@ package th.ac.mfu.su.wbw.ui.map
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -321,12 +322,28 @@ fun MapScreen(
         }
     }
 
+    // Where the participant last was.
+    //
+    // This screen used to fetch a position, use it to move the camera and drop it on the
+    // floor, because moving the camera was the only thing it had ever been asked to do
+    // with one. The checkpoint card asks a second question — how far is that base from
+    // me — so the answer is kept now instead of being thrown away.
+    var lastFix by remember { mutableStateOf<LatLng?>(null) }
+
     @SuppressLint("MissingPermission")
-    fun flyToMe() {
+    fun readMyPosition(then: (LatLng) -> Unit = {}) {
         if (!granted()) return
         LocationServices.getFusedLocationProviderClient(context).lastLocation
-            .addOnSuccessListener { loc -> if (loc != null) flyTo(LatLng(loc.latitude, loc.longitude), MeZoom) }
+            .addOnSuccessListener { loc ->
+                if (loc != null) {
+                    val at = LatLng(loc.latitude, loc.longitude)
+                    lastFix = at
+                    then(at)
+                }
+            }
     }
+
+    fun flyToMe() = readMyPosition { flyTo(it, MeZoom) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -347,6 +364,12 @@ fun MapScreen(
     // ===== The walk =====
 
     val walk by WalkTracker.stats.collectAsStateWithLifecycle()
+
+    // Two sources, because neither covers this screen on its own: the walk tracker's fix
+    // is live but only exists during a walk, and the fused provider's last known position
+    // is all there is before one starts. The walk's fix wins whenever there is one — it is
+    // seconds old against a cached position that could be from yesterday's commute.
+    val myPosition: LatLng? = walk.fix?.let { LatLng(it.latitude, it.longitude) } ?: lastFix
 
     // ===== The emergency =====
     //
@@ -469,6 +492,14 @@ fun MapScreen(
     // interruptions later.
     LaunchedEffect(Unit) {
         if (!hasLocation) requestLocation()
+    }
+
+    // Read the position once permission is held, without moving the camera. The camera on
+    // open belongs to the route (see above) — this is only so the first base tapped can
+    // say how far away it is, rather than the card having to stay silent until the
+    // recentre button has been pressed for an unrelated reason.
+    LaunchedEffect(hasLocation) {
+        if (hasLocation) readMyPosition()
     }
 
     // 3D is the native camera tilting, so it belongs to the camera, not to a separate view.
@@ -847,8 +878,10 @@ fun MapScreen(
             // stack would jump while the card was still on its way.
             AnimatedVisibility(
                 visible = selectedCheckpoint != null,
-                enter = fadeIn(tween(180)) + expandVertically(tween(220)),
-                exit = fadeOut(tween(140)) + shrinkVertically(tween(180)),
+                enter = fadeIn(tween(CardEnterMillis)) +
+                    expandVertically(tween(CardEnterMillis, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(CardExitMillis)) +
+                    shrinkVertically(tween(CardExitMillis, easing = FastOutSlowInEasing)),
             ) {
                 // Held through the exit animation — reading the state directly would empty
                 // the card the instant it started leaving.
@@ -857,11 +890,20 @@ fun MapScreen(
                     CheckpointCard(
                         checkpoint = cp,
                         thai = thai,
-                        // How far along the route it sits, and how far that is from here.
-                        // Absent when not walking: "600 m away" from a position the app
-                        // does not have would be a number made up to fill a line.
-                        metresAway = alongRoute.firstOrNull { it.first.id == cp.id }?.second
-                            ?.let { at -> walk.routeMetres?.let { now -> at - now } },
+                        // Straight-line from where the participant is, not along the
+                        // route. Along-route was the old number and it only existed during
+                        // a walk, which made the card's one figure mean two things
+                        // depending on a state the reader cannot see. The walk HUD still
+                        // gives the along-route distance to the *next* base, which is where
+                        // that number actually answers a question.
+                        //
+                        // Absent until the phone has a position: a distance from somewhere
+                        // the app does not know would be a number made up to fill a line.
+                        metresFromMe = myPosition?.let { me ->
+                            cp.lat?.let { lat ->
+                                cp.lng?.let { lng -> metresBetween(me, LatLng(lat, lng)) }
+                            }
+                        },
                         onDismiss = { selectedCheckpoint = null },
                         // The gap belongs to the card, not to the button above it: a gap
                         // hung off the button would be paid whether or not a card is there.
@@ -883,15 +925,23 @@ fun MapScreen(
         // corner — its height and the gap above it — so it climbs the same distance the
         // walk button does and the two stay on one line, which is the whole reason they sit
         // at the same height. Zero with no card up, so its resting place is unchanged.
+        //
+        // **The same distance is not enough — it has to be the same journey.** The left
+        // corner is moved by the card's own expansion and the right corner by this, and
+        // they were on different specs: 220ms in and 180ms out on one side against a flat
+        // 260ms on the other. Two buttons that sit on one line at both ends of the trip and
+        // are apart for every frame in between is worse than either of them moving alone,
+        // because the misalignment is only ever visible in motion, which is where the eye
+        // is. They share the durations and the easing now, so the bottom row travels as a
+        // row.
         val sosLift by animateDpAsState(
             targetValue =
                 if (selectedCheckpoint != null) checkpointCardHeight + ControlsGap
                 else 0.dp,
-            // Longer than the card's own 220ms entrance and on the same easing, so the
-            // button is still travelling as the card finishes arriving. Matching the
-            // durations exactly reads as two things cutting to new places at once; this
-            // reads as the card pushing the button out of the way, which is what happens.
-            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+            animationSpec = tween(
+                durationMillis = if (selectedCheckpoint != null) CardEnterMillis else CardExitMillis,
+                easing = FastOutSlowInEasing,
+            ),
             label = "sosLift",
         )
 
@@ -1106,7 +1156,7 @@ private fun WalkHud(
 private fun CheckpointCard(
     checkpoint: ParticipantCheckpoint,
     thai: Boolean,
-    metresAway: Double?,
+    metresFromMe: Double?,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1157,12 +1207,24 @@ private fun CheckpointCard(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            // Behind you rather than ahead reads as a negative distance otherwise.
-            metresAway?.takeIf { it > 0 }?.let {
+            // How busy it is and how far off it is, on one line.
+            //
+            // Two facts of the same kind — both are "what is it like over there right now"
+            // — so they read as one answer rather than as a list. Either can be missing:
+            // the count until the server sends one, the distance until the phone has a
+            // position, and the line is simply shorter or absent rather than carrying a
+            // dash where a number should be.
+            val facts = listOfNotNull(
+                checkpoint.checkinCount?.let { stringResource(R.string.map_checkpoint_checked_in, it) },
+                metresFromMe?.let { stringResource(R.string.map_checkpoint_from_me, formatDistance(it)) },
+            )
+            if (facts.isNotEmpty()) {
                 Text(
-                    stringResource(R.string.map_checkpoint_away, formatDistance(it)),
+                    facts.joinToString(FactSeparator),
                     color = colors.onBackdrop,
                     fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -1294,6 +1356,22 @@ private fun WalkButton(active: Boolean, onClick: () -> Unit, modifier: Modifier 
         )
     }
 }
+
+/**
+ * Straight-line metres between two positions.
+ *
+ * The platform's own geodesic rather than [TrailRoute]'s flat-earth approximation: that one
+ * is projected around a fixed origin and is right for measuring along a route a few
+ * kilometres across, which is not what this is.
+ */
+private fun metresBetween(from: LatLng, to: LatLng): Double {
+    val out = FloatArray(1)
+    Location.distanceBetween(from.latitude, from.longitude, to.latitude, to.longitude, out)
+    return out[0].toDouble()
+}
+
+/** Between two facts on the card's one line of them. */
+private const val FactSeparator = "  ·  "
 
 /** Metres until a kilometre reads better than four digits of them. */
 @Composable
@@ -1530,6 +1608,22 @@ private const val NextBaseReachedMetres = 25.0
  * Both bottom rows use the same value so they stay on one line.
  */
 private val ControlsBottom = 8.dp
+
+/**
+ * How long the checkpoint card takes to arrive and to leave.
+ *
+ * Shared by the card's own expansion and by the SOS's climb in the opposite corner, which
+ * is the point of them being constants rather than numbers written twice: those two are
+ * the same movement seen at both ends of the screen, and the moment the figures drift the
+ * bottom row stops being a row while it travels.
+ *
+ * Out is quicker than in. Arriving is the card presenting itself and is worth watching;
+ * leaving is a dismissal that has already been decided, and a slow one keeps the controls
+ * underneath it hostage to an animation nobody is reading.
+ */
+private const val CardEnterMillis = 220
+
+private const val CardExitMillis = 180
 
 /**
  * The gap between two things stacked in the bottom corner — the walk button and the

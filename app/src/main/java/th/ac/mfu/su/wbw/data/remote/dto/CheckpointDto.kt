@@ -30,6 +30,19 @@ data class ParticipantCheckpoint(
     @SerialName("requires_checkin") val requiresCheckin: Boolean = false,
     val lat: Double? = null,
     val lng: Double? = null,
+
+    /**
+     * How many participants have been stamped in at this base, or null when the server has
+     * not told us.
+     *
+     * Null rather than zero, and the distinction is the whole point of the field: a base
+     * nobody has reached yet and a server that does not send this number are very different
+     * claims, and "0 checked in" for the second is a lie the card would have no way of
+     * knowing it was telling. The endpoint does not send it today, so it decodes as null
+     * everywhere and the card simply leaves the line out; the day `/wbw/checkpoints` grows
+     * a `checkin_count`, every card starts showing it with no change on this side.
+     */
+    @SerialName("checkin_count") val checkinCount: Int? = null,
 ) {
     /** True when this row can actually be put on a map. */
     val located: Boolean get() = lat != null && lng != null
