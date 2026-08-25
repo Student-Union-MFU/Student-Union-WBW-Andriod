@@ -15,6 +15,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.JoinGroupResponse
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SendMessageRequest
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
+import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
@@ -128,6 +129,15 @@ interface WbwApi {
      */
     @GET("me/progress")
     suspend fun myProgress(): CheckinProgress
+
+    /**
+     * bearer — every base in the event, with its position.
+     *
+     * Not scoped to the caller and not the same as `/me/progress`: this is where the bases
+     * *are*, which the map needs whether or not the participant has reached any of them.
+     */
+    @GET("checkpoints")
+    suspend fun checkpoints(): List<ParticipantCheckpoint>
 
     // ===== Emergency =====
 

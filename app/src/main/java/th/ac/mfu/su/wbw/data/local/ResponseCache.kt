@@ -95,6 +95,7 @@ class ResponseCache(context: Context) {
         const val KeyNotifications = "notifications"
         const val KeyConditions = "conditions"
         const val KeyProgress = "progress"
+        const val KeyCheckpoints = "checkpoints"
         const val KeyChat = "chat"
     }
 }

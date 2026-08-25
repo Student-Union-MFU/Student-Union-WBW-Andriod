@@ -12,6 +12,7 @@ import th.ac.mfu.su.wbw.data.repository.ChatRepository
 import th.ac.mfu.su.wbw.data.repository.ConditionsRepository
 import th.ac.mfu.su.wbw.data.repository.NotificationRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
+import th.ac.mfu.su.wbw.data.repository.CheckpointRepository
 import th.ac.mfu.su.wbw.data.repository.ProgressRepository
 import th.ac.mfu.su.wbw.data.repository.SosRepository
 import th.ac.mfu.su.wbw.data.repository.StaffRepository
@@ -48,6 +49,7 @@ class AppContainer(context: Context) {
     val conditionsRepository: ConditionsRepository by lazy { ConditionsRepository(openMeteoApi, responseCache) }
     val chatRepository: ChatRepository by lazy { ChatRepository(api, responseCache) }
     val progressRepository: ProgressRepository by lazy { ProgressRepository(api, responseCache) }
+    val checkpointRepository: CheckpointRepository by lazy { CheckpointRepository(api, responseCache) }
 
     /** No cache argument, on purpose — see [SosRepository]. */
     val sosRepository: SosRepository by lazy { SosRepository(api) }
