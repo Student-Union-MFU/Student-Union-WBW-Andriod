@@ -72,6 +72,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -254,6 +255,15 @@ fun MapScreen(
         position = CameraPosition.fromLatLngZoom(route.bounds.center, DefaultZoom)
     }
     val style = remember { MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_forest) }
+
+    // The bases. Seeded synchronously from the cache — see [CheckpointRepository] — so the
+    // map opens with its pins already on it, then corrected when the network answers.
+    // Which name to label the pins with. Read from the configuration rather than from
+    // AppSettings, so it follows a device-language change without the map having to
+    // subscribe to anything.
+    val thai = LocalConfiguration.current.locales[0].language == "th"
+    val checkpointsViewModel: MapCheckpointsViewModel = viewModel(factory = MapCheckpointsViewModel.Factory)
+    val checkpoints by checkpointsViewModel.checkpoints.collectAsStateWithLifecycle()
     // BitmapDescriptorFactory throws until the Maps SDK has been initialised, and building
     // a marker icon at composition runs before the GoogleMap below does that. Initialise
     // explicitly first, then the icons are safe to make.
@@ -281,6 +291,9 @@ fun MapScreen(
         MapIcons(
             start = endpointDescriptor(WbwGreenDark.toArgb(), hollow = false),
             finish = endpointDescriptor(WbwGreenDark.toArgb(), hollow = true),
+            // One to twenty covers any plausible event; a base numbered beyond that draws
+            // without a pin rather than crashing, and nobody is walking twenty bases.
+            bases = (1..20).associateWith { baseDescriptor(it, WbwGreenDark.toArgb()) },
         )
     }
 
@@ -622,6 +635,30 @@ fun MapScreen(
                         zIndex = RouteZ + 1f,
                     )
                 }
+            }
+
+            // The bases, numbered, in trail order.
+            //
+            // Only rows that carry a position and require a check-in get a pin. The finish
+            // is in this list too — it is a checkpoint row — but it is drawn by the
+            // endpoint marker below instead, and two markers on one spot would just fight
+            // each other for the tap.
+            checkpoints.forEach { cp ->
+                val lat = cp.lat
+                val lng = cp.lng
+                if (lat == null || lng == null || !cp.requiresCheckin) return@forEach
+                val seq = cp.sequence
+                Marker(
+                    state = rememberMarkerState(key = "cp-${cp.id}", position = LatLng(lat, lng)),
+                    title = cp.displayName(thai),
+                    // The activity, so a tap answers "what happens here" rather than only
+                    // naming the place. Null for a base with none, and the info window
+                    // then shows the title alone.
+                    snippet = cp.displayActivity(thai),
+                    icon = seq?.let { icons.bases[it] } ?: icons.start,
+                    anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
+                    zIndex = CheckpointZ,
+                )
             }
 
             // Filled for the start, a ring for the finish — the usual reading, and one that
@@ -1041,7 +1078,47 @@ private fun GlassIcon(
 private class MapIcons(
     val start: BitmapDescriptor,
     val finish: BitmapDescriptor,
+    /**
+     * One pin per base, keyed by the number printed on it.
+     *
+     * Built up front for the whole set rather than per marker, because a `BitmapDescriptor`
+     * is a texture upload and rebuilding nine of them on every recomposition of a map that
+     * recomposes on every camera movement is the kind of thing that shows up as a stutter
+     * while panning rather than as an error anywhere.
+     */
+    val bases: Map<Int, BitmapDescriptor>,
 )
+
+/**
+ * A base: a filled disc with its sequence number on it.
+ *
+ * Numbered rather than iconographic because the number is the useful fact — the walk is
+ * done in order, the bases are announced in order, and "4" locates somebody on the trail in
+ * a way a generic pin never does. Drawn at 3x the endpoint size so two digits stay legible
+ * at the zoom the whole route fits in.
+ */
+private fun baseDescriptor(number: Int, fillArgb: Int): BitmapDescriptor {
+    val px = 82
+    val bmp = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    val c = px / 2f
+    val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF2FFFFFF.toInt() }
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fillArgb or 0xFF000000.toInt() }
+    canvas.drawCircle(c, c, c, ring)
+    canvas.drawCircle(c, c, c - 7f, fill)
+
+    val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        textSize = px * 0.46f
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    }
+    // Centred on the disc rather than on the baseline: `descent + ascent` is the glyph
+    // box's own offset, and halving it puts the digits' optical middle on the centre.
+    val baseline = c - (label.descent() + label.ascent()) / 2f
+    canvas.drawText(number.toString(), c, baseline, label)
+    return BitmapDescriptorFactory.fromBitmap(bmp)
+}
 
 /**
  * The route's two endpoints: a filled disc for the start, the same disc with its middle
@@ -1118,6 +1195,14 @@ private const val TreeZ = 0.5f
 private const val RouteCasingZ = 1f
 private const val RouteZ = 2f
 private const val EndpointZ = 3f
+/**
+ * Bases sit above the route and below the two endpoints.
+ *
+ * Below the endpoints on purpose: base 1 and the start are the same place, so one of the
+ * two has to win the tap, and the endpoint is the one that says "this is where the walk
+ * begins" — which is the more useful answer while standing there.
+ */
+private const val CheckpointZ = 2.5f
 // Near the SDK's tilt ceiling (~67.5°) and zoomed in, so buildings stand tall and the
 // scene reads as a low aerial rather than a flat map at an angle.
 private const val TiltDegrees = 67.5f
