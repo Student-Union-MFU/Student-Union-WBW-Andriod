@@ -6,6 +6,7 @@ import th.ac.mfu.su.wbw.data.local.ResponseCache
 import th.ac.mfu.su.wbw.data.remote.WbwApi
 import th.ac.mfu.su.wbw.data.remote.dto.CachedChat
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
+import th.ac.mfu.su.wbw.data.remote.dto.GroupMembersResponse
 import th.ac.mfu.su.wbw.data.remote.dto.ChatReadRequest
 import th.ac.mfu.su.wbw.data.remote.dto.ChatSync
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
@@ -63,6 +64,17 @@ class ChatRepository(
         apiCall { api.sendMessage(groupId, SendMessageRequest(clientId, body, deviceTime)) }
 
     /** Read cursor *and* "the screen is open" heartbeat. See [WbwApi.chatRead]. */
+    /**
+     * Who is in this group.
+     *
+     * Uncached: it is opened deliberately, rarely, and a stale roster is worth less than a
+     * short wait — the whole reason to look is to find out who is actually in the group
+     * right now. `GET /groups/{id}/members` is not gated on membership, so a staff account
+     * reading another group's roster is an ordinary request rather than a privilege.
+     */
+    suspend fun members(groupId: Int): ApiResult<GroupMembersResponse> =
+        apiCall { api.groupMembers(groupId) }
+
     suspend fun markRead(groupId: Int, lastReadId: Long): ApiResult<OkResponse> =
         apiCall { api.chatRead(groupId, ChatReadRequest(lastReadId)) }
 

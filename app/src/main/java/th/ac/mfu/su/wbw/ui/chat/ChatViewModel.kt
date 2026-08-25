@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import th.ac.mfu.su.wbw.core.network.ApiResult
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
+import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
 import th.ac.mfu.su.wbw.data.remote.dto.ChatSync
 import th.ac.mfu.su.wbw.data.repository.ChatRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
@@ -44,6 +45,12 @@ data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val pending: List<PendingMessage> = emptyList(),
     val memberCount: Int = 0,
+    /**
+     * The roster, once somebody has asked to see it. Empty until then — it is a
+     * deliberate, occasional look rather than something every chat screen needs loaded.
+     */
+    val members: List<GroupMember> = emptyList(),
+    val membersLoading: Boolean = false,
     /** How many other members have read this device's latest message. */
     val readCount: Int = 0,
     val meId: String? = null,
@@ -64,6 +71,15 @@ data class ChatUiState(
 class ChatViewModel(
     private val chat: ChatRepository,
     private val profile: ProfileRepository,
+    /**
+     * The group to open, for callers that already know it.
+     *
+     * Null on the participant path, where the group comes from `/me` and changing it means
+     * changing groups. Set on the staff path: staff belong to no group, pick one from a
+     * list, and their `/me` does not exist to be asked.
+     */
+    private val forcedGroupId: Int? = null,
+    private val forcedGroupNumber: Int? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -76,18 +92,39 @@ class ChatViewModel(
         // Seeded from cache before the first frame, so a returning participant opens on the
         // conversation rather than on an empty column with a spinner over it.
         val me = profile.cachedMe()
-        val groupId = me?.groupId
+        // [forcedGroupId] is the staff path: a staff account has no participant_profile and
+        // therefore no group of its own, so the group it is reading has to be handed in
+        // rather than discovered from `/me` — which answers 404 for them anyway.
+        val groupId = forcedGroupId ?: me?.groupId
         val cached = groupId?.let { chat.cached(it) }.orEmpty()
         lastId = cached.maxOfOrNull { it.id } ?: 0
         _state.value = ChatUiState(
             groupId = groupId,
-            groupNumber = me?.groupNumber,
-            noGroup = me != null && groupId == null,
+            groupNumber = forcedGroupNumber ?: me?.groupNumber,
+            noGroup = forcedGroupId == null && me != null && groupId == null,
             messages = cached,
             meId = me?.id,
             loading = cached.isEmpty(),
         )
-        refreshProfile()
+        // Staff already know which group they opened, and `/me` would 404 for them.
+        if (forcedGroupId == null) refreshProfile()
+    }
+
+    /** Load the roster. Called when somebody opens the member list, not before. */
+    fun loadMembers() {
+        val groupId = _state.value.groupId ?: return
+        if (_state.value.membersLoading) return
+        _state.update { it.copy(membersLoading = true) }
+        viewModelScope.launch {
+            when (val r = chat.members(groupId)) {
+                is ApiResult.Success -> _state.update {
+                    it.copy(members = r.data.members, membersLoading = false, memberCount = r.data.count)
+                }
+                // Keep whatever roster was already there. A failed fetch is not evidence
+                // that the group emptied.
+                is ApiResult.Error -> _state.update { it.copy(membersLoading = false) }
+            }
+        }
     }
 
     /**
@@ -315,6 +352,25 @@ class ChatViewModel(
         /** `maxBodyLen` in `wbw_chat_service.go`, in runes. Shared with the composer, which
          *  refuses to take more than the server will accept. */
         const val MaxBodyChars = 2_000
+
+        /** The participant's own group, discovered from `/me`. */
+        /**
+         * A named group, for the staff shell.
+         *
+         * Keyed per group by the caller's navigation entry, so opening group 3 and then
+         * group 7 gets two view models rather than one that has to be told to forget the
+         * first conversation.
+         */
+        fun factoryFor(groupId: Int, groupNumber: Int?) = viewModelFactory {
+            initializer {
+                ChatViewModel(
+                    appContainer.chatRepository,
+                    appContainer.profileRepository,
+                    forcedGroupId = groupId,
+                    forcedGroupNumber = groupNumber,
+                )
+            }
+        }
 
         val Factory = viewModelFactory {
             initializer {

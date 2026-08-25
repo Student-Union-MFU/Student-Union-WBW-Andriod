@@ -102,9 +102,11 @@
     <string name="role_participant">ผู้เข้าร่วม</string>
     <string name="role_staff">เจ้าหน้าที่</string>
     <string name="role_admin">ผู้ดูแล</string>
+    <string name="staff_groups_hint">เปิดแชทของกลุ่มไหนก็ได้</string>
+    <string name="staff_group_members">%1$d จาก %2$d คน</string>
     <string name="staff_greeting">สวัสดี %1$s</string>
     <string name="staff_waiting_count">%1$d เคสยังไม่มีคนรับ</string>
-    <string name="staff_all_clear">ไม่มีเคสค้าง</string>
+    <string name="staff_all_clear">ไม่มีเหตุฉุกเฉินค้างอยู่</string>
     <string name="staff_empty">ยังไม่มีเหตุฉุกเฉิน</string>
     <string name="staff_recently_closed">ปิดไปใน 30 นาทีที่ผ่านมา</string>
     <string name="staff_case_waiting">ยังไม่มีคนรับ</string>
@@ -181,6 +183,9 @@
     <string name="chat_emoji">อีโมจิ</string>
     <string name="chat_tag_staff">เจ้าหน้าที่</string>
     <string name="chat_channel_group">กลุ่ม %1$d</string>
+    <string name="chat_members_title">สมาชิกกลุ่มนี้</string>
+    <string name="chat_members_empty">ยังไม่มีใครเข้ากลุ่มนี้</string>
+    <string name="chat_members_you">คุณ</string>
     <string name="chat_members">สมาชิก %1$d คน</string>
     <string name="chat_no_group">คุณยังไม่ได้อยู่กลุ่มไหน</string>
     <string name="chat_offline">กำลังเชื่อมต่อใหม่…</string>
