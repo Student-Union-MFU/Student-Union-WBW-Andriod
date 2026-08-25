@@ -271,8 +271,28 @@ fun MapScreen(
     val checkpointsViewModel: MapCheckpointsViewModel = viewModel(factory = MapCheckpointsViewModel.Factory)
     val checkpoints by checkpointsViewModel.checkpoints.collectAsStateWithLifecycle()
 
-    /** The base whose card is open, or null. Tapping a pin sets it; the card clears it. */
-    var selectedCheckpoint by remember { mutableStateOf<ParticipantCheckpoint?>(null) }
+    // The bases stay fresh while this screen is up. See [MapCheckpointsViewModel.watchCheckpoints]
+    // — the pins hardly move, but the check-in counts on them belong to everybody and go
+    // stale in minutes.
+    LaunchedEffect(Unit) { checkpointsViewModel.watchCheckpoints() }
+
+    /**
+     * The base whose card is open, held as an **id** rather than as the row itself.
+     *
+     * Holding the row would freeze the card at the moment the pin was tapped: the poll
+     * above replaces the list every thirty seconds, and a card holding the old instance
+     * would keep showing the check-in count from whenever it was opened — the one number
+     * on it that is expected to move while it is being read. Looking the id up in the
+     * current list means the open card counts up on its own.
+     */
+    var selectedCheckpointId by remember { mutableStateOf<Int?>(null) }
+    val selectedCheckpoint = selectedCheckpointId?.let { id -> checkpoints.firstOrNull { it.id == id } }
+
+    // The last base the card actually showed, kept only so the card has something to draw
+    // while it animates away. Reading the live value there would empty it the instant it
+    // started leaving — the row is gone from under it the moment the id is cleared.
+    var lastShownCheckpoint by remember { mutableStateOf<ParticipantCheckpoint?>(null) }
+    LaunchedEffect(selectedCheckpoint) { selectedCheckpoint?.let { lastShownCheckpoint = it } }
 
     // The card's height, measured rather than assumed.
     //
@@ -711,7 +731,7 @@ fun MapScreen(
                     // a pin near the top of the screen it opens off-screen. A card fixed to
                     // the screen stays where the eye already is and can hold more than two
                     // lines of text.
-                    onClick = { selectedCheckpoint = cp; true },
+                    onClick = { selectedCheckpointId = cp.id; true },
                 )
             }
 
@@ -883,9 +903,10 @@ fun MapScreen(
                 exit = fadeOut(tween(CardExitMillis)) +
                     shrinkVertically(tween(CardExitMillis, easing = FastOutSlowInEasing)),
             ) {
-                // Held through the exit animation — reading the state directly would empty
-                // the card the instant it started leaving.
-                val shown = remember(selectedCheckpoint) { selectedCheckpoint }
+                // Live while open, last-known while leaving. The live value is what lets a
+                // poll landing mid-read tick the check-in count up under the reader's eyes;
+                // the fallback is what stops the card blanking as it animates away.
+                val shown = selectedCheckpoint ?: lastShownCheckpoint
                 shown?.let { cp ->
                     CheckpointCard(
                         checkpoint = cp,
@@ -904,7 +925,7 @@ fun MapScreen(
                                 cp.lng?.let { lng -> metresBetween(me, LatLng(lat, lng)) }
                             }
                         },
-                        onDismiss = { selectedCheckpoint = null },
+                        onDismiss = { selectedCheckpointId = null },
                         // The gap belongs to the card, not to the button above it: a gap
                         // hung off the button would be paid whether or not a card is there.
                         //
