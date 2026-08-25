@@ -14,7 +14,9 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMembersResponse
 import th.ac.mfu.su.wbw.data.remote.dto.JoinGroupResponse
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SendMessageRequest
+import th.ac.mfu.su.wbw.data.remote.dto.CheckinFeedback
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
+import th.ac.mfu.su.wbw.data.remote.dto.FeedbackRequest
 import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
@@ -139,6 +141,18 @@ interface WbwApi {
      */
     @GET("checkpoints")
     suspend fun checkpoints(): List<ParticipantCheckpoint>
+
+    /**
+     * bearer — say what a base was like.
+     *
+     * 201 the first time, 200 for a repeat with the same `client_id` — the server treats
+     * a retry as the same opinion rather than a second one. 409 if this participant has
+     * already answered for this checkpoint under a different id, and 400 if they were
+     * never checked in there: an opinion about a base somebody did not visit is not
+     * something the event wants in its numbers.
+     */
+    @POST("me/feedback")
+    suspend fun submitFeedback(@Body body: FeedbackRequest): CheckinFeedback
 
     // ===== Emergency =====
 

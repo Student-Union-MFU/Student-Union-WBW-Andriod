@@ -327,4 +327,24 @@
     <string name="scan_medical_flag">Has declared a medical condition</string>
     <string name="scan_bib_placeholder">Or type a bib number</string>
     <string name="scan_bib_submit">Check in</string>
+
+    <!-- Checkpoint feedback -->
+    <string name="feedback_title">How was this base?</string>
+    <string name="feedback_q_scenery">The scenery</string>
+    <string name="feedback_q_scenery_hint">The view and the surroundings here</string>
+    <string name="feedback_q_activity">The activity</string>
+    <string name="feedback_q_activity_hint">What you did at this base</string>
+    <string name="feedback_q_staff">The staff</string>
+    <string name="feedback_q_staff_hint">How well looked after you felt</string>
+    <string name="feedback_q_overall">Overall</string>
+    <string name="feedback_q_overall_hint">This base as a whole</string>
+    <string name="feedback_scale_low">Poor</string>
+    <string name="feedback_scale_high">Excellent</string>
+    <string name="feedback_comment_label">Anything to add?</string>
+    <string name="feedback_comment_hint">Optional — tell the organisers what would make it better</string>
+    <string name="feedback_submit">Send</string>
+    <string name="feedback_needs_overall">Give an overall rating to send this.</string>
+    <string name="feedback_prompt_title">You reached %1$s</string>
+    <string name="feedback_prompt_body">Tell the organisers what it was like</string>
+    <string name="feedback_prompt_action">Rate this base</string>
 </resources>

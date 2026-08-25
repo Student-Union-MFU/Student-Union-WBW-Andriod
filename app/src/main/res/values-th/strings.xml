@@ -307,4 +307,24 @@
     <string name="scan_medical_flag">แจ้งว่ามีโรคประจำตัว</string>
     <string name="scan_bib_placeholder">หรือพิมพ์หมายเลข BIB</string>
     <string name="scan_bib_submit">เช็คอิน</string>
+
+    <!-- Checkpoint feedback -->
+    <string name="feedback_title">ฐานนี้เป็นอย่างไรบ้าง</string>
+    <string name="feedback_q_scenery">วิวและบรรยากาศ</string>
+    <string name="feedback_q_scenery_hint">ทิวทัศน์และสภาพแวดล้อมตรงนี้</string>
+    <string name="feedback_q_activity">กิจกรรม</string>
+    <string name="feedback_q_activity_hint">สิ่งที่ได้ทำที่ฐานนี้</string>
+    <string name="feedback_q_staff">เจ้าหน้าที่</string>
+    <string name="feedback_q_staff_hint">การดูแลที่ได้รับ</string>
+    <string name="feedback_q_overall">ภาพรวม</string>
+    <string name="feedback_q_overall_hint">ฐานนี้โดยรวม</string>
+    <string name="feedback_scale_low">น้อย</string>
+    <string name="feedback_scale_high">มาก</string>
+    <string name="feedback_comment_label">อยากบอกอะไรเพิ่มไหม</string>
+    <string name="feedback_comment_hint">ไม่บังคับ — บอกผู้จัดว่าอะไรจะทำให้ดีขึ้น</string>
+    <string name="feedback_submit">ส่ง</string>
+    <string name="feedback_needs_overall">ให้คะแนนภาพรวมก่อนจึงจะส่งได้</string>
+    <string name="feedback_prompt_title">คุณมาถึง%1$s แล้ว</string>
+    <string name="feedback_prompt_body">บอกผู้จัดหน่อยว่าเป็นอย่างไร</string>
+    <string name="feedback_prompt_action">ให้คะแนนฐานนี้</string>
 </resources>
