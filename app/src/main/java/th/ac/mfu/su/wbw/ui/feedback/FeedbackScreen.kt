@@ -233,7 +233,7 @@ fun FeedbackScreen(
 }
 
 /** What one question is called, and the line that goes under it. */
-private data class QuestionSpec(@StringRes val label: Int, @StringRes val hint: Int)
+private data class QuestionSpec(@param:StringRes val label: Int, @param:StringRes val hint: Int)
 
 /**
  * The wording for a question, given which form is asking it.
