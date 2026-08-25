@@ -116,8 +116,10 @@
     <string name="staff_greeting">Hi, %1$s</string>
     <string name="staff_waiting_count">%1$d emergencies need someone</string>
     <string name="staff_all_clear">No emergencies waiting</string>
+    <string name="staff_panel_open">Current · %1$d</string>
+    <string name="staff_panel_closed">Closed · %1$d</string>
+    <string name="staff_closed_empty">Nothing has been closed in the last 30 minutes.</string>
     <string name="staff_empty">No emergencies right now</string>
-    <string name="staff_recently_closed">Closed in the last 30 minutes</string>
     <string name="staff_case_waiting">Needs someone</string>
     <string name="staff_case_claimed">Someone is going</string>
     <string name="staff_case_closed">Closed</string>

@@ -35,6 +35,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -152,7 +156,29 @@ fun StaffHomeScreen(
             )
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // Two panels, not one scrolling list.
+        //
+        // Open and closed cases were stacked in a single column under a "closed recently"
+        // heading, which meant the thing a responder is on this screen for — what still
+        // needs somebody — got shorter the more cases had been dealt with, and eventually
+        // sat above a growing pile of finished ones. They are separate views now, and the
+        // console opens on the live one.
+        //
+        // The count rides on the tab rather than being discovered by scrolling to the end
+        // of a list: "3 open" is the number somebody is actually asking for.
+        var showClosed by rememberSaveable { mutableStateOf(false) }
+        PanelSwitch(
+            showClosed = showClosed,
+            openCount = state.open.size,
+            closedCount = state.recentlyClosed.size,
+            onSelect = { showClosed = it },
+        )
+
+        Spacer(Modifier.height(14.dp))
+
+        val shown = if (showClosed) state.recentlyClosed else state.open
 
         when {
             state.loading && state.cases.isEmpty() -> Box(
@@ -166,7 +192,7 @@ fun StaffHomeScreen(
                 )
             }
 
-            state.open.isEmpty() && state.recentlyClosed.isEmpty() -> Box(
+            shown.isEmpty() -> Box(
                 Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
@@ -180,11 +206,16 @@ fun StaffHomeScreen(
                     Spacer(Modifier.height(12.dp))
                     // Says what it means. "No data" on this screen would be ambiguous
                     // between "nobody needs help" and "the feed is not working", and those
-                    // are opposite things to a person on duty.
+                    // are opposite things to a person on duty. The closed panel gets its
+                    // own line: an empty one there means nothing has finished lately,
+                    // which is not the same claim at all.
                     Text(
-                        stringResource(R.string.staff_empty),
+                        stringResource(
+                            if (showClosed) R.string.staff_closed_empty else R.string.staff_empty,
+                        ),
                         color = colors.onBackdropMuted,
                         fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
@@ -193,26 +224,18 @@ fun StaffHomeScreen(
                 contentPadding = contentPadding,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(state.open, key = { it.id }) { case ->
-                    CaseCard(
-                        case = case,
-                        onAck = { viewModel.ack(case.id) },
-                        onReport = { viewModel.report(case.id, it) },
-                    )
-                }
-                if (state.recentlyClosed.isNotEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.staff_recently_closed).uppercase(),
-                            color = colors.onBackdropMuted,
-                            fontSize = 10.sp,
-                            letterSpacing = 1.6.sp,
-                            modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
-                        )
-                    }
-                    items(state.recentlyClosed, key = { it.id }) { case ->
-                        // Closed cases: nothing left to do, so both actions are inert.
+                items(shown, key = { it.id }) { case ->
+                    // A closed case has nothing left to do, so both actions are inert
+                    // rather than absent — the card decides what to draw from its own
+                    // state, and passing it live callbacks would be a lie about that.
+                    if (showClosed) {
                         CaseCard(case = case, onAck = {}, onReport = {})
+                    } else {
+                        CaseCard(
+                            case = case,
+                            onAck = { viewModel.ack(case.id) },
+                            onReport = { viewModel.report(case.id, it) },
+                        )
                     }
                 }
             }
@@ -496,6 +519,81 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                 }
             }
         }
+    }
+}
+
+/**
+ * The two panels' switch.
+ *
+ * A segmented pair rather than the nav bar's tabs, because these are two views of one
+ * screen and not two destinations — going from open to closed cases should not be
+ * something the back button undoes.
+ *
+ * Counts live on the labels. The number of open cases is the single figure a person on
+ * duty wants, and putting it here means it is answered without scrolling to the bottom of
+ * a list to count cards.
+ */
+@Composable
+private fun PanelSwitch(
+    showClosed: Boolean,
+    openCount: Int,
+    closedCount: Int,
+    onSelect: (Boolean) -> Unit,
+) {
+    val shape = RoundedCornerShape(50)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .glass(shape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        PanelTab(
+            label = stringResource(R.string.staff_panel_open, openCount),
+            selected = !showClosed,
+            // Red only while something is actually open. A zero-case console showing a red
+            // pill would be crying wolf at the one screen that cannot afford to.
+            tint = if (openCount > 0) CaseRed else null,
+            modifier = Modifier.weight(1f),
+        ) { onSelect(false) }
+        PanelTab(
+            label = stringResource(R.string.staff_panel_closed, closedCount),
+            selected = showClosed,
+            tint = null,
+            modifier = Modifier.weight(1f),
+        ) { onSelect(true) }
+    }
+}
+
+@Composable
+private fun PanelTab(
+    label: String,
+    selected: Boolean,
+    tint: Color?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = wbwColors
+    val shape = RoundedCornerShape(50)
+    val fill = tint ?: colors.onBackdrop
+    Box(
+        modifier
+            .clip(shape)
+            .background(if (selected) fill.copy(alpha = 0.92f) else Color.Transparent)
+            .clickableNoRipple(onClick)
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            // Dark ink on the filled tab, whichever colour it is: both the red and the
+            // cream are light, and light-on-light is the mistake this screen has already
+            // made once.
+            color = if (selected) Color(0xFF1B0B08) else colors.onBackdropMuted,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+        )
     }
 }
 
