@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -220,52 +221,61 @@ fun StaffHomeScreen(
 }
 
 /**
- * One case.
+ * One case, laid out like the participant's own emergency card.
  *
- * Ordered by what a responder does with it: who and where first, then how to reach them,
- * then the medical note if there is one, then the one action. The blood type and notes are
- * last rather than hidden — they matter on arrival, not while deciding whether to go.
+ * The two are read at the same moment by the same two people — one holds up a phone, the
+ * other is looking at this — so they are built the same way: the name large, the blood
+ * group floated big in the top-right corner where a medic looks first, then the identifiers,
+ * then who to phone. Somebody who has read one can read the other without relearning it.
+ *
+ * Trimmed to what a responder acts on. The participant's card carries major and school
+ * because it is proving who its owner is; this one drops them — they are not in the staff
+ * payload and they are not what anybody does anything with on arrival.
+ *
+ * The card is the nav bar's own glass, not a coloured pane. Emergencies are told apart by
+ * an accent — red while something still needs people, amber once it turned out to be minor
+ * or nothing — carried on the border, the status dot and the blood figure. A list of red
+ * slabs has no hierarchy in it; a list of identical panes with differently coloured edges
+ * can be scanned in one pass.
  */
 @Composable
 private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcome) -> Unit) {
     val colors = wbwColors
     val context = LocalContext.current
-    // A card is "hot" while it still wants people: unclaimed, or reported as major or
-    // urgent. Being claimed no longer cools it on its own — somebody walking to a major
-    // injury has not made it less of one, and the console exists to keep that on screen.
-    val raised = case.severity == "major" || case.severity == "urgent"
-    val urgent = !case.resolved && (!case.acknowledged || raised)
-    // On a red card everything is drawn in near-white; on ordinary glass the theme's own
-    // ink still applies. Resolving both here keeps the branch out of a dozen call sites.
-    val ink = if (urgent) UrgentInk else colors.onBackdrop
-    val inkMuted = if (urgent) UrgentInkMuted else colors.onBackdropMuted
+
+    // How serious this is, as one colour, decided once.
+    //
+    // Amber is for the two outcomes that mean "not an emergency after all" — a false alarm
+    // and a minor issue both close the case, and a closed-but-fine card sitting in the
+    // recently-closed list should not still be shouting red at somebody scanning for live
+    // ones.
+    val accent = when {
+        case.resolved && (case.resolveReason == "false_alarm" || case.resolveReason == "minor") -> CaseAmber
+        case.resolved -> colors.onBackdropMuted
+        case.severity == "urgent" -> CaseRedDeep
+        else -> CaseRed
+    }
+    val live = !case.resolved
 
     Column(
         Modifier
             .fillMaxWidth()
+            // The nav bar's material, unchanged. Only the edge carries the state.
             .glass(
                 RoundedCornerShape(20.dp),
-                // The fill tracks "does this still need somebody", which is the only
-                // question the list is scanned for. Three steps, not two: ordinary glass
-                // once a case is closed or quietly claimed, red while it is unclaimed, and
-                // a deeper red once somebody has been and reported it as urgent.
-                fill = when {
-                    !case.resolved && case.severity == "urgent" -> UrgentGlassRaised
-                    urgent -> UrgentGlass
-                    else -> GlassSheer
+                fill = GlassSheer,
+                border = if (live || case.resolveReason == "false_alarm" || case.resolveReason == "minor") {
+                    accent.copy(alpha = 0.55f)
+                } else {
+                    GlassSheerBorder
                 },
-                border = if (urgent) UrgentGlassBorder else GlassSheerBorder,
                 elevation = 0.dp,
             )
             .padding(16.dp),
     ) {
+        // ===== State =====
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (urgent) UrgentInk else colors.onBackdropMuted),
-            )
+            Box(Modifier.size(8.dp).clip(CircleShape).background(accent))
             Spacer(Modifier.width(9.dp))
             Text(
                 stringResource(
@@ -279,7 +289,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                         else -> R.string.staff_case_waiting
                     },
                 ).uppercase(),
-                color = ink,
+                color = accent,
                 fontSize = 10.sp,
                 letterSpacing = 1.6.sp,
                 fontWeight = FontWeight.Medium,
@@ -288,45 +298,69 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
             if (case.forOther) {
                 Text(
                     stringResource(R.string.staff_case_for_other).uppercase(),
-                    color = inkMuted,
+                    color = colors.onBackdropMuted,
                     fontSize = 9.sp,
                     letterSpacing = 1.2.sp,
                 )
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-        Text(
-            case.displayName,
-            color = ink,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            listOfNotNull(
-                case.bib?.let { stringResource(R.string.staff_case_bib, it) },
-                case.groupNumber?.let { stringResource(R.string.staff_case_group, it) },
-                case.bloodType?.takeIf { it.isNotBlank() },
-            ).joinToString("  ·  "),
-            color = inkMuted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 2.dp),
-        )
+        Spacer(Modifier.height(12.dp))
 
+        // ===== Who, and the one fact a medic wants =====
+        //
+        // A Box rather than a Row, for the reason the participant's card gives: the blood
+        // block is two lines of large type and as a Row sibling it would set the height of
+        // the whole title area, leaving the name floating at the top of it.
+        Box(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(end = 76.dp)) {
+                Text(
+                    case.displayName,
+                    color = colors.onBackdrop,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 26.sp,
+                )
+            }
+            Column(
+                Modifier.align(Alignment.TopEnd),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val blood = case.bloodType?.takeIf { it.isNotBlank() }
+                Text(
+                    blood ?: stringResource(R.string.sos_blood_unknown),
+                    color = if (blood != null) accent else colors.onBackdropMuted,
+                    fontSize = if (blood != null) 30.sp else 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 32.sp,
+                )
+                Text(
+                    stringResource(R.string.sos_vital_blood).uppercase(),
+                    color = colors.onBackdropMuted,
+                    fontSize = 9.sp,
+                    letterSpacing = 1.2.sp,
+                    modifier = Modifier.offset(y = (-5).dp),
+                )
+            }
+        }
+
+        // ===== Where =====
+        //
+        // Directly under the name, because it is the whole job. An unlocated case says so
+        // plainly rather than leaving the line blank — a blank reads as a rendering fault
+        // and sends somebody looking for information that does not exist.
         Spacer(Modifier.height(10.dp))
         Text(
-            // "Where" is the whole job. An unlocated case says so plainly rather than
-            // leaving the line blank, because a blank reads as a rendering fault and sends
-            // somebody looking for information that does not exist.
             case.checkpointName?.let { stringResource(R.string.staff_case_near, it) }
                 ?: stringResource(R.string.staff_case_nowhere),
-            color = ink,
+            color = colors.onBackdrop,
             fontSize = 13.sp,
         )
+
         case.message?.takeIf { it.isNotBlank() }?.let {
             Text(
                 "“$it”",
-                color = ink,
+                color = colors.onBackdrop,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 6.dp),
             )
@@ -334,81 +368,64 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
         case.healthNotes?.takeIf { it.isNotBlank() }?.let {
             Text(
                 it,
-                // The medical note stays distinct even on a red card — it is the one
-                // line that is about the body rather than about the case.
-                color = if (urgent) Color(0xFFFFD9CF) else colors.danger,
+                color = accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
-        case.contactPhone?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                stringResource(R.string.staff_case_phone, it),
-                color = inkMuted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 6.dp),
-            )
+
+        // ===== Identifiers =====
+        //
+        // Bib and group side by side, as numbers rather than rows: they are the two things
+        // a staff member says out loud on a radio.
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            CaseStat(stringResource(R.string.sos_vital_bib), case.bib?.toString(), Modifier.weight(1f))
+            CaseStat(stringResource(R.string.sos_vital_group), case.groupNumber?.toString(), Modifier.weight(1f))
         }
 
-        // Where they are, and how to reach them.
+        // ===== Who to phone =====
         //
-        // Both are drawn for every open case, claimed or not — a responder already on
-        // their way needs the map and the phone more than anybody, and hiding them behind
-        // the ack would mean the person who pressed it loses the two things they came for.
-        //
-        // Each is present only when the case actually carries what it needs: a position
-        // for the map, a number for the call. A button that opens an empty map or dials
-        // nothing is worse than a gap, because it is pressed once and trusted twice.
-        if (!case.resolved) {
+        // The participant's own number first, then next of kin — the order they are tried
+        // in. Next of kin is only worth the space when the case is still live; on a closed
+        // card it is somebody's parent's phone number sitting on screen for no reason.
+        Spacer(Modifier.height(12.dp))
+        CaseVital(stringResource(R.string.sos_vital_phone), case.contactPhone)
+        if (live) {
+            case.emergencyContactPhone?.takeIf { it.isNotBlank() }?.let { ec ->
+                CaseVital(
+                    case.emergencyContactName?.takeIf { it.isNotBlank() }
+                        ?: stringResource(R.string.sos_vital_contact),
+                    ec,
+                )
+            }
+        }
+
+        // ===== What to do =====
+        if (live) {
             val located = case.lat != null && case.lng != null
             val phone = case.contactPhone?.takeIf { it.isNotBlank() }
             if (located || phone != null) {
                 Spacer(Modifier.height(14.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (located) {
-                        CaseAction(
-                            icon = Icons.Outlined.Place,
-                            label = stringResource(R.string.staff_case_locate),
-                            urgent = urgent,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            // Handed to whatever maps app is installed rather than opened
-                            // in this app's own map tab: a responder wants turn-by-turn to
-                            // a point, and this app draws a trail — it does not navigate.
+                        CaseAction(Icons.Outlined.Place, stringResource(R.string.staff_case_locate), accent, Modifier.weight(1f)) {
                             val label = Uri.encode(case.displayName)
                             val geo = Uri.parse("geo:${case.lat},${case.lng}?q=${case.lat},${case.lng}($label)")
-                            // A silent no-op on a button a responder is relying on is
-                            // the worst possible failure here — they press it, nothing
-                            // happens, and they assume the case has no position.
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, geo))
-                            }.onFailure {
-                                Toast.makeText(context, R.string.staff_case_no_maps, Toast.LENGTH_SHORT).show()
-                            }
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, geo)) }
+                                .onFailure {
+                                    Toast.makeText(context, R.string.staff_case_no_maps, Toast.LENGTH_SHORT).show()
+                                }
                         }
                     }
                     if (phone != null) {
-                        CaseAction(
-                            icon = Icons.Outlined.Call,
-                            label = stringResource(R.string.staff_case_call),
-                            urgent = urgent,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            // DIAL, not CALL: it opens the dialler with the number in it
-                            // and lets the responder press the button. That needs no
-                            // CALL_PHONE permission, and it means a mis-tap on a phone in
-                            // a pocket cannot ring a participant who is already hurt.
+                        CaseAction(Icons.Outlined.Call, stringResource(R.string.staff_case_call), accent, Modifier.weight(1f)) {
+                            // DIAL, not CALL: no CALL_PHONE permission, and a mis-tap in a
+                            // pocket cannot ring somebody who is already hurt.
                             runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")),
-                                )
-                            }.onFailure {
-                                Toast.makeText(context, phone, Toast.LENGTH_LONG).show()
-                            }
+                                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")))
+                            }.onFailure { Toast.makeText(context, phone, Toast.LENGTH_LONG).show() }
                         }
                     }
                 }
@@ -418,45 +435,41 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
         when {
             case.resolved -> Unit
             case.acknowledged -> {
+                Spacer(Modifier.height(12.dp))
                 Text(
                     case.ackedByName?.let { stringResource(R.string.staff_case_claimed_by, it) }
                         ?: stringResource(R.string.staff_case_claimed_anon),
-                    color = inkMuted,
+                    color = colors.onBackdropMuted,
                     fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 12.dp),
                 )
 
-                // What was actually found, once somebody is there.
-                //
-                // Only after the case is claimed. An unclaimed card asks exactly one
-                // question — will you go — and offering four verdicts on a situation
-                // nobody has looked at yet invites them to be answered from across a
-                // field, which is precisely the guess this is meant to replace.
+                // What was actually found, once somebody is there. Only after the case is
+                // claimed: offering four verdicts on a situation nobody has looked at
+                // invites them to be answered from across a field, which is the guess this
+                // is meant to replace.
                 Spacer(Modifier.height(12.dp))
                 Text(
                     stringResource(R.string.staff_case_report_title).uppercase(),
-                    color = inkMuted,
+                    color = colors.onBackdropMuted,
                     fontSize = 9.sp,
                     letterSpacing = 1.6.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                ) {
-                    // Ordered least to most serious, left to right, so the row reads as a
-                    // scale rather than as four unrelated buttons.
-                    ReportChip(R.string.staff_case_false_alarm, urgent, case.severity == null, Modifier.weight(1f)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    // Least to most serious, left to right, so the row reads as a scale.
+                    // The first two are amber because they are the two that mean "not an
+                    // emergency" — the colour says what pressing them claims.
+                    ReportChip(R.string.staff_case_false_alarm, CaseAmber, case.severity == null, Modifier.weight(1f)) {
                         onReport(SosOutcome.FalseAlarm)
                     }
-                    ReportChip(R.string.staff_case_minor, urgent, case.severity == null, Modifier.weight(1f)) {
+                    ReportChip(R.string.staff_case_minor, CaseAmber, case.severity == null, Modifier.weight(1f)) {
                         onReport(SosOutcome.Minor)
                     }
-                    ReportChip(R.string.staff_case_major, urgent, case.severity == "major", Modifier.weight(1f)) {
+                    ReportChip(R.string.staff_case_major, CaseRed, case.severity == "major", Modifier.weight(1f)) {
                         onReport(SosOutcome.Major)
                     }
-                    ReportChip(R.string.staff_case_urgent, urgent, case.severity == "urgent", Modifier.weight(1f)) {
+                    ReportChip(R.string.staff_case_urgent, CaseRedDeep, case.severity == "urgent", Modifier.weight(1f)) {
                         onReport(SosOutcome.Urgent)
                     }
                 }
@@ -467,11 +480,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(50))
-                        // A deeper red than the card, not white: the one action should
-                        // read as a button sitting on the pane rather than as a hole
-                        // punched through it, and it stays in the card's own family.
-                        .background(Color(0xE0C0392B))
-                        .border(1.dp, Color(0x66FFD9CF), RoundedCornerShape(50))
+                        .background(accent)
                         .clickableNoRipple(onAck)
                         .padding(vertical = 13.dp),
                     horizontalArrangement = Arrangement.Center,
@@ -479,7 +488,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                 ) {
                     Text(
                         stringResource(R.string.staff_case_ack).uppercase(),
-                        color = UrgentInk,
+                        color = Color(0xFF1B0B08),
                         fontSize = 12.sp,
                         letterSpacing = 1.6.sp,
                         fontWeight = FontWeight.Bold,
@@ -490,37 +499,74 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
     }
 }
 
+/** A number said out loud on a radio: bib, group. Missing reads as an em dash, not zero. */
+@Composable
+private fun CaseStat(label: String, value: String?, modifier: Modifier = Modifier) {
+    val colors = wbwColors
+    Column(modifier) {
+        Text(
+            label.uppercase(),
+            color = colors.onBackdropMuted,
+            fontSize = 9.sp,
+            letterSpacing = 1.2.sp,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            value?.takeIf { it.isNotBlank() } ?: "—",
+            color = colors.onBackdrop,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/** A labelled line: what it is on the left, the value on the right. */
+@Composable
+private fun CaseVital(label: String, value: String?) {
+    val colors = wbwColors
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = colors.onBackdropMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(
+            value?.takeIf { it.isNotBlank() } ?: stringResource(R.string.sos_vital_missing),
+            color = colors.onBackdrop,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
 /**
  * One of the four verdicts.
  *
- * [selected] fills it in, so a case already reported as major shows which button was
- * pressed — the row doubles as the record of what was said, and pressing again re-sends
- * the same thing rather than being forbidden, because a staff member correcting themselves
- * from major to urgent is the normal case.
+ * [tint] is the colour of the thing being claimed, not of the card — amber for the two
+ * that mean "not an emergency", red for the two that mean it is. Pressing again re-sends
+ * the same verdict rather than being forbidden, because a staff member correcting
+ * themselves from major to urgent is the normal case.
  */
 @Composable
 private fun ReportChip(
     label: Int,
-    urgent: Boolean,
+    tint: Color,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val colors = wbwColors
-    val ink = if (urgent) UrgentInk else colors.onBackdrop
     val shape = RoundedCornerShape(50)
     Box(
         modifier
             .clip(shape)
-            .background(if (selected) ink.copy(alpha = 0.9f) else ink.copy(alpha = 0.10f))
-            .border(1.dp, ink.copy(alpha = if (selected) 0.9f else 0.32f), shape)
+            .background(if (selected) tint else tint.copy(alpha = 0.13f))
+            .border(1.dp, tint.copy(alpha = if (selected) 1f else 0.42f), shape)
             .clickableNoRipple(onClick)
             .padding(vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             stringResource(label),
-            color = if (selected) Color(0xFF7A1A10) else ink,
+            color = if (selected) Color(0xFF1B0B08) else tint,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -529,37 +575,38 @@ private fun ReportChip(
 }
 
 /**
- * One of the two things a responder does with a case: find them, or phone them.
+ * Find them, or phone them.
  *
- * Outlined rather than filled, so neither competes with "I am going" — that is still the
- * decision the card is asking for, and it is the only solid control on it.
+ * Outlined rather than filled, so neither competes with the one solid control on the card
+ * — which is "I am going" while a case is unclaimed, and nothing once it is.
  */
 @Composable
 private fun CaseAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    urgent: Boolean,
+    tint: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = wbwColors
-    val ink = if (urgent) UrgentInk else colors.onBackdrop
     val shape = RoundedCornerShape(50)
     Row(
         modifier
             .clip(shape)
-            .background(ink.copy(alpha = 0.14f))
-            .border(1.dp, ink.copy(alpha = 0.45f), shape)
+            .background(tint.copy(alpha = 0.12f))
+            .border(1.dp, tint.copy(alpha = 0.40f), shape)
             .clickableNoRipple(onClick)
             .padding(vertical = 11.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(7.dp))
-        Text(label, color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = colors.onBackdrop, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
+
+
 
 /** The account type, as a small outlined pill. */
 @Composable
@@ -592,37 +639,22 @@ private val StaffRoleLabels = mapOf(
 private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
     this.then(Modifier.pointerInput(onClick) { detectTapGestures(onTap = { onClick() }) })
 
-/** Unclaimed-case glass — the same idea as the SOS button's tint, on a card. */
 /**
- * The unclaimed-case glass: the nav bar's material, in red.
+ * The case accents.
  *
- * This took three goes and the two failures are worth recording. At 0x24 (14%) — the same
- * alpha [GlassSheer] uses for its white sheen — it arrived as a slightly warmer grey and
- * the card saying "needs someone" was the quietest thing on the screen. At 0x9E (62%) it
- * read as a painted red slab: legible, but no longer glass, and a solid red rectangle in a
- * list of sheer panes looks like a different app.
+ * Three, not two, and they are the only thing that distinguishes one card from another:
+ * the pane itself is [GlassSheer], the same material as the nav bar, so a console of six
+ * cases reads as one surface with six differently-edged panes rather than as a wall of red
+ * slabs with no hierarchy in it.
  *
- * The asymmetry is the point. White at 12% over a dark photograph lifts it; red at 12% is
- * darker than the ground it sits on and does nothing. Red needs roughly two and a half
- * times the alpha to carry the same weight, which is what 0x4D is.
+ * Amber is deliberately not a warning colour here — it means *stood down*. A false alarm
+ * and a minor issue are the two outcomes that say "not an emergency after all", and a
+ * closed-but-fine card sitting in the recently-closed list should stop shouting at
+ * somebody scanning for live ones.
  *
- * The border does the rest of the work. A pane this sheer is identified by its edge more
- * than by its fill, so the edge is a strong red where [GlassSheerBorder] is a 13% white
- * hairline — the card is recognisably red from across a car park without the fill having
- * to shout.
+ * Fixed values rather than theme tokens, like the pass and the route: these sit on a dark
+ * photograph in both themes, so following the palette would make half of them vanish.
  */
-/** One step deeper, for a case somebody has been to and called urgent. */
-private val UrgentGlassRaised = Color(0x7ACC3325)
-private val UrgentGlass = Color(0x4DE0483A)
-private val UrgentGlassBorder = Color(0xB3F0836F)
-
-/**
- * Ink for a red card.
- *
- * [WbwColors.danger] is a light salmon meant for red text on a dark ground; on a red ground
- * it is red-on-red. Everything on an urgent card is drawn in near-white instead, at two
- * weights, which is the only pairing that survives both themes — the card's fill does not
- * follow the theme, so its text must not either.
- */
-private val UrgentInk = Color(0xFFFFF3F0)
-private val UrgentInkMuted = Color(0xC7FFE8E2)
+private val CaseRed = Color(0xFFE8705C)
+private val CaseRedDeep = Color(0xFFFF5A46)
+private val CaseAmber = Color(0xFFE9B949)
