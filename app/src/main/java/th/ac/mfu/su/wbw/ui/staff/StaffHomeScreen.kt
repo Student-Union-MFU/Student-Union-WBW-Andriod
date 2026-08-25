@@ -273,8 +273,12 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
     // recently-closed list should not still be shouting red at somebody scanning for live
     // ones.
     val accent = when {
-        case.resolved && (case.resolveReason == "false_alarm" || case.resolveReason == "minor") -> CaseAmber
-        case.resolved -> colors.onBackdropMuted
+        // Every closed case is amber, whatever closed it. The distinction that matters at
+        // a glance is "does this still want people", and once it does not, a false alarm
+        // and a real injury that was dealt with are the same thing to somebody scanning
+        // the list — both are done. The reason is still on the card for anyone who cares
+        // which it was.
+        case.resolved -> CaseAmber
         case.severity == "urgent" -> CaseRedDeep
         else -> CaseRed
     }
@@ -284,22 +288,31 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
         Modifier
             .fillMaxWidth()
             // The nav bar's material, unchanged. Only the edge carries the state.
+            // The nav bar's material and the nav bar's edge — no coloured border.
+            //
+            // A tinted edge was too quiet to be the alert and too loud to be trim: from a
+            // metre away it read as a rendering artefact rather than as a state. The state
+            // is said in words instead, at a size meant to be read rather than noticed.
             .glass(
                 RoundedCornerShape(20.dp),
                 fill = GlassSheer,
-                border = if (live || case.resolveReason == "false_alarm" || case.resolveReason == "minor") {
-                    accent.copy(alpha = 0.55f)
-                } else {
-                    GlassSheerBorder
-                },
+                border = GlassSheerBorder,
                 elevation = 0.dp,
             )
             .padding(16.dp),
     ) {
         // ===== State =====
+        // The alert line. This is the card's headline, not its caption.
+        //
+        // It was an 8dp dot beside 10sp of letterspaced small-caps — the treatment a label
+        // gets, applied to the one line that says whether somebody is waiting for help. It
+        // is 12dp and 15sp now, in the state's own colour, and it is the first thing on
+        // the card that the eye lands on rather than something found after reading the
+        // name. Tracking comes down as the size goes up: 1.6sp of letterspacing is what
+        // makes 10sp small-caps readable and what makes 15sp look broken.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(accent))
-            Spacer(Modifier.width(9.dp))
+            Box(Modifier.size(12.dp).clip(CircleShape).background(accent))
+            Spacer(Modifier.width(10.dp))
             Text(
                 stringResource(
                     when {
@@ -313,19 +326,25 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                     },
                 ).uppercase(),
                 color = accent,
-                fontSize = 10.sp,
-                letterSpacing = 1.6.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                letterSpacing = 0.6.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
-            if (case.forOther) {
-                Text(
-                    stringResource(R.string.staff_case_for_other).uppercase(),
-                    color = colors.onBackdropMuted,
-                    fontSize = 9.sp,
-                    letterSpacing = 1.2.sp,
-                )
-            }
+        }
+
+        // Under the alert, not beside it. "Reported for someone else" is a long phrase and
+        // the two cases it appears on are the two with the longest alerts — sharing a row
+        // meant the headline wrapped to make space for a footnote.
+        if (case.forOther) {
+            Text(
+                stringResource(R.string.staff_case_for_other).uppercase(),
+                color = colors.onBackdropMuted,
+                fontSize = 9.sp,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.padding(start = 22.dp, top = 3.dp),
+            )
         }
 
         Spacer(Modifier.height(12.dp))
