@@ -142,18 +142,31 @@ fun StaffHomeScreen(
         // 9sp pill, which is caption treatment for a figure that means somebody is waiting
         // for help. It is now the size of a thing you are meant to read from arm's length,
         // and it says what it is counting rather than assuming the reader knows.
+        // One line, one size.
+        //
+        // The role was a bordered pill at 11sp beside a 15sp status, which read as two
+        // unrelated objects that happened to share a row — a badge, and then a sentence.
+        // They are one statement: who you are and what is waiting for you. Same size, a
+        // middot between them, and the border gone; the role stays muted and the count
+        // takes the weight and the colour, so the sentence still has an emphasis without
+        // being two components.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RolePill(session.role)
-            Spacer(Modifier.width(9.dp))
+            val waiting = state.waiting > 0
             Text(
-                if (state.waiting > 0) {
+                (StaffRoleLabels[session.role.lowercase()]?.let { stringResource(it) }
+                    ?: session.role) + "  ·  ",
+                color = colors.onBackdropMuted,
+                fontSize = 15.sp,
+            )
+            Text(
+                if (waiting) {
                     stringResource(R.string.staff_waiting_count, state.waiting)
                 } else {
                     stringResource(R.string.staff_all_clear)
                 },
-                color = if (state.waiting > 0) colors.danger else colors.onBackdropMuted,
+                color = if (waiting) colors.danger else colors.onBackdropMuted,
                 fontSize = 15.sp,
-                fontWeight = if (state.waiting > 0) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (waiting) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
 
@@ -842,25 +855,6 @@ private fun CaseAction(
 
 
 
-/** The account type, as a small outlined pill. */
-@Composable
-private fun RolePill(role: String) {
-    val colors = wbwColors
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .border(1.dp, colors.glassBorder, RoundedCornerShape(50))
-            .padding(horizontal = 9.dp, vertical = 3.dp),
-    ) {
-        Text(
-            (StaffRoleLabels[role.lowercase()]?.let { stringResource(it) } ?: role).uppercase(),
-            color = colors.onBackdropMuted,
-            fontSize = 11.sp,
-            letterSpacing = 1.2.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
 
 private val StaffRoleLabels = mapOf(
     "participant" to R.string.role_participant,
