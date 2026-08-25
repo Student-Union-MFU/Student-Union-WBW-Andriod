@@ -175,6 +175,9 @@
     <!-- Walk tracking -->
     <string name="walk_start">เริ่มเดิน</string>
     <string name="walk_stop">หยุด</string>
+    <string name="map_checkpoint_away">อีก %1$s</string>
+    <string name="action_close">ปิด</string>
+    <string name="walk_next_base">ฐานต่อไป</string>
     <string name="walk_route_label">เส้นทาง</string>
     <string name="walk_route_left">เหลืออีก %1$s</string>
     <string name="walk_route_complete">เดินครบเส้นทางแล้ว</string>
