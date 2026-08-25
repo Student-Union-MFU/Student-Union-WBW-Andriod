@@ -4,6 +4,9 @@ import th.ac.mfu.su.wbw.core.network.ApiResult
 import th.ac.mfu.su.wbw.core.network.apiCall
 import th.ac.mfu.su.wbw.data.remote.WbwApi
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
+import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
+import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
+import th.ac.mfu.su.wbw.data.remote.dto.SosReportRequest
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckinRequest
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckpoint
@@ -28,6 +31,13 @@ class StaffRepository(private val api: WbwApi) {
         apiCall { api.staffSosFeed(since, waitSeconds) }
 
     suspend fun ack(id: Long): ApiResult<SosStaffCase> = apiCall { api.ackSos(id) }
+
+    /**
+     * Report what was found. Closes the case or raises it, depending on [outcome] — the
+     * server decides which, and the feed's next round reflects whichever happened.
+     */
+    suspend fun report(id: Long, outcome: SosOutcome): ApiResult<OkResponse> =
+        apiCall { api.reportSos(id, SosReportRequest(outcome.wire)) }
 
     /** The checkpoints this account may stamp at. Fetched once, when the scanner opens. */
     suspend fun checkpoints(): ApiResult<List<StaffCheckpoint>> = apiCall { api.staffCheckpoints() }

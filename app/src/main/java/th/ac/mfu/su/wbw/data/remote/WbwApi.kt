@@ -18,6 +18,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
 import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
+import th.ac.mfu.su.wbw.data.remote.dto.SosReportRequest
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckinRequest
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckpoint
@@ -217,6 +218,17 @@ interface WbwApi {
      */
     @POST("staff/sos/{id}/ack")
     suspend fun ackSos(@Path("id") id: Long): SosStaffCase
+
+    /**
+     * staff — what was actually found, once somebody has reached the case.
+     *
+     * One endpoint for all four outcomes, and the server decides what each one means:
+     * `false_alarm` and `minor` close the case, `major` and `urgent` stamp a severity and
+     * leave it open. Deliberately not two calls with the app choosing between them — that
+     * would put the rule in two clients that can drift apart.
+     */
+    @POST("staff/sos/{id}/report")
+    suspend fun reportSos(@Path("id") id: Long, @Body body: SosReportRequest): OkResponse
 
     /**
      * staff — the checkpoints this account may stamp people in at.

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.ApiResult
+import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.data.repository.StaffRepository
 import th.ac.mfu.su.wbw.ui.appContainer
@@ -58,6 +59,27 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
         }
     }
 
+    /**
+     * Report what was found at a case.
+     *
+     * Nothing is applied optimistically. The four outcomes do two different things —
+     * `false_alarm` and `minor` close the case, `major` and `urgent` raise it and leave it
+     * open — and which is which is the server's rule, not this app's. Guessing here would
+     * mean a card that vanishes locally and reappears on the next poll, or the reverse.
+     * The poll is a second away and it tells the truth.
+     */
+    fun report(id: Long, outcome: SosOutcome) {
+        viewModelScope.launch {
+            when (staff.report(id, outcome)) {
+                // Ask for the change now rather than waiting out the current long-poll:
+                // the caller has just told the server something and expects the list to
+                // agree with them.
+                is ApiResult.Success -> refreshNow()
+                is ApiResult.Error -> Unit
+            }
+        }
+    }
+
     /** The long-poll loop. Runs until the screen goes away. */
     suspend fun watch() {
         var wait = 0
@@ -78,6 +100,27 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
                     delay(backoff)
                     backoff = (backoff * 2).coerceAtMost(MaxBackoffMillis)
                 }
+            }
+        }
+    }
+
+    /**
+     * One immediate, non-holding pass of the feed.
+     *
+     * `wait = 0` so it returns whatever is true right now instead of parking for
+     * twenty-five seconds. It runs alongside the long-poll rather than interrupting it —
+     * both fold through [merge], which is keyed by case id, so the worst a race can do is
+     * apply the same row twice.
+     *
+     * A resolved case comes back in the same feed (the server keeps recently-closed rows
+     * visible for half an hour), so closing one updates the card in place rather than
+     * needing it removed here.
+     */
+    private fun refreshNow() {
+        viewModelScope.launch {
+            when (val r = staff.sosFeed(since, 0)) {
+                is ApiResult.Success -> merge(r.data)
+                is ApiResult.Error -> Unit
             }
         }
     }

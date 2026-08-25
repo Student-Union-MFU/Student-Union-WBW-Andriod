@@ -128,6 +128,13 @@
     <string name="staff_case_nowhere">No position — could be anywhere on the trail</string>
     <string name="staff_case_phone">Phone %1$s</string>
     <string name="staff_case_no_maps">No maps app to open the location in.</string>
+    <string name="staff_case_report_title">What did you find?</string>
+    <string name="staff_case_false_alarm">False alarm</string>
+    <string name="staff_case_minor">Minor</string>
+    <string name="staff_case_major">Major</string>
+    <string name="staff_case_urgent">Urgent</string>
+    <string name="staff_case_sev_major">Major — still open</string>
+    <string name="staff_case_sev_urgent">Urgent — needs help now</string>
     <string name="staff_case_locate">Location</string>
     <string name="staff_case_call">Call</string>
     <string name="staff_case_ack">I am going</string>
