@@ -65,6 +65,12 @@ import th.ac.mfu.su.wbw.ui.theme.TicketCreamPaper
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.ThemeMode
 import th.ac.mfu.su.wbw.ui.theme.glass
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import th.ac.mfu.su.wbw.core.network.ApiResult
+import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
 @Composable
@@ -77,6 +83,19 @@ fun SettingsScreen(
     val context = LocalContext.current
     val settings = remember { (context.applicationContext as WbwApplication).container.appSettings }
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
+
+    // The avatar, read from the cached profile so the picker opens with the right one
+    // already marked rather than filling in a moment later.
+    val profile = remember { (context.applicationContext as WbwApplication).container.profileRepository }
+    val scope = rememberCoroutineScope()
+    var avatar by remember { mutableStateOf(profile.cachedMe()?.avatar) }
+    var avatarSaving by remember { mutableStateOf(false) }
+    var avatarError by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // The cache can be a day old and an avatar chosen on another device would not be in
+        // it, so ask — but only to correct the picker, never to blank it.
+        (profile.me() as? ApiResult.Success)?.let { avatar = it.data.avatar }
+    }
 
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(contentPadding).padding(horizontal = 16.dp),
@@ -107,6 +126,33 @@ fun SettingsScreen(
         // language
         SectionLabel(stringResource(R.string.settings_language))
         LanguageRow(settings)
+
+        // avatar
+        SectionLabel(stringResource(R.string.settings_avatar))
+        AvatarPicker(
+            selected = avatar,
+            saving = avatarSaving,
+            failed = avatarError,
+        ) { key ->
+            // Optimistic: the grid marks the new one immediately and puts the old one back
+            // if the server refuses. A picker that waits a round trip before showing what
+            // was tapped feels broken on a hill, and the failure is recoverable — the value
+            // is one of twelve, not something typed.
+            val previous = avatar
+            avatar = key
+            avatarSaving = true
+            avatarError = false
+            scope.launch {
+                when (profile.setAvatar(key)) {
+                    is ApiResult.Success -> Unit
+                    is ApiResult.Error -> {
+                        avatar = previous
+                        avatarError = true
+                    }
+                }
+                avatarSaving = false
+            }
+        }
 
         // appearance
         SectionLabel(stringResource(R.string.settings_appearance))
@@ -333,3 +379,63 @@ private fun Context.findActivity(): Activity? {
     }
     return null
 }
+
+/**
+ * The twelve avatars, as a grid of taps.
+ *
+ * A grid rather than a row that scrolls: twelve is few enough to show at once, and a
+ * horizontal strip hides half the choices behind a gesture nobody is told about. Wrapping
+ * means the count can change without the layout needing to.
+ *
+ * The selected one is marked by the app's own green fill and a hairline, the same pair the
+ * rating buttons use — a tick or a ring would be a third idiom for "this one".
+ */
+@Composable
+private fun AvatarPicker(
+    selected: String?,
+    saving: Boolean,
+    failed: Boolean,
+    onPick: (String) -> Unit,
+) {
+    val colors = wbwColors
+    Column(Modifier.fillMaxWidth().panel().padding(14.dp)) {
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            WbwAvatars.all.forEach { (key, glyph) ->
+                val isOn = key == selected
+                Box(
+                    Modifier
+                        .size(50.dp)
+                        .clip(ChipShape)
+                        .background(
+                            if (isOn) WbwGreenDark.copy(alpha = 0.55f)
+                            else WbwGreenDark.copy(alpha = 0.14f),
+                        )
+                        .border(
+                            1.dp,
+                            if (isOn) colors.onBackdrop.copy(alpha = 0.45f) else GlassSheerBorder,
+                            ChipShape,
+                        )
+                        // Ignored while a save is in flight, so a fast run along the row
+                        // does not queue four PATCHes whose order decides the winner.
+                        .clickableTap { if (!saving) onPick(key) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(glyph, fontSize = 24.sp)
+                }
+            }
+        }
+        Text(
+            stringResource(
+                if (failed) R.string.settings_avatar_failed else R.string.settings_avatar_hint,
+            ),
+            color = if (failed) colors.danger else colors.onBackdropMuted,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+    }
+}
+

@@ -283,6 +283,9 @@
     <string name="settings_display_language">Display language</string>
     <string name="settings_lang_english">English</string>
     <string name="settings_lang_thai">ไทย</string>
+    <string name="settings_avatar">Your avatar</string>
+    <string name="settings_avatar_hint">Shown beside your messages and in the group roster.</string>
+    <string name="settings_avatar_failed">Could not save that. Check your connection and try again.</string>
     <string name="settings_appearance">APPEARANCE</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>

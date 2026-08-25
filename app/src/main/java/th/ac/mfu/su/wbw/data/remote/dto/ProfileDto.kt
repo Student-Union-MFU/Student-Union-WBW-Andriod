@@ -26,6 +26,13 @@ data class ParticipantDetail(
     @SerialName("group_number") val groupNumber: Int? = null,
     @SerialName("photo_url") val photoUrl: String? = null,
     /**
+     * The chosen avatar's key, or null while nobody has chosen.
+     *
+     * Null is not "the first one" — a participant who has never opened the picker keeps the
+     * colour disc hashed from their id, which is what the app has always drawn.
+     */
+    val avatar: String? = null,
+    /**
      * The check-in credential — `participant_profile.qr_token`, 12 random bytes as hex.
      *
      * This is what goes in the QR on the pass, and it is deliberately *not* [id] or

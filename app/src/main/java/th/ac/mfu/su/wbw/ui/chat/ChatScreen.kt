@@ -69,6 +69,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
+import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -629,14 +630,23 @@ private fun MessageRow(row: Row_.Message, readBy: Int = 0) {
                         .border(1.dp, GlassSheerBorder, AvatarShape),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // The chosen avatar if there is one, and the initial if there is not.
+                    //
+                    // The disc, its colour and its border stay either way: the glyph sits
+                    // in the same place the letter did, so a group where half the people
+                    // have chosen and half have not still reads as one column of avatars
+                    // rather than as two kinds of thing.
+                    val glyph = WbwAvatars.glyph(m.avatar)
                     Text(
-                        m.authorName.take(1).uppercase(),
+                        glyph ?: m.authorName.take(1).uppercase(),
                         // Light, not WbwInkLight. These fills sit between 30% and 55% of
                         // the green over a dark backdrop, so they come out mid-dark and a
                         // near-black initial on them was around 2:1.
                         color = colors.onBackdrop,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 15.sp,
+                        // Emoji carry their own colour and read small at a letter's size,
+                        // so they are given a little more room than the initial.
+                        fontSize = if (glyph != null) 19.sp else 15.sp,
                     )
                 }
             }
