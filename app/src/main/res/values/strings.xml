@@ -224,8 +224,11 @@
     <string name="group_info_title">Group info</string>
     <string name="group_leave">Leave this group</string>
     <string name="group_leave_confirm">Leave</string>
-    <string name="group_leave_warning">You can move group once. Leave this one and you will pick another, and you will not be able to move again.</string>
-    <string name="group_leave_spent">You have already used your one group change, so you cannot leave this group.</string>
+    <plurals name="group_leave_warning">
+        <item quantity="one">You can move group %1$d more time. Leave this one and you will pick another — after that you cannot move again.</item>
+        <item quantity="other">You can move group %1$d more times. Leave this one and you will pick another.</item>
+    </plurals>
+    <string name="group_leave_spent">You have no group changes left, so you cannot leave this group.</string>
     <string name="action_cancel">Cancel</string>
     <string name="chat_members_title">In this group</string>
     <string name="chat_members_empty">Nobody has joined this group yet.</string>
