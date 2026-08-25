@@ -45,7 +45,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -69,7 +68,6 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     /** Opens the feedback form for a base that has been reached but not yet rated. */
-    onRateBase: (Int, String) -> Unit = { _, _ -> },
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -105,7 +103,7 @@ fun HomeScreen(
             ErrorState(message = s.message, onRetry = viewModel::load)
         }
         is UiState.Success ->
-            HomeContent(s.data, progress, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions, onRateBase)
+            HomeContent(s.data, progress, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
     }
 }
 
@@ -181,7 +179,6 @@ private fun HomeContent(
     onOpenNotifications: () -> Unit,
     hasUnread: Boolean,
     conditions: th.ac.mfu.su.wbw.data.repository.TrailConditions?,
-    onRateBase: (Int, String) -> Unit,
 ) {
     val colors = wbwColors
 
@@ -266,24 +263,6 @@ private fun HomeContent(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )
             }
-        }
-
-        // "You reached X — what was it like?"
-        //
-        // The first base a participant has been checked in at and not yet said anything
-        // about. One at a time rather than a list: a queue of forms is a queue nobody
-        // starts, and the next one appears here the moment this one is answered.
-        //
-        // It sits above the bloom because it is the only thing on this screen that is
-        // asking for something. The bloom reports, this requests, and a request buried
-        // under a picture is a request that goes unanswered.
-        val unrated = progress?.checkedIn?.firstOrNull { !it.answered }
-        if (unrated != null) {
-            FeedbackPrompt(
-                name = unrated.name,
-                onClick = { onRateBase(unrated.checkpointId, unrated.name) },
-            )
-            Spacer(Modifier.height(4.dp))
         }
 
         // The bloom is what Home is for: the one thing on the screen that changes as the
@@ -380,51 +359,6 @@ private fun HomeContent(
     }
 }
 
-/**
- * The nudge to rate a base that has just been reached.
- *
- * Deliberately a single line and a chevron rather than the form itself. Home is opened
- * mid-walk, often one-handed, and a four-question form unfolding on it would push the
- * bloom off the screen for somebody who only wanted to see their petals.
- */
-@Composable
-private fun FeedbackPrompt(name: String, onClick: () -> Unit) {
-    val colors = wbwColors
-    val shape = RoundedCornerShape(18.dp)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 10.dp)
-            .glass(shape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                stringResource(R.string.feedback_prompt_title, name),
-                color = colors.onBackdrop,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stringResource(R.string.feedback_prompt_body),
-                color = colors.onBackdropMuted,
-                fontSize = 12.sp,
-            )
-        }
-        Spacer(Modifier.width(10.dp))
-        Icon(
-            Icons.Outlined.ChevronRight,
-            contentDescription = stringResource(R.string.feedback_prompt_action),
-            tint = colors.onBackdropMuted,
-            modifier = Modifier.size(18.dp),
-        )
-    }
-}
 
 /**
  * How long the bloom keeps breathing after a touch.

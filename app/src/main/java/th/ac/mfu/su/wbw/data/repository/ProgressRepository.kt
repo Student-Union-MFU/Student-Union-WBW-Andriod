@@ -7,6 +7,8 @@ import th.ac.mfu.su.wbw.data.local.ResponseCache
 import th.ac.mfu.su.wbw.data.remote.WbwApi
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinFeedback
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
+import th.ac.mfu.su.wbw.data.remote.dto.EventFeedback
+import th.ac.mfu.su.wbw.data.remote.dto.EventFeedbackRequest
 import th.ac.mfu.su.wbw.data.remote.dto.FeedbackRequest
 
 /**
@@ -41,6 +43,16 @@ class ProgressRepository(
      */
     suspend fun submitFeedback(body: FeedbackRequest): ApiResult<CheckinFeedback> =
         apiCall { api.submitFeedback(body) }.onSuccess { progress() }
+
+    /**
+     * Send the end-of-route opinion.
+     *
+     * No progress refresh after it: the event form is not driven by the progress feed —
+     * nothing on the server records that it was answered yet — so [FeedbackGate] remembers
+     * locally instead. See its own note on why that is a stopgap rather than a design.
+     */
+    suspend fun submitEventFeedback(body: EventFeedbackRequest): ApiResult<EventFeedback> =
+        apiCall { api.submitEventFeedback(body) }
 
     suspend fun progress(): ApiResult<CheckinProgress> =
         apiCall { api.myProgress() }

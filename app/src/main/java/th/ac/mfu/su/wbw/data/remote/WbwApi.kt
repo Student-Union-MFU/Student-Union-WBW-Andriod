@@ -16,6 +16,8 @@ import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SendMessageRequest
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinFeedback
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
+import th.ac.mfu.su.wbw.data.remote.dto.EventFeedback
+import th.ac.mfu.su.wbw.data.remote.dto.EventFeedbackRequest
 import th.ac.mfu.su.wbw.data.remote.dto.FeedbackRequest
 import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
@@ -154,6 +156,17 @@ interface WbwApi {
      */
     @POST("me/feedback")
     suspend fun submitFeedback(@Body body: FeedbackRequest): CheckinFeedback
+
+    /**
+     * bearer — say what the walk as a whole was like, once every base is behind you.
+     *
+     * **Not implemented server-side yet.** `checkin_feedback` is keyed by `checkpoint_id`
+     * and an opinion about the route has no honest value to put there, so this needs a
+     * table and a handler of its own. Until it has them this 404s, which the gate treats
+     * as "asked and answered" rather than as a reason to hold somebody on a form.
+     */
+    @POST("me/event-feedback")
+    suspend fun submitEventFeedback(@Body body: EventFeedbackRequest): EventFeedback
 
     // ===== Emergency =====
 

@@ -73,6 +73,25 @@ class AppSettings(context: Context) {
         prefs.edit().putLong(KEY_LAST_SEEN_NOTI, newestId).apply()
     }
 
+    /**
+     * Whether the end-of-route form has been answered.
+     *
+     * **On the device, which is the wrong place for it, deliberately and temporarily.**
+     * Every other "have I already done this" in the app is the server's answer — `answered`
+     * on the progress feed, `leave_quota` on `/me` — because the device is the one party
+     * that cannot be trusted with it: a reinstall, a second phone or cleared storage all
+     * lose it. `POST /wbw/me/event-feedback` does not exist yet, so there is nothing to ask.
+     * When it lands it should report this back, and this flag should go.
+     */
+    private val _eventFeedbackDone = MutableStateFlow(prefs.getBoolean(KEY_EVENT_FEEDBACK, false))
+    val eventFeedbackDone: StateFlow<Boolean> = _eventFeedbackDone
+
+    fun markEventFeedbackDone() {
+        if (_eventFeedbackDone.value) return
+        _eventFeedbackDone.value = true
+        prefs.edit().putBoolean(KEY_EVENT_FEEDBACK, true).apply()
+    }
+
     fun notificationEnabled(key: String, default: Boolean = true): Boolean =
         prefs.getBoolean("noti_$key", default)
 
@@ -88,6 +107,7 @@ class AppSettings(context: Context) {
         private const val KEY_THEME = "theme_mode"
         private const val KEY_LANG = "language"
         private const val KEY_LAST_SEEN_NOTI = "last_seen_notification_id"
+        private const val KEY_EVENT_FEEDBACK = "event_feedback_done"
 
         /**
          * Wrap a base context with the stored app language, if any. Call from

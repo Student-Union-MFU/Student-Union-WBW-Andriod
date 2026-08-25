@@ -1,6 +1,7 @@
 package th.ac.mfu.su.wbw.ui.feedback
 
 import androidx.compose.foundation.background
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +69,22 @@ fun FeedbackScreen(
     checkpointName: String,
     contentPadding: PaddingValues,
     onDone: () -> Unit,
+    /**
+     * Whether this is a gate rather than a page.
+     *
+     * A gate has no way back: no arrow in its corner, and the caller has already taken the
+     * bottom bar and the system back gesture away. It is set when the form is standing
+     * between a participant and the rest of the app, which is every time it is opened by a
+     * scan — see [th.ac.mfu.su.wbw.ui.feedback.FeedbackGate].
+     */
+    blocking: Boolean = false,
+    /**
+     * A way out of a blocking form, offered only once a send has failed.
+     *
+     * Null for the base form, which is meant to be unskippable and whose endpoint exists.
+     * Non-null for the event form, whose endpoint does not — see [FeedbackGate].
+     */
+    onGiveUp: (() -> Unit)? = null,
     viewModel: FeedbackViewModel = viewModel(factory = FeedbackViewModel.factoryFor(checkpointId)),
 ) {
     val colors = wbwColors
@@ -90,25 +107,33 @@ fun FeedbackScreen(
             Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(42.dp)
-                    .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onDone),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    stringResource(R.string.action_back),
-                    tint = colors.onBackdrop,
-                    modifier = Modifier.size(19.dp),
-                )
+            // Gone while blocking. A back arrow that goes nowhere is worse than no arrow:
+            // it is the screen telling the participant there is a way out and then not
+            // honouring it, which reads as broken rather than as deliberate.
+            if (!blocking) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onDone),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        stringResource(R.string.action_back),
+                        tint = colors.onBackdrop,
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
             }
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    stringResource(R.string.feedback_title),
+                    stringResource(
+                        if (viewModel.form == FeedbackForm.Event) R.string.feedback_title_event
+                        else R.string.feedback_title,
+                    ),
                     color = colors.onBackdropMuted,
                     fontSize = 12.sp,
                 )
@@ -123,31 +148,21 @@ fun FeedbackScreen(
             }
         }
 
-        QuestionBlock(
-            label = stringResource(R.string.feedback_q_scenery),
-            hint = stringResource(R.string.feedback_q_scenery_hint),
-            value = state.ratings[FeedbackQuestion.Scenery],
-            onRate = { viewModel.rate(FeedbackQuestion.Scenery, it) },
-        )
-        QuestionBlock(
-            label = stringResource(R.string.feedback_q_activity),
-            hint = stringResource(R.string.feedback_q_activity_hint),
-            value = state.ratings[FeedbackQuestion.Activity],
-            onRate = { viewModel.rate(FeedbackQuestion.Activity, it) },
-        )
-        QuestionBlock(
-            label = stringResource(R.string.feedback_q_staff),
-            hint = stringResource(R.string.feedback_q_staff_hint),
-            value = state.ratings[FeedbackQuestion.Staff],
-            onRate = { viewModel.rate(FeedbackQuestion.Staff, it) },
-        )
-        QuestionBlock(
-            label = stringResource(R.string.feedback_q_overall),
-            hint = stringResource(R.string.feedback_q_overall_hint),
-            value = state.ratings[FeedbackQuestion.Overall],
-            required = true,
-            onRate = { viewModel.rate(FeedbackQuestion.Overall, it) },
-        )
+        // The questions this form asks, in its own order — not a fixed four.
+        //
+        // Driven by [FeedbackForm] rather than written out here, so the difference between
+        // the two forms lives in one list in one file instead of in the shape of this
+        // Column. Adding or moving a question is then an edit to that list.
+        viewModel.form.questions.forEach { q ->
+            val spec = specFor(q, viewModel.form)
+            QuestionBlock(
+                label = stringResource(spec.label),
+                hint = stringResource(spec.hint),
+                value = state.ratings[q],
+                required = q == FeedbackQuestion.Overall,
+                onRate = { viewModel.rate(q, it) },
+            )
+        }
 
         Spacer(Modifier.height(6.dp))
         Text(
@@ -182,6 +197,20 @@ fun FeedbackScreen(
         state.error?.let {
             Spacer(Modifier.height(10.dp))
             Text(it, color = colors.danger, fontSize = 12.sp)
+
+            // Only after a failure, and only where one was offered. A way out shown before
+            // anything has gone wrong is just a skip button, and this form is not meant to
+            // have one.
+            if (blocking && onGiveUp != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.feedback_give_up),
+                    color = colors.onBackdrop,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable(onClick = onGiveUp).padding(vertical = 4.dp),
+                )
+            }
         }
 
         Spacer(Modifier.height(18.dp))
@@ -201,6 +230,36 @@ fun FeedbackScreen(
 
         Spacer(Modifier.height(contentPadding.calculateBottomPadding() + 20.dp))
     }
+}
+
+/** What one question is called, and the line that goes under it. */
+private data class QuestionSpec(@StringRes val label: Int, @StringRes val hint: Int)
+
+/**
+ * The wording for a question, given which form is asking it.
+ *
+ * Two questions read differently in the two forms and the rest do not. The activity is one
+ * base's worth on the base form and a day's worth on the event one; "overall" is this place
+ * against the whole walk. Same column, same scale, different thing being asked — so the
+ * gloss moves and the question does not.
+ */
+private fun specFor(q: FeedbackQuestion, form: FeedbackForm): QuestionSpec = when (q) {
+    FeedbackQuestion.Scenery ->
+        QuestionSpec(R.string.feedback_q_scenery, R.string.feedback_q_scenery_hint)
+    FeedbackQuestion.Area ->
+        QuestionSpec(R.string.feedback_q_area, R.string.feedback_q_area_hint)
+    FeedbackQuestion.Staff ->
+        QuestionSpec(R.string.feedback_q_staff, R.string.feedback_q_staff_hint)
+    FeedbackQuestion.Activity -> QuestionSpec(
+        R.string.feedback_q_activity,
+        if (form == FeedbackForm.Event) R.string.feedback_q_activity_event_hint
+        else R.string.feedback_q_activity_hint,
+    )
+    FeedbackQuestion.Overall -> QuestionSpec(
+        if (form == FeedbackForm.Event) R.string.feedback_q_overall_event else R.string.feedback_q_overall,
+        if (form == FeedbackForm.Event) R.string.feedback_q_overall_event_hint
+        else R.string.feedback_q_overall_hint,
+    )
 }
 
 /** One question: what it asks, and five numbers to answer it with. */

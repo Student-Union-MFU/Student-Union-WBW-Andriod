@@ -16,6 +16,7 @@ import th.ac.mfu.su.wbw.core.network.ApiResult
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
 import th.ac.mfu.su.wbw.ui.appContainer
+import th.ac.mfu.su.wbw.ui.feedback.FeedbackGate
 import th.ac.mfu.su.wbw.ui.home.HomeScaffold
 
 /**
@@ -98,6 +99,11 @@ fun GroupGate(session: Session, onLogout: () -> Unit) {
     if (state.status == GroupStatus.Missing) {
         GroupPickerScreen(onJoined = { viewModel.refresh() })
     } else {
-        HomeScaffold(session = session, onLogout = onLogout)
+        // Inside the group gate rather than outside it: a participant with no group has
+        // no check-ins to be asked about, and stacking two gates would put a form about a
+        // base in front of somebody who has not joined the event yet.
+        FeedbackGate {
+            HomeScaffold(session = session, onLogout = onLogout)
+        }
     }
 }
