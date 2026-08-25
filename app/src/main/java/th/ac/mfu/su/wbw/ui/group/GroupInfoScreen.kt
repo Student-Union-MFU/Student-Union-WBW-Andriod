@@ -143,7 +143,12 @@ fun GroupInfoScreen(
 
             else -> LazyColumn(
                 Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                // Enough of a gap that the cards read as separate people.
+                //
+                // 2dp put a hairline between two glass panes of the same colour, which at a
+                // glance is one long pane with lines ruled across it — a roster is a list of
+                // people, and each of them should look like one entry.
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(state.members, key = { it.userId }) { m ->
                     MemberLine(member = m, isMe = m.userId == state.meId)

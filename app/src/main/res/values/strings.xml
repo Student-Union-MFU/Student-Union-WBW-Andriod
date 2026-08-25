@@ -227,7 +227,6 @@
     <string name="group_leave_warning">You can move group once. Leave this one and you will pick another, and you will not be able to move again.</string>
     <string name="group_leave_spent">You have already used your one group change, so you cannot leave this group.</string>
     <string name="action_cancel">Cancel</string>
-    <string name="chat_members_title">In this group</string>
     <string name="chat_members_empty">Nobody has joined this group yet.</string>
     <string name="chat_members_you">You</string>
     <string name="chat_members">%1$d in this group</string>
@@ -360,7 +359,4 @@
     <string name="feedback_submit">Send</string>
     <string name="feedback_needs_overall">Give an overall rating to send this.</string>
     <string name="feedback_give_up">Continue without sending</string>
-    <string name="feedback_prompt_title">You reached %1$s</string>
-    <string name="feedback_prompt_body">Tell the organisers what it was like</string>
-    <string name="feedback_prompt_action">Rate this base</string>
 </resources>

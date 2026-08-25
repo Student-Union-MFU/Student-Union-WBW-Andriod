@@ -49,8 +49,6 @@ data class ChatUiState(
      * The roster, once somebody has asked to see it. Empty until then — it is a
      * deliberate, occasional look rather than something every chat screen needs loaded.
      */
-    val members: List<GroupMember> = emptyList(),
-    val membersLoading: Boolean = false,
     /** How many other members have read this device's latest message. */
     val readCount: Int = 0,
     val meId: String? = null,
@@ -108,23 +106,6 @@ class ChatViewModel(
         )
         // Staff already know which group they opened, and `/me` would 404 for them.
         if (forcedGroupId == null) refreshProfile()
-    }
-
-    /** Load the roster. Called when somebody opens the member list, not before. */
-    fun loadMembers() {
-        val groupId = _state.value.groupId ?: return
-        if (_state.value.membersLoading) return
-        _state.update { it.copy(membersLoading = true) }
-        viewModelScope.launch {
-            when (val r = chat.members(groupId)) {
-                is ApiResult.Success -> _state.update {
-                    it.copy(members = r.data.members, membersLoading = false, memberCount = r.data.count)
-                }
-                // Keep whatever roster was already there. A failed fetch is not evidence
-                // that the group emptied.
-                is ApiResult.Error -> _state.update { it.copy(membersLoading = false) }
-            }
-        }
     }
 
     /**
