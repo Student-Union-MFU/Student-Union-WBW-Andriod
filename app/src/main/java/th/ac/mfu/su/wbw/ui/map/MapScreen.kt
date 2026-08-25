@@ -1210,12 +1210,20 @@ private fun CheckpointCard(
             // How busy it is and how far off it is, on one line.
             //
             // Two facts of the same kind — both are "what is it like over there right now"
-            // — so they read as one answer rather than as a list. Either can be missing:
-            // the count until the server sends one, the distance until the phone has a
-            // position, and the line is simply shorter or absent rather than carrying a
-            // dash where a number should be.
+            // — so they read as one answer rather than as a list.
+            //
+            // The count falls back to zero while the server does not send one, which is a
+            // placeholder rather than a reading: `/wbw/checkpoints` has no `checkin_count`
+            // yet, so every base says nought until it does. Deliberate — it holds the line
+            // at its full width so the card does not change shape on the day the numbers
+            // arrive, and a base that genuinely has nobody at it is the commonest reading
+            // this line will ever have. The DTO still decodes the difference as null, so
+            // nothing downstream of it is told a count it was never given.
+            //
+            // Distance is the one that stays absent when unknown, because there is no
+            // placeholder for it that is not a lie about a specific place.
             val facts = listOfNotNull(
-                checkpoint.checkinCount?.let { stringResource(R.string.map_checkpoint_checked_in, it) },
+                stringResource(R.string.map_checkpoint_checked_in, checkpoint.checkinCount ?: 0),
                 metresFromMe?.let { stringResource(R.string.map_checkpoint_from_me, formatDistance(it)) },
             )
             if (facts.isNotEmpty()) {
