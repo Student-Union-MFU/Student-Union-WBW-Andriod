@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -31,7 +32,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -54,18 +57,21 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
+import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
+import th.ac.mfu.su.wbw.ui.theme.WbwForestVoid
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 import kotlinx.coroutines.launch
 
@@ -94,6 +100,7 @@ fun ChatScreen(
 ) {
     val colors = wbwColors
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var showMembers by remember { mutableStateOf(false) }
     val rows = remember(state.messages, state.pending) { groupMessages(state.messages, state.pending) }
     // The read cursor is only worth showing on the newest thing you said — a receipt under
     // every one of your messages is noise, and the server only tells you the high-water mark
@@ -141,6 +148,7 @@ fun ChatScreen(
         scope.launch { listState.animateScrollToItem((rows.size).coerceAtLeast(0)) }
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         // Channel header. Named like a Discord channel because the group *is* the
         // channel here — one per participant group, which is how the iOS app models it.
@@ -151,19 +159,52 @@ fun ChatScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = colors.onBackdrop,
             )
-            Text(
-                when {
-                    state.noGroup -> stringResource(R.string.chat_no_group)
-                    // A dropped long-poll is the normal condition on this hill, so it is
-                    // reported here in the muted line rather than as an alert over the
-                    // conversation — the messages already on screen are still true.
-                    state.error != null -> stringResource(R.string.chat_offline)
-                    state.memberCount > 0 -> stringResource(R.string.chat_members, state.memberCount)
-                    else -> stringResource(R.string.chat_channel_desc)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.onBackdropMuted,
-            )
+            // The member count is the way into the roster.
+            //
+            // A line that was already there and already said how many people were in the
+            // group; the question it raises — which people — had no answer anywhere in
+            // the app. Making the count itself the control keeps the header at two lines
+            // instead of growing a third for a button.
+            val canOpenRoster = state.groupId != null && !state.noGroup
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .then(
+                        if (canOpenRoster) {
+                            Modifier.clickable {
+                                showMembers = true
+                                viewModel.loadMembers()
+                            }
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    when {
+                        state.noGroup -> stringResource(R.string.chat_no_group)
+                        // A dropped long-poll is the normal condition on this hill, so it is
+                        // reported here in the muted line rather than as an alert over the
+                        // conversation — the messages already on screen are still true.
+                        state.error != null -> stringResource(R.string.chat_offline)
+                        state.memberCount > 0 -> stringResource(R.string.chat_members, state.memberCount)
+                        else -> stringResource(R.string.chat_channel_desc)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onBackdropMuted,
+                )
+                if (canOpenRoster) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Outlined.ChevronRight,
+                        contentDescription = stringResource(R.string.chat_members_title),
+                        tint = colors.onBackdropMuted,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
         }
 
         // The thread sits directly on the backdrop — no pane under it.
@@ -324,6 +365,163 @@ fun ChatScreen(
                     modifier = Modifier.size(20.dp),
                 )
             }
+        }
+    }
+    // The roster, over the conversation.
+    //
+    // An overlay rather than a Material sheet: nothing else in this app uses one, and a
+    // sheet arrives with its own container colour and elevation, on a screen made
+    // entirely of glass over a photograph.
+    if (showMembers) {
+        MemberSheet(
+            members = state.members,
+            loading = state.membersLoading,
+            meId = state.meId,
+            onDismiss = { showMembers = false },
+        )
+    }
+    }
+}
+
+/**
+ * Who is in this group.
+ *
+ * The question the header's member count always raised and the app never answered. It
+ * matters more here than the count does: on a walk organised entirely around groups, "who
+ * else is in mine" is how somebody finds the people they are supposed to be with, and it
+ * is the only place in the app where a participant can see their own group as a list of
+ * names rather than as a number.
+ *
+ * Bib numbers are shown because a bib is how people identify each other on the day —
+ * shouted across a car park, read off a vest. School is shown because the groups are
+ * mixed across schools and it is the next most useful thing to know about a stranger.
+ */
+@Composable
+private fun MemberSheet(
+    members: List<GroupMember>,
+    loading: Boolean,
+    meId: String?,
+    onDismiss: () -> Unit,
+) {
+    val colors = wbwColors
+    Box(
+        Modifier
+            .fillMaxSize()
+            // Tapping the scrim closes it. `tapNoRipple` rather than `clickable` so the
+            // dim does not flash a ripple the size of the screen.
+            .background(WbwForestVoid.copy(alpha = 0.72f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+                .navigationBarsPadding()
+                .glass(RoundedCornerShape(24.dp), fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                // Swallows taps so a press inside the panel does not reach the scrim.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+        ) {
+            Text(
+                stringResource(R.string.chat_members_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.onBackdrop,
+            )
+            Spacer(Modifier.height(14.dp))
+
+            when {
+                loading && members.isEmpty() -> Box(
+                    Modifier.fillMaxWidth().padding(vertical = 22.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        color = colors.onBackdropMuted,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+
+                members.isEmpty() -> Text(
+                    stringResource(R.string.chat_members_empty),
+                    color = colors.onBackdropMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(vertical = 10.dp),
+                )
+
+                else -> LazyColumn(
+                    // Capped so a large group does not push the panel off the top of the
+                    // screen; it scrolls inside instead.
+                    Modifier.fillMaxWidth().heightIn(max = 340.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    items(members, key = { it.userId }) { m ->
+                        MemberRow(member = m, isMe = m.userId == meId)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One person: their name, whether it is you, and the two facts worth knowing about them. */
+@Composable
+private fun MemberRow(member: GroupMember, isMe: Boolean) {
+    val colors = wbwColors
+    val name = listOfNotNull(member.firstName, member.lastName)
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
+        .ifBlank { member.bib?.let { "BIB $it" } ?: member.userId.take(8) }
+
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    name,
+                    color = colors.onBackdrop,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (isMe) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.chat_members_you),
+                        color = colors.onBackdropMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+            member.school?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    color = colors.onBackdropMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        member.bib?.let {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "$it",
+                color = colors.onBackdropMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
         }
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Warning
@@ -31,15 +33,21 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.ui.home.FloatingTabBar
 import th.ac.mfu.su.wbw.ui.home.TabItem
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import th.ac.mfu.su.wbw.ui.chat.ChatScreen
+import th.ac.mfu.su.wbw.ui.chat.ChatViewModel
 import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
 import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 
 private fun routeOrder(route: String?): Int = when (route) {
     "alerts" -> 0
-    "map" -> 1
-    "scan" -> 2
-    "settings" -> 3
+    "groups" -> 1
+    "map" -> 2
+    "scan" -> 3
+    "settings" -> 4
     else -> 0
 }
 
@@ -68,9 +76,15 @@ private fun routeOrder(route: String?): Int = when (route) {
  * `POST /wbw/staff/checkin`. A destination rather than a third tab: it is something a staff
  * member goes and does and comes back from, while the two tabs are what the account watches.
  *
- * Deliberately absent: chat (staff belong to no group, so there is no channel to open), the
- * pass itself (there is no pass to hold up — the same slot reads codes here instead of
- * showing one), and the bloom (it counts a participant's own check-ins).
+ *  - **Chat** — every group, and the conversation inside whichever one is opened. A
+ *    participant's chat tab goes straight into their own group because they have exactly
+ *    one; a staff account has none, so it picks. The server lets staff into any group's
+ *    chat (see `CanUseGroupChat`), which is the point: coordinating means talking to the
+ *    group that needs it, not to one assigned at login.
+ *
+ * Deliberately absent: the pass itself (there is no pass to hold up — the same slot reads
+ * codes here instead of showing one), and the bloom (it counts a participant's own
+ * check-ins).
  */
 @Composable
 fun StaffScaffold(session: Session, onLogout: () -> Unit) {
@@ -80,6 +94,7 @@ fun StaffScaffold(session: Session, onLogout: () -> Unit) {
 
     val tabs = listOf(
         TabItem("alerts", Icons.Filled.Warning, Icons.Outlined.Warning, stringResource(R.string.tab_alerts)),
+        TabItem("groups", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat, stringResource(R.string.tab_chat)),
         TabItem("map", Icons.Filled.Map, Icons.Outlined.Map, stringResource(R.string.tab_map)),
     )
 
@@ -108,6 +123,28 @@ fun StaffScaffold(session: Session, onLogout: () -> Unit) {
                         session = session,
                         contentPadding = contentPadding,
                         onOpenSettings = { nav.navigate("settings") },
+                    )
+                }
+                composable("groups") {
+                    StaffGroupsScreen(
+                        contentPadding = contentPadding,
+                        onOpenGroup = { g -> nav.navigate("groupChat/${g.groupId}/${g.groupNumber}") },
+                    )
+                }
+                composable(
+                    "groupChat/{groupId}/{groupNumber}",
+                    arguments = listOf(
+                        navArgument("groupId") { type = NavType.IntType },
+                        navArgument("groupNumber") { type = NavType.IntType },
+                    ),
+                ) { entry ->
+                    val groupId = entry.arguments?.getInt("groupId") ?: return@composable
+                    val groupNumber = entry.arguments?.getInt("groupNumber")
+                    ChatScreen(
+                        contentPadding = contentPadding,
+                        // Keyed to this entry, so opening group 3 and then group 7 gets two
+                        // view models rather than one told to forget the first thread.
+                        viewModel = viewModel(factory = ChatViewModel.factoryFor(groupId, groupNumber)),
                     )
                 }
                 composable("map") { MapScreen(contentPadding = contentPadding, emergency = false) }

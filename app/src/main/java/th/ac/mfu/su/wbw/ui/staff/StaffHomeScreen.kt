@@ -124,6 +124,11 @@ fun StaffHomeScreen(
 
         Spacer(Modifier.height(6.dp))
 
+        // The line under the greeting is the count of emergencies nobody has claimed yet —
+        // the single most important number on this screen, and it was set at 12sp beside a
+        // 9sp pill, which is caption treatment for a figure that means somebody is waiting
+        // for help. It is now the size of a thing you are meant to read from arm's length,
+        // and it says what it is counting rather than assuming the reader knows.
         Row(verticalAlignment = Alignment.CenterVertically) {
             RolePill(session.role)
             Spacer(Modifier.width(9.dp))
@@ -134,8 +139,8 @@ fun StaffHomeScreen(
                     stringResource(R.string.staff_all_clear)
                 },
                 color = if (state.waiting > 0) colors.danger else colors.onBackdropMuted,
-                fontSize = 12.sp,
-                fontWeight = if (state.waiting > 0) FontWeight.Medium else FontWeight.Normal,
+                fontSize = 15.sp,
+                fontWeight = if (state.waiting > 0) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
 
@@ -361,8 +366,8 @@ private fun RolePill(role: String) {
         Text(
             (StaffRoleLabels[role.lowercase()]?.let { stringResource(it) } ?: role).uppercase(),
             color = colors.onBackdropMuted,
-            fontSize = 9.sp,
-            letterSpacing = 1.6.sp,
+            fontSize = 11.sp,
+            letterSpacing = 1.2.sp,
             fontWeight = FontWeight.Medium,
         )
     }
