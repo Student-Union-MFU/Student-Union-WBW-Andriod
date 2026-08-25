@@ -121,6 +121,7 @@
     <string name="staff_case_nowhere">ไม่มีพิกัด — อาจอยู่จุดใดก็ได้บนเส้นทาง</string>
     <string name="staff_case_phone">โทร %1$s</string>
     <string name="staff_case_no_maps">ไม่มีแอปแผนที่สำหรับเปิดตำแหน่งนี้</string>
+    <string name="staff_case_stage_one">ตอนนี้เห็นเฉพาะเจ้าหน้าที่ประจำกลุ่มกับผู้ดูแล</string>
     <string name="staff_case_report_title">ไปถึงแล้วเจออะไร</string>
     <string name="staff_case_false_alarm">แจ้งผิด</string>
     <string name="staff_case_minor">เล็กน้อย</string>

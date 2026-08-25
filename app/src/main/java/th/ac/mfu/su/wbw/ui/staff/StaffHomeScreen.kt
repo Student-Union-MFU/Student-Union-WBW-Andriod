@@ -338,6 +338,21 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
             )
         }
 
+        // Stage one, said plainly.
+        //
+        // A case nobody has escalated is showing to this group's staff and to admins, and
+        // to nobody else — which is a fact the person looking at it needs, because it means
+        // the rest of the event does not know. Without the line the card is
+        // indistinguishable from one the whole staff body is already converging on.
+        if (!case.escalated && !case.resolved) {
+            Text(
+                stringResource(R.string.staff_case_stage_one),
+                color = colors.onBackdropMuted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(start = 22.dp, top = 3.dp),
+            )
+        }
+
         // Under the alert, not beside it. "Reported for someone else" is a long phrase and
         // the two cases it appears on are the two with the longest alerts — sharing a row
         // meant the headline wrapped to make space for a footnote.
