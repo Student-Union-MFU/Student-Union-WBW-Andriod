@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -86,6 +87,7 @@ import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
+import th.ac.mfu.su.wbw.ui.theme.WbwInkDark
 import java.util.concurrent.Executors
 
 /**
@@ -175,7 +177,7 @@ fun StaffScanScreen(
                         torch = torch,
                         onCode = viewModel::onScanned,
                     )
-                    Reticle(active = state.reading, accent = colors.accent)
+                    Reticle(active = state.reading)
                 } else {
                     Box(
                         Modifier
@@ -285,7 +287,9 @@ private fun BibFallback(enabled: Boolean, onSubmit: (Int) -> Unit) {
                 enabled = enabled,
                 singleLine = true,
                 textStyle = LocalTextStyle.current.copy(color = colors.onBackdrop, fontSize = 14.sp),
-                cursorBrush = SolidColor(colors.accent),
+                // onBackdrop, not accent: this sits on glass over the dark backdrop, where
+                // accent is near-black in the light theme and the caret disappears.
+                cursorBrush = SolidColor(colors.onBackdrop),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
@@ -297,7 +301,9 @@ private fun BibFallback(enabled: Boolean, onSubmit: (Int) -> Unit) {
         Spacer(Modifier.width(10.dp))
         Text(
             stringResource(R.string.scan_bib_submit),
-            color = if (enabled && text.isNotBlank()) colors.accent else colors.onBackdropMuted,
+            // Same reason as the caret above — an accent-coloured label on this glass is
+            // unreadable in the light theme. Weight carries the enabled state instead.
+            color = if (enabled && text.isNotBlank()) colors.onBackdrop else colors.onBackdropMuted,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
@@ -432,10 +438,20 @@ private fun CameraFeed(enabled: Boolean, torch: Boolean, onCode: (String) -> Uni
     AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 }
 
-/** The frame. Corners only — a full rectangle reads as a border, corners read as a target. */
+/** Cream, fixed in both themes — the reticle is drawn over video. */
+private val ReticleInk = WbwInkDark
+
+/**
+ * The frame. Corners only — a full rectangle reads as a border, corners read as a target.
+ *
+ * A fixed cream rather than a theme colour, for the same reason the route on the map is
+ * fixed: this is drawn over live camera video, which is not a surface that follows an
+ * appearance setting. Themed, it took `accent` — near-black in the light theme — and put
+ * near-black corners over whatever the lens happened to be pointing at.
+ */
 @Composable
-private fun Reticle(active: Boolean, accent: Color) {
-    val tint = if (active) accent else accent.copy(alpha = 0.35f)
+private fun Reticle(active: Boolean) {
+    val tint = if (active) ReticleInk else ReticleInk.copy(alpha = 0.35f)
     Box(Modifier.fillMaxSize().padding(34.dp)) {
         val corner = 30.dp
         val thickness = 3.dp
@@ -527,17 +543,48 @@ private fun CheckpointPicker(
             fontSize = 13.sp,
         )
 
+        // Two to a row. Eight bases in one column pushed the bib field off the bottom of
+        // the screen and made the list the whole page; paired up they fit under the lens
+        // without scrolling on an ordinary handset.
+        //
+        // Chunked rows rather than a LazyVerticalGrid: this sits inside a vertically
+        // scrolling column, and a lazy grid measured against an unbounded height crashes
+        // rather than laying out. Eight items do not need laziness anyway.
         else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            checkpoints.forEach { cp ->
-                CheckpointRow(
-                    checkpoint = cp,
-                    selected = cp.id == selected?.id,
-                    onSelect = { onSelect(cp) },
-                )
+            checkpoints.chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pair.forEach { cp ->
+                        CheckpointRow(
+                            checkpoint = cp,
+                            selected = cp.id == selected?.id,
+                            onSelect = { onSelect(cp) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    // An odd count leaves the last cell half-width otherwise, which reads
+                    // as a wider button rather than as the end of the list.
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
 }
+
+/**
+ * What to write on top of an accent fill.
+ *
+ * The selected chip fills with [WbwColors.accent], and accent is not one colour: it is
+ * cream in the dark theme and near-black green (#1B2A1B) in the light one, because it
+ * doubles as the primary text colour. The chip used to draw its label in `forestVoid`
+ * (#0B140E) either way, which is fine against cream and very nearly invisible against
+ * #1B2A1B — the selected checkpoint was the one hardest to read in light mode, on a
+ * screen used outdoors in daylight.
+ *
+ * So it flips with the theme rather than being fixed: dark ink on the light fill, light
+ * ink on the dark one.
+ */
+private val onAccent: Color
+    @Composable get() = if (wbwColors.isDark) wbwColors.forestVoid else wbwColors.onBackdrop
 
 /** One checkpoint. Its number when it has one — the trail is walked in order. */
 @Composable
@@ -545,12 +592,13 @@ private fun CheckpointRow(
     checkpoint: StaffCheckpoint,
     selected: Boolean,
     onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = wbwColors
+    val ink = onAccent
     val shape = RoundedCornerShape(14.dp)
     Row(
-        Modifier
-            .fillMaxWidth()
+        modifier
             .then(
                 if (selected) {
                     Modifier.background(colors.accent, shape)
@@ -560,33 +608,42 @@ private fun CheckpointRow(
             )
             .clip(shape)
             .clickable(onClick = onSelect)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The sequence, where the checkpoint has one. Service points do not, and the
         // server filters those out of this list anyway, so a blank here is rare rather
         // than routine — a dot keeps the names aligned when it happens.
-        Box(Modifier.width(26.dp)) {
+        Box(Modifier.width(20.dp)) {
             Text(
                 checkpoint.sequence?.toString() ?: "·",
-                color = if (selected) colors.forestVoid.copy(alpha = 0.7f) else colors.onBackdropMuted,
+                // 0.75 of the selected ink rather than of a fixed colour, so it stays a
+                // step quieter than the name in both themes instead of dropping out of
+                // one of them.
+                color = if (selected) ink.copy(alpha = 0.75f) else colors.onBackdropMuted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
         Text(
             checkpoint.name,
-            color = if (selected) colors.forestVoid else colors.onBackdrop,
-            fontSize = 14.sp,
+            color = if (selected) ink else colors.onBackdrop,
+            fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            // Half-width cells cannot hold every Thai base name on one line. Two lines
+            // with an ellipsis beats shrinking the type at a checkpoint table.
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            lineHeight = 16.sp,
             modifier = Modifier.weight(1f),
         )
         if (selected) {
+            Spacer(Modifier.width(6.dp))
             Icon(
                 Icons.Outlined.CheckCircle,
                 contentDescription = null,
-                tint = colors.forestVoid,
-                modifier = Modifier.size(18.dp),
+                tint = ink,
+                modifier = Modifier.size(16.dp),
             )
         }
     }
