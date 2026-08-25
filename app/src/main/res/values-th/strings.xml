@@ -107,8 +107,10 @@
     <string name="staff_greeting">สวัสดี %1$s</string>
     <string name="staff_waiting_count">%1$d เคสยังไม่มีคนรับ</string>
     <string name="staff_all_clear">ไม่มีเหตุฉุกเฉินค้างอยู่</string>
+    <string name="staff_panel_open">กำลังดำเนินการ · %1$d</string>
+    <string name="staff_panel_closed">ปิดแล้ว · %1$d</string>
+    <string name="staff_closed_empty">ไม่มีเคสที่ปิดใน 30 นาทีที่ผ่านมา</string>
     <string name="staff_empty">ยังไม่มีเหตุฉุกเฉิน</string>
-    <string name="staff_recently_closed">ปิดไปใน 30 นาทีที่ผ่านมา</string>
     <string name="staff_case_waiting">ยังไม่มีคนรับ</string>
     <string name="staff_case_claimed">มีคนกำลังไป</string>
     <string name="staff_case_closed">ปิดแล้ว</string>
