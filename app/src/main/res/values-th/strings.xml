@@ -127,7 +127,7 @@
     <string name="staff_case_major">หนัก</string>
     <string name="staff_case_urgent">ฉุกเฉิน</string>
     <string name="staff_case_sev_major">หนัก — ยังไม่จบ</string>
-    <string name="staff_case_sev_urgent">ฉุกเฉิน — ต้องการคนด่วน</string>
+    <string name="staff_case_sev_urgent">ฉุกเฉิน</string>
     <string name="staff_case_locate">ดูตำแหน่ง</string>
     <string name="staff_case_call">โทรหา</string>
     <string name="staff_case_ack">ฉันกำลังไป</string>
