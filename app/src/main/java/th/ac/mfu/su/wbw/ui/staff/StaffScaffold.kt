@@ -37,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
+import th.ac.mfu.su.wbw.ui.group.GroupInfoScreen
 import th.ac.mfu.su.wbw.ui.chat.ChatViewModel
 import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.settings.SettingsScreen
@@ -45,6 +46,10 @@ import th.ac.mfu.su.wbw.ui.theme.ForestBackground
 private fun routeOrder(route: String?): Int = when (route) {
     "alerts" -> 0
     "groups" -> 1
+    // Both hang off the groups tab, so they slide in from its side rather than from
+    // wherever a lexical guess would put them.
+    "groupChat/{groupId}/{groupNumber}" -> 1
+    "groupInfo/{groupId}/{groupNumber}" -> 1
     "map" -> 2
     "scan" -> 3
     "settings" -> 4
@@ -142,9 +147,30 @@ fun StaffScaffold(session: Session, onLogout: () -> Unit) {
                     val groupNumber = entry.arguments?.getInt("groupNumber")
                     ChatScreen(
                         contentPadding = contentPadding,
+                        onOpenInfo = { gid, num -> nav.navigate("groupInfo/$gid/${num ?: -1}") },
                         // Keyed to this entry, so opening group 3 and then group 7 gets two
                         // view models rather than one told to forget the first thread.
                         viewModel = viewModel(factory = ChatViewModel.factoryFor(groupId, groupNumber)),
+                    )
+                }
+                composable(
+                    "groupInfo/{groupId}/{groupNumber}",
+                    arguments = listOf(
+                        navArgument("groupId") { type = NavType.IntType },
+                        navArgument("groupNumber") { type = NavType.IntType },
+                    ),
+                ) { entry ->
+                    val gid = entry.arguments?.getInt("groupId") ?: return@composable
+                    val num = entry.arguments?.getInt("groupNumber")?.takeIf { it >= 0 }
+                    GroupInfoScreen(
+                        groupId = gid,
+                        groupNumber = num,
+                        // Staff belong to no group, so there is nothing here for them to
+                        // leave — and `POST /groups/leave` would answer for their own
+                        // (nonexistent) membership rather than for the group on screen.
+                        canLeave = false,
+                        contentPadding = contentPadding,
+                        onBack = { nav.popBackStack() },
                     )
                 }
                 composable("map") { MapScreen(contentPadding = contentPadding, emergency = false) }

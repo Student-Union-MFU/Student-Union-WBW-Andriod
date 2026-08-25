@@ -195,6 +195,12 @@
     <string name="chat_emoji">อีโมจิ</string>
     <string name="chat_tag_staff">เจ้าหน้าที่</string>
     <string name="chat_channel_group">กลุ่ม %1$d</string>
+    <string name="group_info_title">ข้อมูลกลุ่ม</string>
+    <string name="group_leave">ออกจากกลุ่มนี้</string>
+    <string name="group_leave_confirm">ออกจากกลุ่ม</string>
+    <string name="group_leave_warning">ย้ายกลุ่มได้ครั้งเดียว ถ้าออกจากกลุ่มนี้จะต้องเลือกกลุ่มใหม่ และจะย้ายอีกไม่ได้</string>
+    <string name="group_leave_spent">ใช้สิทธิ์ย้ายกลุ่มไปแล้ว จึงออกจากกลุ่มนี้ไม่ได้</string>
+    <string name="action_cancel">ยกเลิก</string>
     <string name="chat_members_title">สมาชิกกลุ่มนี้</string>
     <string name="chat_members_empty">ยังไม่มีใครเข้ากลุ่มนี้</string>
     <string name="chat_members_you">คุณ</string>

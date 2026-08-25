@@ -31,7 +31,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
+import th.ac.mfu.su.wbw.ui.group.GroupInfoScreen
 import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.notifications.NotificationsScreen
 import th.ac.mfu.su.wbw.ui.profile.ProfileScreen
@@ -155,7 +158,32 @@ private fun ParticipantScaffold(session: Session, onLogout: () -> Unit) {
                         )
                     }
                     composable("map") { MapScreen(contentPadding = contentPadding) }
-                    composable("chat") { ChatScreen(contentPadding = contentPadding) }
+                    composable("chat") {
+                    ChatScreen(
+                        contentPadding = contentPadding,
+                        onOpenInfo = { gid, num -> nav.navigate("groupInfo/$gid/${num ?: -1}") },
+                    )
+                }
+                composable(
+                    "groupInfo/{groupId}/{groupNumber}",
+                    arguments = listOf(
+                        navArgument("groupId") { type = NavType.IntType },
+                        navArgument("groupNumber") { type = NavType.IntType },
+                    ),
+                ) { entry ->
+                    val gid = entry.arguments?.getInt("groupId") ?: return@composable
+                    // -1 stands in for "no number", because a nav argument cannot be null.
+                    val num = entry.arguments?.getInt("groupNumber")?.takeIf { it >= 0 }
+                    GroupInfoScreen(
+                        groupId = gid,
+                        groupNumber = num,
+                        // A participant is in this group, so leaving is theirs to do —
+                        // subject to the quota, which the screen reads for itself.
+                        canLeave = true,
+                        contentPadding = contentPadding,
+                        onBack = { nav.popBackStack() },
+                    )
+                }
                     composable("notifications") {
                         NotificationsScreen(
                             contentPadding = contentPadding,

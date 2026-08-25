@@ -1,5 +1,8 @@
 package th.ac.mfu.su.wbw.data.repository
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import th.ac.mfu.su.wbw.core.network.ApiResult
 import th.ac.mfu.su.wbw.core.network.apiCall
 import th.ac.mfu.su.wbw.core.network.onSuccess
@@ -15,6 +18,21 @@ class ProfileRepository(
     private val api: WbwApi,
     private val cache: ResponseCache,
 ) {
+
+    /**
+     * Ticks whenever this participant's group membership changes.
+     *
+     * [th.ac.mfu.su.wbw.ui.group.GroupGate] decides between the picker and the app from a
+     * single `/me` read, and nothing told it when that answer went stale. Joining was fine
+     * — the picker called back into the gate itself — but leaving happens three screens
+     * deep, and without this the participant stayed inside a shell for a group they had
+     * just left until the process restarted.
+     *
+     * A counter rather than the profile itself: the gate re-reads anyway, and passing the
+     * value would give two sources for the same fact.
+     */
+    private val _membershipChanges = MutableStateFlow(0)
+    val membershipChanges: StateFlow<Int> = _membershipChanges.asStateFlow()
 
     /**
      * The profile as of the last successful fetch, or null on a first run.
@@ -40,9 +58,9 @@ class ProfileRepository(
      * of the group picker they just used.
      */
     suspend fun joinGroup(groupId: Int): ApiResult<JoinGroupResponse> =
-        apiCall { api.joinGroup(groupId) }.onSuccess { me() }
+        apiCall { api.joinGroup(groupId) }.onSuccess { me(); _membershipChanges.value++ }
 
     /** Leave the current group. Costs the participant's single `leave_quota`. */
     suspend fun leaveGroup(): ApiResult<OkResponse> =
-        apiCall { api.leaveGroup() }.onSuccess { me() }
+        apiCall { api.leaveGroup() }.onSuccess { me(); _membershipChanges.value++ }
 }
