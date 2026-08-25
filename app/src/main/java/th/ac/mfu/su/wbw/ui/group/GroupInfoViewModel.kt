@@ -31,6 +31,21 @@ data class GroupInfoUiState(
      * true instead of finding out by being pressed.
      */
     val leaveQuota: Int = 0,
+    /**
+     * Whether [leaveQuota] has actually been answered, as opposed to still being its
+     * default.
+     *
+     * This exists because of a cache older than the field. `leave_quota` was added to the
+     * decoder after devices had already written profiles without it, so those entries
+     * decode to the default 0 — and 0 is the value that means "you have already moved and
+     * cannot again". A participant with their one move still unspent would have been told
+     * they had used it, on the strength of a JSON key that was simply absent.
+     *
+     * So the screen waits. Nothing about leaving is offered until a read has confirmed the
+     * number, which takes one request; and a failed request leaves the question open
+     * rather than answering it wrongly in the harsher direction.
+     */
+    val quotaKnown: Boolean = false,
     val leaving: Boolean = false,
     /** Set when a leave was refused — the server's own words. */
     val leaveError: String? = null,
@@ -56,11 +71,9 @@ class GroupInfoViewModel(
     val state: StateFlow<GroupInfoUiState> = _state.asStateFlow()
 
     init {
-        // Seeded from the cached profile so the quota and "you" marker are right on the
-        // first frame rather than a round trip later.
-        profile.cachedMe()?.let { me ->
-            _state.update { it.copy(meId = me.id, leaveQuota = me.leaveQuota) }
-        }
+        // The id is safe to take from cache — it marks your own row in the roster and is
+        // wrong only if the session changed. The quota is not; see [quotaKnown].
+        profile.cachedMe()?.let { me -> _state.update { it.copy(meId = me.id) } }
         load()
     }
 
@@ -79,7 +92,9 @@ class GroupInfoViewModel(
             // be a day old — long enough for an admin to have granted or spent one.
             profile.me().let { r ->
                 if (r is ApiResult.Success) {
-                    _state.update { it.copy(meId = r.data.id, leaveQuota = r.data.leaveQuota) }
+                    _state.update {
+                        it.copy(meId = r.data.id, leaveQuota = r.data.leaveQuota, quotaKnown = true)
+                    }
                 }
             }
         }

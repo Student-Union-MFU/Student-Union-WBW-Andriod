@@ -163,7 +163,12 @@ fun GroupInfoScreen(
                 )
             }
 
-            if (state.leaveQuota > 0) {
+            if (!state.quotaKnown) {
+                // Nothing is claimed until `/me` has answered. Showing the spent message
+                // here would be a guess, and it is the guess that costs a participant a
+                // move they still had.
+                Spacer(Modifier.height(12.dp))
+            } else if (state.leaveQuota > 0) {
                 // Two taps, and the second one says what it costs.
                 //
                 // Leaving spends the participant's single move, and the server will not
