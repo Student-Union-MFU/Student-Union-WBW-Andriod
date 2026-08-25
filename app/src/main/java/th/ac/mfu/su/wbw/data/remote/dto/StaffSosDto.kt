@@ -54,6 +54,18 @@ data class SosStaffCase(
      * state this whole field exists to represent.
      */
     val severity: String? = null,
+    /**
+     * Whether this case has been confirmed and opened to the whole event.
+     *
+     * False means it is still stage one: raised by a participant and showing only to the
+     * staff assigned to their group, plus admins. A case at this stage has not been judged
+     * false — it has not been *looked at* — and the group's own staff are the ones walking
+     * with them, so they are asked first.
+     *
+     * True is the actual SOS. Reporting a case major or urgent escalates it, and every
+     * staff account sees it from then on.
+     */
+    val escalated: Boolean = false,
 ) {
     val acknowledged: Boolean get() = ackedAt != null
 
