@@ -255,11 +255,15 @@ fun StaffHomeScreen(
  * because it is proving who its owner is; this one drops them — they are not in the staff
  * payload and they are not what anybody does anything with on arrival.
  *
- * The card is the nav bar's own glass, not a coloured pane. Emergencies are told apart by
- * an accent — red while something still needs people, amber once it turned out to be minor
- * or nothing — carried on the border, the status dot and the blood figure. A list of red
- * slabs has no hierarchy in it; a list of identical panes with differently coloured edges
- * can be scanned in one pass.
+ * The card is the nav bar's own glass, and colour is spent on three things and nothing
+ * else: the alert at the top, the blood group, and the verdict buttons. Everything that
+ * carried a tint on the way here — the border, the medical note, the two actions, the
+ * acknowledge — is neutral now.
+ *
+ * That restraint is what makes the alert work. When six things on a card are coloured, the
+ * one that says whether somebody is waiting for help is just another coloured thing; when
+ * it is the only red on an otherwise grey pane, it is the first thing seen. Red means this
+ * still wants people, amber means it does not.
  */
 @Composable
 private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcome) -> Unit) {
@@ -410,7 +414,10 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
         case.healthNotes?.takeIf { it.isNotBlank() }?.let {
             Text(
                 it,
-                color = accent,
+                // Weight rather than colour. Colour on this card is spent on three things
+                // only — the alert, the blood group, and the verdict buttons — and a
+                // fourth coloured line would start competing with the first.
+                color = colors.onBackdrop,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 6.dp),
@@ -452,7 +459,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (located) {
-                        CaseAction(Icons.Outlined.Place, stringResource(R.string.staff_case_locate), accent, Modifier.weight(1f)) {
+                        CaseAction(Icons.Outlined.Place, stringResource(R.string.staff_case_locate), Modifier.weight(1f)) {
                             val label = Uri.encode(case.displayName)
                             val geo = Uri.parse("geo:${case.lat},${case.lng}?q=${case.lat},${case.lng}($label)")
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, geo)) }
@@ -462,7 +469,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                         }
                     }
                     if (phone != null) {
-                        CaseAction(Icons.Outlined.Call, stringResource(R.string.staff_case_call), accent, Modifier.weight(1f)) {
+                        CaseAction(Icons.Outlined.Call, stringResource(R.string.staff_case_call), Modifier.weight(1f)) {
                             // DIAL, not CALL: no CALL_PHONE permission, and a mis-tap in a
                             // pocket cannot ring somebody who is already hurt.
                             runCatching {
@@ -502,10 +509,13 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                     // Least to most serious, left to right, so the row reads as a scale.
                     // The first two are amber because they are the two that mean "not an
                     // emergency" — the colour says what pressing them claims.
-                    ReportChip(R.string.staff_case_false_alarm, CaseAmber, case.severity == null, Modifier.weight(1f)) {
+                    // Nothing, then yellow, then red, then deeper red — the row is a
+                    // scale, and a false alarm is the one verdict that claims no severity
+                    // at all, so it carries no colour either.
+                    ReportChip(R.string.staff_case_false_alarm, null, false, Modifier.weight(1f)) {
                         onReport(SosOutcome.FalseAlarm)
                     }
-                    ReportChip(R.string.staff_case_minor, CaseAmber, case.severity == null, Modifier.weight(1f)) {
+                    ReportChip(R.string.staff_case_minor, CaseAmber, false, Modifier.weight(1f)) {
                         onReport(SosOutcome.Minor)
                     }
                     ReportChip(R.string.staff_case_major, CaseRed, case.severity == "major", Modifier.weight(1f)) {
@@ -522,7 +532,10 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcom
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(50))
-                        .background(accent)
+                        // The one solid control on the card, and deliberately colourless:
+                        // it is the same press whatever state the case is in, and the
+                        // alert above has already said how bad that state is.
+                        .background(colors.onBackdrop)
                         .clickableNoRipple(onAck)
                         .padding(vertical = 13.dp),
                     horizontalArrangement = Arrangement.Center,
@@ -567,18 +580,17 @@ private fun PanelSwitch(
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // Neither tab is coloured. The switch says which list you are looking at, not how
+        // bad anything is — the cards do that, and a red pill up here was a second alarm
+        // competing with the real ones a few dp below it.
         PanelTab(
             label = stringResource(R.string.staff_panel_open, openCount),
             selected = !showClosed,
-            // Red only while something is actually open. A zero-case console showing a red
-            // pill would be crying wolf at the one screen that cannot afford to.
-            tint = if (openCount > 0) CaseRed else null,
             modifier = Modifier.weight(1f),
         ) { onSelect(false) }
         PanelTab(
             label = stringResource(R.string.staff_panel_closed, closedCount),
             selected = showClosed,
-            tint = null,
             modifier = Modifier.weight(1f),
         ) { onSelect(true) }
     }
@@ -588,13 +600,12 @@ private fun PanelSwitch(
 private fun PanelTab(
     label: String,
     selected: Boolean,
-    tint: Color?,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = wbwColors
     val shape = RoundedCornerShape(50)
-    val fill = tint ?: colors.onBackdrop
+    val fill = colors.onBackdrop
     Box(
         modifier
             .clip(shape)
@@ -666,24 +677,37 @@ private fun CaseVital(label: String, value: String?) {
 @Composable
 private fun ReportChip(
     label: Int,
-    tint: Color,
+    tint: Color?,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val colors = wbwColors
     val shape = RoundedCornerShape(50)
+    // Glass rather than a flat wash, so the chips are the same material as everything else
+    // on the screen and the tint is something the backdrop shows through rather than a
+    // painted swatch sitting on top of it.
+    val base = Modifier.glass(
+        shape,
+        fill = tint?.copy(alpha = 0.20f) ?: GlassSheer,
+        border = tint?.copy(alpha = 0.50f) ?: GlassSheerBorder,
+        elevation = 0.dp,
+    )
     Box(
         modifier
+            .then(if (selected) Modifier.background(tint ?: colors.onBackdrop, shape) else base)
             .clip(shape)
-            .background(if (selected) tint else tint.copy(alpha = 0.13f))
-            .border(1.dp, tint.copy(alpha = if (selected) 1f else 0.42f), shape)
             .clickableNoRipple(onClick)
             .padding(vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             stringResource(label),
-            color = if (selected) Color(0xFF1B0B08) else tint,
+            color = when {
+                selected -> Color(0xFF1B0B08)
+                tint != null -> tint
+                else -> colors.onBackdrop
+            },
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
@@ -701,23 +725,23 @@ private fun ReportChip(
 private fun CaseAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    tint: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = wbwColors
+    val ink = colors.onBackdrop
     val shape = RoundedCornerShape(50)
     Row(
         modifier
             .clip(shape)
-            .background(tint.copy(alpha = 0.12f))
-            .border(1.dp, tint.copy(alpha = 0.40f), shape)
+            .background(ink.copy(alpha = 0.10f))
+            .border(1.dp, ink.copy(alpha = 0.30f), shape)
             .clickableNoRipple(onClick)
             .padding(vertical = 11.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(7.dp))
         Text(label, color = colors.onBackdrop, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
