@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material3.CircularProgressIndicator
@@ -96,6 +97,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen(
     contentPadding: PaddingValues,
+    /**
+     * Opens the group's own page. Null leaves the corner empty — nothing currently passes
+     * null, but a chat with no group behind it would have nowhere to send anybody.
+     */
+    onOpenInfo: ((Int, Int?) -> Unit)? = null,
     viewModel: ChatViewModel = viewModel(factory = ChatViewModel.Factory),
 ) {
     val colors = wbwColors
@@ -152,7 +158,11 @@ fun ChatScreen(
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         // Channel header. Named like a Discord channel because the group *is* the
         // channel here — one per participant group, which is how the iOS app models it.
-        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 12.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+        Column(Modifier.weight(1f)) {
             Text(
                 state.groupNumber?.let { stringResource(R.string.chat_channel_group, it) }
                     ?: stringResource(R.string.chat_channel),
@@ -202,6 +212,31 @@ fun ChatScreen(
                         contentDescription = stringResource(R.string.chat_members_title),
                         tint = colors.onBackdropMuted,
                         modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+        }
+
+            // The group's page, in the corner where a chat app puts it.
+            //
+            // The count beside the channel name still opens the roster in place, which is
+            // the quick look; this is the full page, and the only route to leaving a group.
+            val gid = state.groupId
+            if (onOpenInfo != null && gid != null && !state.noGroup) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .size(38.dp)
+                        .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                        .clip(CircleShape)
+                        .clickable { onOpenInfo(gid, state.groupNumber) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.Info,
+                        contentDescription = stringResource(R.string.group_info_title),
+                        tint = colors.onBackdrop,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }

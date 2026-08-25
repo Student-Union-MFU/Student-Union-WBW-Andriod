@@ -38,6 +38,11 @@ private class GroupGateViewModel(
 
     init {
         refresh()
+        // Re-check whenever membership changes anywhere in the app — leaving happens on
+        // the group info screen, which has no way to reach this view model directly.
+        viewModelScope.launch {
+            profile.membershipChanges.collect { if (it > 0) refresh() }
+        }
     }
 
     fun refresh() {

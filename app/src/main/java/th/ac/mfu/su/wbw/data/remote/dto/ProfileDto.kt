@@ -53,6 +53,15 @@ data class ParticipantDetail(
      */
     val role: String = "participant",
     @SerialName("checked_in") val checkedIn: Boolean = false,
+    /**
+     * How many more times this participant may leave a group. One, at registration.
+     *
+     * The server has been sending it all along and the decoder was dropping it. It is the
+     * difference between a leave button that warns and a leave button that lies: the
+     * endpoint refuses once the quota is spent, so a screen that cannot see the number can
+     * only offer the action and then report a failure.
+     */
+    @SerialName("leave_quota") val leaveQuota: Int = 0,
     @SerialName("emergency_contact_name") val emergencyContactName: String? = null,
     @SerialName("emergency_contact_phone") val emergencyContactPhone: String? = null,
     @SerialName("blood_type") val bloodType: String? = null,
