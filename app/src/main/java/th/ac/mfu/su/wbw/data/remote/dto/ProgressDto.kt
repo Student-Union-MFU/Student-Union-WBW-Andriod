@@ -51,6 +51,16 @@ data class CheckinProgress(
     val total: Int = 0,
     @SerialName("checked_in") val checkedIn: List<CheckinProgressItem> = emptyList(),
     @SerialName("emergency_phone") val emergencyPhone: String = "",
+    /**
+     * Whether the end-of-route form has been answered.
+     *
+     * The server's answer, which is the only one worth having: this used to be a flag in
+     * the device's own preferences, and a device forgets on reinstall, on cleared storage
+     * and on a second phone — then asks somebody who has already answered. It is the same
+     * shape as [CheckinProgressItem.answered], which has always come from a join rather
+     * than from anything the app remembered.
+     */
+    @SerialName("event_feedback_answered") val eventFeedbackAnswered: Boolean = false,
 ) {
     val count: Int get() = checkedIn.size
 

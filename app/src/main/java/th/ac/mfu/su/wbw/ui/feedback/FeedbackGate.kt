@@ -34,7 +34,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.core.network.ApiResult
-import th.ac.mfu.su.wbw.data.local.AppSettings
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgressItem
 import th.ac.mfu.su.wbw.data.repository.ProgressRepository
@@ -69,11 +68,20 @@ data class FeedbackGateUiState(
  */
 class FeedbackGateViewModel(
     private val progress: ProgressRepository,
-    private val settings: AppSettings,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FeedbackGateUiState())
     val state: StateFlow<FeedbackGateUiState> = _state.asStateFlow()
+
+    /**
+     * The end-of-route form was given up on, this run of the app only.
+     *
+     * Deliberately not remembered anywhere. It is the escape from a send that failed, not
+     * a record that the question was answered — the server holds that. Somebody who gives
+     * up because the network was down meets the form again next launch, which is right:
+     * their opinion still has not been recorded, and by then the network may be back.
+     */
+    private var dismissedEvent = false
 
     init {
         // The cache first, so a gate that is already owed a form does not wait a round trip
@@ -86,11 +94,6 @@ class FeedbackGateViewModel(
                 delay(PollMillis)
             }
         }
-        viewModelScope.launch {
-            settings.eventFeedbackDone.collect { done ->
-                if (done) _state.update { it.copy(eventDue = false) }
-            }
-        }
     }
 
     private fun apply(p: CheckinProgress) {
@@ -101,7 +104,7 @@ class FeedbackGateViewModel(
                 // Only once every base is behind them, and only when there was a route to
                 // finish: `complete` is false for a zero total, which is what an event with
                 // no checkpoints configured looks like.
-                eventDue = p.complete && pending == null && !settings.eventFeedbackDone.value,
+                eventDue = p.complete && pending == null && !p.eventFeedbackAnswered && !dismissedEvent,
             )
         }
     }
@@ -119,16 +122,23 @@ class FeedbackGateViewModel(
         progress.cached()?.let { apply(it) }
     }
 
-    /** Called when the event form is done with, sent or given up on. See [FeedbackGate]. */
-    fun markEventDone() = settings.markEventFeedbackDone()
+    /**
+     * Called when the event form is done with — sent, or given up on after a failed send.
+     *
+     * A send refreshed the feed on its way through, so [refreshNow] is what actually closes
+     * the gate; [dismissedEvent] only covers the give-up path, where the server was never
+     * told anything and the feed will keep saying the form is due.
+     */
+    fun markEventDone() {
+        dismissedEvent = true
+        refreshNow()
+    }
 
     companion object {
         private const val PollMillis = 20_000L
 
         val Factory = viewModelFactory {
-            initializer {
-                FeedbackGateViewModel(appContainer.progressRepository, appContainer.appSettings)
-            }
+            initializer { FeedbackGateViewModel(appContainer.progressRepository) }
         }
     }
 }

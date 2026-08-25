@@ -45,14 +45,14 @@ class ProgressRepository(
         apiCall { api.submitFeedback(body) }.onSuccess { progress() }
 
     /**
-     * Send the end-of-route opinion.
+     * Send the end-of-route opinion, then re-read progress.
      *
-     * No progress refresh after it: the event form is not driven by the progress feed —
-     * nothing on the server records that it was answered yet — so [FeedbackGate] remembers
-     * locally instead. See its own note on why that is a stopgap rather than a design.
+     * The refresh is part of the operation for the same reason it is on [submitFeedback]:
+     * `event_feedback_answered` lives on the progress feed, and it is what stops the gate
+     * asking again.
      */
     suspend fun submitEventFeedback(body: EventFeedbackRequest): ApiResult<EventFeedback> =
-        apiCall { api.submitEventFeedback(body) }
+        apiCall { api.submitEventFeedback(body) }.onSuccess { progress() }
 
     suspend fun progress(): ApiResult<CheckinProgress> =
         apiCall { api.myProgress() }
