@@ -31,3 +31,10 @@ google-services.json
 # Generated install QR codes — they encode a machine-specific or release-specific URL
 # and are rebuilt on demand, so there is nothing to gain from versioning one.
 install-qr*.png
+
+# Any variant of the local config, not just the exact name.
+#
+# `/local.properties` alone let `local.properties.bak` into commit 05b02c1 — with the
+# release keystore password, the key password and the Maps API key in it — and onto a
+# public remote. A backup of a secrets file is still a secrets file.
+local.properties*
