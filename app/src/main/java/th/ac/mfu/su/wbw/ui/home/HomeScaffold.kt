@@ -33,7 +33,9 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import android.net.Uri
 import th.ac.mfu.su.wbw.ui.chat.ChatScreen
+import th.ac.mfu.su.wbw.ui.feedback.FeedbackScreen
 import th.ac.mfu.su.wbw.ui.group.GroupInfoScreen
 import th.ac.mfu.su.wbw.ui.map.MapScreen
 import th.ac.mfu.su.wbw.ui.notifications.NotificationsScreen
@@ -155,6 +157,32 @@ private fun ParticipantScaffold(session: Session, onLogout: () -> Unit) {
                             // Same push, for the same reason — announcements are read and
                             // dismissed, not walked between.
                             onOpenNotifications = { nav.navigate("notifications") },
+                            // The base name is carried in the route rather than fetched
+                            // again: Home already has it from the progress feed, and the
+                            // form's title should not wait on a request to say where the
+                            // participant is standing.
+                            onRateBase = { id, name ->
+                                nav.navigate("feedback/$id/${Uri.encode(name)}")
+                            },
+                        )
+                    }
+                    composable(
+                        "feedback/{checkpointId}/{name}",
+                        arguments = listOf(
+                            navArgument("checkpointId") { type = NavType.IntType },
+                            navArgument("name") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val cpId = entry.arguments?.getInt("checkpointId") ?: return@composable
+                        val name = entry.arguments?.getString("name").orEmpty()
+                        FeedbackScreen(
+                            checkpointId = cpId,
+                            checkpointName = name,
+                            contentPadding = contentPadding,
+                            // One exit for both "sent" and "back". The prompt on Home is
+                            // driven by the progress feed, which the submit already
+                            // refreshed, so a sent form simply stops being asked for.
+                            onDone = { nav.popBackStack() },
                         )
                     }
                     composable("map") { MapScreen(contentPadding = contentPadding) }

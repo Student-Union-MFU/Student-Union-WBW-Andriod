@@ -5,7 +5,9 @@ import th.ac.mfu.su.wbw.core.network.apiCall
 import th.ac.mfu.su.wbw.core.network.onSuccess
 import th.ac.mfu.su.wbw.data.local.ResponseCache
 import th.ac.mfu.su.wbw.data.remote.WbwApi
+import th.ac.mfu.su.wbw.data.remote.dto.CheckinFeedback
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinProgress
+import th.ac.mfu.su.wbw.data.remote.dto.FeedbackRequest
 
 /**
  * Check-in progress — the bloom's data source.
@@ -29,6 +31,16 @@ class ProgressRepository(
     /** Last run's progress, synchronously, so the first frame is already a bloom. */
     fun cached(): CheckinProgress? =
         cache.read(ResponseCache.KeyProgress, CheckinProgress.serializer())
+
+    /**
+     * Send an opinion about a base, then re-read progress.
+     *
+     * The refresh is part of the operation rather than the caller's problem: `answered`
+     * lives on the progress feed, and it is what stops the app asking the same question
+     * again the next time Home opens.
+     */
+    suspend fun submitFeedback(body: FeedbackRequest): ApiResult<CheckinFeedback> =
+        apiCall { api.submitFeedback(body) }.onSuccess { progress() }
 
     suspend fun progress(): ApiResult<CheckinProgress> =
         apiCall { api.myProgress() }
