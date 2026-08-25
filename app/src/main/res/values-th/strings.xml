@@ -118,6 +118,9 @@
     <string name="staff_case_near">ใกล้%1$s</string>
     <string name="staff_case_nowhere">ไม่มีพิกัด — อาจอยู่จุดใดก็ได้บนเส้นทาง</string>
     <string name="staff_case_phone">โทร %1$s</string>
+    <string name="staff_case_no_maps">ไม่มีแอปแผนที่สำหรับเปิดตำแหน่งนี้</string>
+    <string name="staff_case_locate">ดูตำแหน่ง</string>
+    <string name="staff_case_call">โทรหา</string>
     <string name="staff_case_ack">ฉันกำลังไป</string>
     <string name="staff_case_claimed_by">%1$s กำลังไป</string>
     <string name="staff_case_claimed_anon">มีคนกำลังไปแล้ว</string>

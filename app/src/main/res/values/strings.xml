@@ -127,6 +127,9 @@
     <string name="staff_case_near">Near %1$s</string>
     <string name="staff_case_nowhere">No position — could be anywhere on the trail</string>
     <string name="staff_case_phone">Phone %1$s</string>
+    <string name="staff_case_no_maps">No maps app to open the location in.</string>
+    <string name="staff_case_locate">Location</string>
+    <string name="staff_case_call">Call</string>
     <string name="staff_case_ack">I am going</string>
     <string name="staff_case_claimed_by">%1$s is going</string>
     <string name="staff_case_claimed_anon">Someone is already going</string>
