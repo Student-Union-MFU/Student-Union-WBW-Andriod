@@ -105,3 +105,18 @@ enum class SosOutcome(val wire: String) {
 
 @kotlinx.serialization.Serializable
 data class SosReportRequest(val outcome: String)
+
+/**
+ * Closing a case that was real and has been dealt with.
+ *
+ * Separate from [SosReportRequest] because it answers a different question. The report
+ * says *what was found* — and two of its four answers happen to close the case as a
+ * side effect. This says *it is over*, which is the only thing left to say about a case
+ * already reported major or urgent: those deliberately stay open, and without this the
+ * console would carry them for the rest of the event.
+ *
+ * `helped` is the server's word for it. The other reasons it accepts — `unreachable`,
+ * `canceled_by_user` — belong to situations the app has no button for yet.
+ */
+@kotlinx.serialization.Serializable
+data class SosResolveRequest(val reason: String = "helped")

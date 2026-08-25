@@ -105,6 +105,23 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
     }
 
     /**
+     * Close a case: it was real, and it is over.
+     *
+     * The counterpart to [report]'s major and urgent, which keep a case open on purpose.
+     * Like report, nothing is applied locally — the feed is asked again and it answers
+     * with the closed row, which the server keeps visible for another half hour so the
+     * card changes rather than vanishing.
+     */
+    fun resolve(id: Long) {
+        viewModelScope.launch {
+            when (staff.resolve(id)) {
+                is ApiResult.Success -> refreshNow()
+                is ApiResult.Error -> Unit
+            }
+        }
+    }
+
+    /**
      * One immediate, non-holding pass of the feed.
      *
      * `wait = 0` so it returns whatever is true right now instead of parking for

@@ -7,6 +7,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.OkResponse
 import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
 import th.ac.mfu.su.wbw.data.remote.dto.SosReportRequest
+import th.ac.mfu.su.wbw.data.remote.dto.SosResolveRequest
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckinRequest
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckpoint
@@ -38,6 +39,10 @@ class StaffRepository(private val api: WbwApi) {
      */
     suspend fun report(id: Long, outcome: SosOutcome): ApiResult<OkResponse> =
         apiCall { api.reportSos(id, SosReportRequest(outcome.wire)) }
+
+    /** Close a case that was real and has been dealt with. */
+    suspend fun resolve(id: Long): ApiResult<OkResponse> =
+        apiCall { api.resolveSos(id, SosResolveRequest()) }
 
     /** The checkpoints this account may stamp at. Fetched once, when the scanner opens. */
     suspend fun checkpoints(): ApiResult<List<StaffCheckpoint>> = apiCall { api.staffCheckpoints() }

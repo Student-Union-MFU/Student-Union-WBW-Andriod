@@ -21,6 +21,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.ParticipantCheckpoint
 import th.ac.mfu.su.wbw.data.remote.dto.CheckinResult
 import th.ac.mfu.su.wbw.data.remote.dto.SosCase
 import th.ac.mfu.su.wbw.data.remote.dto.SosReportRequest
+import th.ac.mfu.su.wbw.data.remote.dto.SosResolveRequest
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckinRequest
 import th.ac.mfu.su.wbw.data.remote.dto.StaffCheckpoint
@@ -243,6 +244,16 @@ interface WbwApi {
      */
     @POST("staff/sos/{id}/report")
     suspend fun reportSos(@Path("id") id: Long, @Body body: SosReportRequest): OkResponse
+
+    /**
+     * staff — close a case that was real and is now over.
+     *
+     * The end of the escalated path. Reporting a case major or urgent keeps it open on
+     * purpose, so something has to be able to say it is finished; without this call such a
+     * case stays on every console until the event does.
+     */
+    @POST("staff/sos/{id}/resolve")
+    suspend fun resolveSos(@Path("id") id: Long, @Body body: SosResolveRequest): OkResponse
 
     /**
      * staff — the checkpoints this account may stamp people in at.
