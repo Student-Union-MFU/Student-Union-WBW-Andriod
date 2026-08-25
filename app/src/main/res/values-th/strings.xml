@@ -138,6 +138,8 @@
     <string name="staff_case_claimed_anon">มีคนกำลังไปแล้ว</string>
     <string name="map_title">แผนที่เส้นทาง</string>
     <string name="map_loading">กำลังโหลดแผนที่</string>
+    <string name="map_unavailable_title">แผนที่โหลดไม่ขึ้น</string>
+    <string name="map_unavailable_body">ลองตรวจสัญญาณแล้วเปิดแท็บนี้ใหม่ ปุ่ม SOS ยังใช้ได้ตามปกติ</string>
     <string name="map_recenter">กลับมาที่ตำแหน่งฉัน</string>
     <string name="map_mode_3d">มุมมอง 3 มิติ</string>
 

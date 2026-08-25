@@ -147,6 +147,8 @@
     <string name="staff_case_claimed_anon">Someone is already going</string>
     <string name="map_title">Trail map</string>
     <string name="map_loading">Loading the trail</string>
+    <string name="map_unavailable_title">The map did not load</string>
+    <string name="map_unavailable_body">Check your connection and reopen this tab. The SOS button still works.</string>
     <string name="map_recenter">Recentre on me</string>
     <string name="map_mode_3d">3D view</string>
 

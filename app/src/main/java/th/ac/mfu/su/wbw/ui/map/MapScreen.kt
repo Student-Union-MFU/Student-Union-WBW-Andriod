@@ -1,6 +1,7 @@
 package th.ac.mfu.su.wbw.ui.map
 
 import android.Manifest
+import android.util.Log
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Location
@@ -81,6 +82,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -109,6 +111,7 @@ import com.google.maps.android.compose.TileOverlay
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.R
@@ -182,6 +185,27 @@ fun MapScreen(
     // False until the SDK says it has drawn a frame — see the loading cover at the bottom
     // of this Box.
     var mapReady by remember { mutableStateOf(false) }
+
+    /**
+     * Whether the cover has stopped waiting for a frame that is not coming.
+     *
+     * `onMapLoaded` is the only thing that lifts the cover, and it is fired by the Maps
+     * SDK — so anything that stops the SDK reaching a first frame used to present as a
+     * spinner that never ends: Play Services missing or stale, Google unreachable on that
+     * network, a renderer that draws nothing on a particular emulator. The app cannot tell
+     * those apart, and it should not have to in order to stop lying about loading.
+     *
+     * **The reason this matters more than a tidy spinner: the cover is last in the Box, so
+     * it hides the SOS.** A map that never loads used to take the emergency button with it,
+     * indefinitely, on the one screen a participant is told to use when they are hurt.
+     */
+    var coverGaveUp by remember { mutableStateOf(false) }
+    LaunchedEffect(mapReady) {
+        if (!mapReady) {
+            delay(MapCoverTimeoutMillis)
+            coverGaveUp = true
+        }
+    }
 
     /**
      * The map's own padded region, which is a different thing from the screen's
@@ -326,7 +350,14 @@ fun MapScreen(
         // The preference only counts if it is expressed before the process creates its
         // first map, which is why it stays here, above the GoogleMap below, rather than
         // moving somewhere tidier.
-        MapsInitializer.initialize(context, MapsInitializer.Renderer.LATEST) { }
+        // The callback says which renderer the SDK *actually* used: asking for LATEST is a
+        // request, not a guarantee, and it falls back to LEGACY on older Play Services.
+        // Logged rather than acted on — a blank map is worth being able to attribute to a
+        // renderer without a rebuild, and this was an empty lambda the day it would have
+        // answered exactly that question.
+        MapsInitializer.initialize(context, MapsInitializer.Renderer.LATEST) { which ->
+            Log.i(MapLogTag, "maps renderer in use: $which")
+        }
         MapIcons(
             start = endpointDescriptor(WbwGreenDark.toArgb(), hollow = false),
             finish = endpointDescriptor(WbwGreenDark.toArgb(), hollow = true),
@@ -1052,7 +1083,7 @@ fun MapScreen(
         // is the initial state, so an enter animation would be a fade-in from nothing on
         // the very first frame.
         AnimatedVisibility(
-            visible = !mapReady,
+            visible = !mapReady && !coverGaveUp,
             enter = EnterTransition.None,
             exit = fadeOut(tween(400)),
             modifier = Modifier.fillMaxSize(),
@@ -1074,6 +1105,42 @@ fun MapScreen(
                     fontSize = 11.sp,
                     letterSpacing = 2.4.sp,
                     fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        // What is left once the cover has gone and there is still no map.
+        //
+        // Says the one thing a participant standing on a trail needs to know — that the
+        // emergency button behind this notice still works — rather than the several things
+        // a developer would want, which go to the log instead.
+        //
+        // Centred and sized to its text rather than filling the screen: the middle is the
+        // part the missing map left empty, and a full-size overlay here would be a second
+        // thing sitting on top of the controls, which is the bug this whole change exists
+        // to remove.
+        if (coverGaveUp && !mapReady) {
+            Column(
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 40.dp)
+                    .glass(HudShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.map_unavailable_title),
+                    color = colors.onBackdrop,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    stringResource(R.string.map_unavailable_body),
+                    color = colors.onBackdropMuted,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }
@@ -1401,6 +1468,17 @@ private fun metresBetween(from: LatLng, to: LatLng): Double {
 
 /** Between two facts on the card's one line of them. */
 private const val FactSeparator = "  ·  "
+
+/**
+ * How long the loading cover waits for a first frame before admitting it is not coming.
+ *
+ * Long enough that a slow tile fetch on a bad connection still resolves as loading — the
+ * map routinely takes two or three seconds on the trail — and short enough that somebody
+ * who needs the SOS is not held behind a spinner while they work out whether to wait.
+ */
+private const val MapCoverTimeoutMillis = 12_000L
+
+private const val MapLogTag = "WbwMap"
 
 /** Metres until a kilometre reads better than four digits of them. */
 @Composable
