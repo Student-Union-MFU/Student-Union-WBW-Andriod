@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -75,6 +76,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -272,6 +274,16 @@ fun MapScreen(
 
     /** The base whose card is open, or null. Tapping a pin sets it; the card clears it. */
     var selectedCheckpoint by remember { mutableStateOf<ParticipantCheckpoint?>(null) }
+
+    // The two bottom-left heights, measured rather than assumed.
+    //
+    // The card used to sit a fixed 92dp off the bottom, and that number is really a guess
+    // about how tall the walk button is — a guess this file is not entitled to make, since
+    // the button's height belongs to the type system and grows with the display font size.
+    // Measuring both means the card lands on the button at every font scale, and that the
+    // SOS knows exactly how far it has to travel to clear the card rather than approximately.
+    var walkButtonHeight by remember { mutableStateOf(0.dp) }
+    var checkpointCardHeight by remember { mutableStateOf(0.dp) }
     // BitmapDescriptorFactory throws until the Maps SDK has been initialised, and building
     // a marker icon at composition runs before the GoogleMap below does that. Initialise
     // explicitly first, then the icons are safe to make.
@@ -805,8 +817,29 @@ fun MapScreen(
             )
 
             // The one action on this screen, so it carries a label instead of a glyph.
-            WalkButton(active = walk.active, onClick = { toggleWalk() })
+            WalkButton(
+                active = walk.active,
+                onClick = { toggleWalk() },
+                modifier = Modifier.onSizeChanged {
+                    walkButtonHeight = with(density) { it.height.toDp() }
+                },
+            )
         }
+
+        // How far the SOS has to rise to sit clear above the checkpoint card: the walk
+        // button it starts level with, the card stacked on that, and a gap at each joint.
+        // Zero with no card up, so its resting place is exactly where it was.
+        val sosLift by animateDpAsState(
+            targetValue =
+                if (selectedCheckpoint != null) walkButtonHeight + checkpointCardHeight + ControlsGap * 2
+                else 0.dp,
+            // Longer than the card's own 220ms entrance and on the same easing, so the
+            // button is still travelling as the card finishes arriving. Matching the
+            // durations exactly reads as two things cutting to new places at once; this
+            // reads as the card pushing the button out of the way, which is what happens.
+            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+            label = "sosLift",
+        )
 
         // Bottom-right: the emergency, alone on its own edge.
         //
@@ -817,6 +850,13 @@ fun MapScreen(
         // Gone while a case is open: [SosActivePanel] at the top of the screen takes over,
         // because there is exactly one open case per participant and a second button could
         // not do anything.
+        //
+        // **It rides up when a checkpoint card opens.** The card is a full-width band across
+        // the bottom-left, so it and the SOS want the same strip of screen; the card was
+        // winning, and the button it covered is the one control on this map that must never
+        // be covered by anything. Moving is better than either shrinking the card to dodge
+        // it or letting the card stop short of the right edge, which would leave a notch in
+        // the band whose only explanation is a button that is not there most of the time.
         // Scales away as the card arrives and comes back the same way, so the two read as
         // one movement — the button becoming the card — rather than as one thing vanishing
         // and an unrelated thing appearing at the other end of the screen.
@@ -828,7 +868,7 @@ fun MapScreen(
                 .align(Alignment.BottomEnd)
                 .padding(
                     end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
-                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom,
+                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom + sosLift,
                 ),
         ) {
             SosButton(onFire = { sosViewModel?.raise(context) })
@@ -836,20 +876,26 @@ fun MapScreen(
 
         // The tapped base's card, fixed to the screen.
         //
-        // Bottom-anchored and clear of the controls on both sides, so it never covers the
-        // walk button or the SOS. It arrives and leaves rather than cutting in — the map
-        // underneath does not move, so without the transition the card reads as a redraw
-        // rather than as an answer to the tap.
+        // Bottom-left, standing directly on the walk button rather than at a fixed height
+        // above the bottom edge. The fixed height was a second copy of the walk button's
+        // measurements kept in a constant, and the two drifted apart the moment the display
+        // font grew — which is what put the card through the controls underneath it. It is
+        // told where the button's top edge actually is now, so it cannot clip it.
+        //
+        // It arrives and leaves rather than cutting in — the map underneath does not move,
+        // so without the transition the card reads as a redraw rather than as an answer to
+        // the tap.
         AnimatedVisibility(
             visible = selectedCheckpoint != null,
             enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 3 },
             exit = fadeOut(tween(140)) + slideOutVertically(tween(180)) { it / 3 },
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomStart)
                 .padding(
                     start = contentPadding.calculateStartPadding(layoutDir) + ControlsInset,
                     end = contentPadding.calculateEndPadding(layoutDir) + ControlsInset,
-                    bottom = contentPadding.calculateBottomPadding() + CheckpointCardBottom,
+                    bottom = contentPadding.calculateBottomPadding() + ControlsBottom +
+                        walkButtonHeight + ControlsGap,
                 ),
         ) {
             // Held through the exit animation — reading the state directly would empty the
@@ -865,6 +911,12 @@ fun MapScreen(
                     metresAway = alongRoute.firstOrNull { it.first.id == cp.id }?.second
                         ?.let { at -> walk.routeMetres?.let { now -> at - now } },
                     onDismiss = { selectedCheckpoint = null },
+                    // Read on the way in and held afterwards: the card keeps its size
+                    // through the exit animation, so the SOS descends the same distance it
+                    // climbed instead of snapping down from a height it no longer knows.
+                    modifier = Modifier.onSizeChanged {
+                        checkpointCardHeight = with(density) { it.height.toDp() }
+                    },
                 )
             }
         }
@@ -1049,10 +1101,11 @@ private fun CheckpointCard(
     thai: Boolean,
     metresAway: Double?,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = wbwColors
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .glass(HudShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
             .padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
@@ -1448,6 +1501,14 @@ private const val MinPaceSpeedMps = 0.35f
 private val HudShape = RoundedCornerShape(22.dp)
 
 /**
+ * How far past a base counts as having reached it, for "next base" purposes.
+ *
+ * Without it the base you are standing at stays the next one until you have walked clear
+ * of it, which reads as the trail refusing to advance.
+ */
+private const val NextBaseReachedMetres = 25.0
+
+/**
  * How far the bottom controls sit above the screen's padded edge.
  *
  * It was 38dp, and that was not a spacing choice: the Google wordmark used to be drawn
@@ -1460,18 +1521,16 @@ private val HudShape = RoundedCornerShape(22.dp)
  * floating nav bar by 16dp, so this only has to keep the button from crowding it.
  * Both bottom rows use the same value so they stay on one line.
  */
-/**
- * How far past a base counts as having reached it, for "next base" purposes.
- *
- * Without it the base you are standing at stays the next one until you have walked clear
- * of it, which reads as the trail refusing to advance.
- */
-private const val NextBaseReachedMetres = 25.0
-
-/** Clear of the walk button and the SOS, which both sit at [ControlsBottom]. */
-private val CheckpointCardBottom = 92.dp
-
 private val ControlsBottom = 8.dp
+
+/**
+ * The gap between two things stacked in the bottom corner — the walk button and the
+ * checkpoint card, and the card and the SOS lifted over it.
+ *
+ * The same 12dp the map controls are spaced by, so the whole corner is on one rhythm
+ * whether or not a card is open.
+ */
+private val ControlsGap = 12.dp
 
 /**
  * How far the bottom controls are inset from the screen edge.
