@@ -20,6 +20,11 @@ import th.ac.mfu.su.wbw.data.repository.ChatRepository
 import th.ac.mfu.su.wbw.data.repository.ProfileRepository
 import th.ac.mfu.su.wbw.ui.appContainer
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatterBuilder
+import java.time.ZonedDateTime
+import java.time.LocalDateTime
+import java.time.format.FormatStyle
+import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.UUID
 
@@ -381,19 +386,58 @@ class ChatViewModel(
 }
 
 /** Local wall-clock label for a message, from the server's timestamp. */
+/**
+ * The clock the reader actually uses.
+ *
+ * `"%02d:%02d"` was 24-hour for everybody, which is right in Thailand and wrong for a phone
+ * set to English — and this app follows the device language rather than picking one. The
+ * localized short form gives 14:05 or 2:05 PM according to that setting, which is the
+ * definition of readable here.
+ */
+private val ChatTimeFormat: DateTimeFormatter =
+    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+
+/**
+ * What the server actually puts on the wire, which is not ISO-8601.
+ *
+ * `created_at::text` out of Postgres is `2026-08-25 13:44:13.786483+00` — a space where
+ * ISO wants a `T`, and a two-digit offset where ISO wants `+00:00`. `OffsetDateTime.parse`
+ * refuses both, so every timestamp in this room threw and every caller swallowed it with
+ * `getOrDefault("")`. The time beside a name was empty for the whole life of the screen,
+ * and so was every day divider, because [dayKey] parsed the same string the same way and
+ * an empty key never differs from the last one.
+ *
+ * Accepting both forms rather than fixing the cast server-side: an app in someone's pocket
+ * cannot be told to update, and the ISO branch keeps working if the server is ever tidied.
+ */
+private val WireTimeFormat: DateTimeFormatter = DateTimeFormatterBuilder()
+    .append(DateTimeFormatter.ISO_LOCAL_DATE)
+    .optionalStart().appendLiteral('T').optionalEnd()
+    .optionalStart().appendLiteral(' ').optionalEnd()
+    .append(DateTimeFormatter.ISO_LOCAL_TIME)
+    .optionalStart().appendOffset("+HH:MM", "Z").optionalEnd()
+    .optionalStart().appendOffset("+HH", "Z").optionalEnd()
+    .toFormatter()
+
+/**
+ * The instant a message carries, in the reader's own zone, or null if it is unreadable.
+ *
+ * One parser for the time, the day divider and the ordering, so those three can never
+ * disagree about when a message happened.
+ */
+private fun parseWireTime(raw: String): ZonedDateTime? = runCatching {
+    OffsetDateTime.parse(raw, WireTimeFormat).atZoneSameInstant(ZoneId.systemDefault())
+}.recoverCatching {
+    LocalDateTime.parse(raw, WireTimeFormat).atZone(ZoneId.systemDefault())
+}.getOrNull()
+
 internal fun ChatMessage.timeLabel(): String {
     val at = createdAt ?: deviceTime ?: return ""
-    return runCatching {
-        OffsetDateTime.parse(at).atZoneSameInstant(ZoneId.systemDefault())
-            .toLocalTime()
-            .let { "%02d:%02d".format(it.hour, it.minute) }
-    }.getOrDefault("")
+    return parseWireTime(at)?.toLocalTime()?.format(ChatTimeFormat) ?: ""
 }
 
 /** The calendar day a message belongs to, for the dividers. Empty when unparseable. */
 internal fun ChatMessage.dayKey(): String {
     val at = createdAt ?: deviceTime ?: return ""
-    return runCatching {
-        OffsetDateTime.parse(at).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate().toString()
-    }.getOrDefault("")
+    return parseWireTime(at)?.toLocalDate()?.toString() ?: ""
 }
