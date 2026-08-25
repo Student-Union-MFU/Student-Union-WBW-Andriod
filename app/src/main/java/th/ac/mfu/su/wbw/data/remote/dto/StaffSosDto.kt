@@ -43,6 +43,17 @@ data class SosStaffCase(
     @SerialName("blood_type") val bloodType: String? = null,
     @SerialName("health_notes") val healthNotes: String? = null,
     @SerialName("updated_at") val updatedAt: String = "",
+    /**
+     * What a staff member found when they got there: `minor`, `major`, `urgent`, or null
+     * if nobody has reported yet.
+     *
+     * Not the same axis as [resolved]. `false_alarm` and `minor` close a case, so they
+     * arrive as a resolve reason; `major` and `urgent` deliberately do *not* close it and
+     * show up here instead — the case stays on every console because it still needs
+     * people. A card can therefore be open *and* severity-stamped at once, which is the
+     * state this whole field exists to represent.
+     */
+    val severity: String? = null,
 ) {
     val acknowledged: Boolean get() = ackedAt != null
 
@@ -64,3 +75,21 @@ data class SosStaffCase(
      */
     val cursor: String get() = "$updatedAt|$id"
 }
+
+/**
+ * What a staff member reports after reaching a case.
+ *
+ * The four values the server accepts, as a closed set rather than a free string, so a typo
+ * is a compile error here instead of a 400 at a checkpoint. Two of them close the case and
+ * two do not — see [SosStaffCase.severity]; which is which is the server's decision, and
+ * this type deliberately does not encode it.
+ */
+enum class SosOutcome(val wire: String) {
+    FalseAlarm("false_alarm"),
+    Minor("minor"),
+    Major("major"),
+    Urgent("urgent"),
+}
+
+@kotlinx.serialization.Serializable
+data class SosReportRequest(val outcome: String)

@@ -119,6 +119,13 @@
     <string name="staff_case_nowhere">ไม่มีพิกัด — อาจอยู่จุดใดก็ได้บนเส้นทาง</string>
     <string name="staff_case_phone">โทร %1$s</string>
     <string name="staff_case_no_maps">ไม่มีแอปแผนที่สำหรับเปิดตำแหน่งนี้</string>
+    <string name="staff_case_report_title">ไปถึงแล้วเจออะไร</string>
+    <string name="staff_case_false_alarm">แจ้งผิด</string>
+    <string name="staff_case_minor">เล็กน้อย</string>
+    <string name="staff_case_major">หนัก</string>
+    <string name="staff_case_urgent">ฉุกเฉิน</string>
+    <string name="staff_case_sev_major">หนัก — ยังไม่จบ</string>
+    <string name="staff_case_sev_urgent">ฉุกเฉิน — ต้องการคนด่วน</string>
     <string name="staff_case_locate">ดูตำแหน่ง</string>
     <string name="staff_case_call">โทรหา</string>
     <string name="staff_case_ack">ฉันกำลังไป</string>

@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
+import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
@@ -192,7 +193,11 @@ fun StaffHomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(state.open, key = { it.id }) { case ->
-                    CaseCard(case = case, onAck = { viewModel.ack(case.id) })
+                    CaseCard(
+                        case = case,
+                        onAck = { viewModel.ack(case.id) },
+                        onReport = { viewModel.report(case.id, it) },
+                    )
                 }
                 if (state.recentlyClosed.isNotEmpty()) {
                     item {
@@ -205,7 +210,8 @@ fun StaffHomeScreen(
                         )
                     }
                     items(state.recentlyClosed, key = { it.id }) { case ->
-                        CaseCard(case = case, onAck = {})
+                        // Closed cases: nothing left to do, so both actions are inert.
+                        CaseCard(case = case, onAck = {}, onReport = {})
                     }
                 }
             }
@@ -221,10 +227,14 @@ fun StaffHomeScreen(
  * last rather than hidden — they matter on arrival, not while deciding whether to go.
  */
 @Composable
-private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
+private fun CaseCard(case: SosStaffCase, onAck: () -> Unit, onReport: (SosOutcome) -> Unit) {
     val colors = wbwColors
     val context = LocalContext.current
-    val urgent = !case.resolved && !case.acknowledged
+    // A card is "hot" while it still wants people: unclaimed, or reported as major or
+    // urgent. Being claimed no longer cools it on its own — somebody walking to a major
+    // injury has not made it less of one, and the console exists to keep that on screen.
+    val raised = case.severity == "major" || case.severity == "urgent"
+    val urgent = !case.resolved && (!case.acknowledged || raised)
     // On a red card everything is drawn in near-white; on ordinary glass the theme's own
     // ink still applies. Resolving both here keeps the branch out of a dozen call sites.
     val ink = if (urgent) UrgentInk else colors.onBackdrop
@@ -235,10 +245,15 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
             .fillMaxWidth()
             .glass(
                 RoundedCornerShape(20.dp),
-                // Unclaimed cases carry the danger tint; claimed and closed ones drop back
-                // to ordinary glass. The colour tracks "does this still need somebody",
-                // which is the only question the list is being scanned for.
-                fill = if (urgent) UrgentGlass else GlassSheer,
+                // The fill tracks "does this still need somebody", which is the only
+                // question the list is scanned for. Three steps, not two: ordinary glass
+                // once a case is closed or quietly claimed, red while it is unclaimed, and
+                // a deeper red once somebody has been and reported it as urgent.
+                fill = when {
+                    !case.resolved && case.severity == "urgent" -> UrgentGlassRaised
+                    urgent -> UrgentGlass
+                    else -> GlassSheer
+                },
                 border = if (urgent) UrgentGlassBorder else GlassSheerBorder,
                 elevation = 0.dp,
             )
@@ -256,6 +271,10 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
                 stringResource(
                     when {
                         case.resolved -> R.string.staff_case_closed
+                        // Severity outranks "someone is going": once a case has been seen
+                        // and called major, that is the headline, not who is walking.
+                        case.severity == "urgent" -> R.string.staff_case_sev_urgent
+                        case.severity == "major" -> R.string.staff_case_sev_major
                         case.acknowledged -> R.string.staff_case_claimed
                         else -> R.string.staff_case_waiting
                     },
@@ -398,22 +417,61 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
 
         when {
             case.resolved -> Unit
-            case.acknowledged -> Text(
-                case.ackedByName?.let { stringResource(R.string.staff_case_claimed_by, it) }
-                    ?: stringResource(R.string.staff_case_claimed_anon),
-                color = inkMuted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 12.dp),
-            )
+            case.acknowledged -> {
+                Text(
+                    case.ackedByName?.let { stringResource(R.string.staff_case_claimed_by, it) }
+                        ?: stringResource(R.string.staff_case_claimed_anon),
+                    color = inkMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+
+                // What was actually found, once somebody is there.
+                //
+                // Only after the case is claimed. An unclaimed card asks exactly one
+                // question — will you go — and offering four verdicts on a situation
+                // nobody has looked at yet invites them to be answered from across a
+                // field, which is precisely the guess this is meant to replace.
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.staff_case_report_title).uppercase(),
+                    color = inkMuted,
+                    fontSize = 9.sp,
+                    letterSpacing = 1.6.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    // Ordered least to most serious, left to right, so the row reads as a
+                    // scale rather than as four unrelated buttons.
+                    ReportChip(R.string.staff_case_false_alarm, urgent, case.severity == null, Modifier.weight(1f)) {
+                        onReport(SosOutcome.FalseAlarm)
+                    }
+                    ReportChip(R.string.staff_case_minor, urgent, case.severity == null, Modifier.weight(1f)) {
+                        onReport(SosOutcome.Minor)
+                    }
+                    ReportChip(R.string.staff_case_major, urgent, case.severity == "major", Modifier.weight(1f)) {
+                        onReport(SosOutcome.Major)
+                    }
+                    ReportChip(R.string.staff_case_urgent, urgent, case.severity == "urgent", Modifier.weight(1f)) {
+                        onReport(SosOutcome.Urgent)
+                    }
+                }
+            }
             else -> {
                 Spacer(Modifier.height(14.dp))
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(50))
-                        // Solid ink on the red card: the one action on it should look
-                        // like a button rather than like another translucent layer.
-                        .background(UrgentInk)
+                        // A deeper red than the card, not white: the one action should
+                        // read as a button sitting on the pane rather than as a hole
+                        // punched through it, and it stays in the card's own family.
+                        .background(Color(0xE0C0392B))
+                        .border(1.dp, Color(0x66FFD9CF), RoundedCornerShape(50))
                         .clickableNoRipple(onAck)
                         .padding(vertical = 13.dp),
                     horizontalArrangement = Arrangement.Center,
@@ -421,7 +479,7 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
                 ) {
                     Text(
                         stringResource(R.string.staff_case_ack).uppercase(),
-                        color = Color(0xFF8C1D12),
+                        color = UrgentInk,
                         fontSize = 12.sp,
                         letterSpacing = 1.6.sp,
                         fontWeight = FontWeight.Bold,
@@ -429,6 +487,44 @@ private fun CaseCard(case: SosStaffCase, onAck: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/**
+ * One of the four verdicts.
+ *
+ * [selected] fills it in, so a case already reported as major shows which button was
+ * pressed — the row doubles as the record of what was said, and pressing again re-sends
+ * the same thing rather than being forbidden, because a staff member correcting themselves
+ * from major to urgent is the normal case.
+ */
+@Composable
+private fun ReportChip(
+    label: Int,
+    urgent: Boolean,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = wbwColors
+    val ink = if (urgent) UrgentInk else colors.onBackdrop
+    val shape = RoundedCornerShape(50)
+    Box(
+        modifier
+            .clip(shape)
+            .background(if (selected) ink.copy(alpha = 0.9f) else ink.copy(alpha = 0.10f))
+            .border(1.dp, ink.copy(alpha = if (selected) 0.9f else 0.32f), shape)
+            .clickableNoRipple(onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(label),
+            color = if (selected) Color(0xFF7A1A10) else ink,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
     }
 }
 
@@ -498,19 +594,27 @@ private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
 
 /** Unclaimed-case glass — the same idea as the SOS button's tint, on a card. */
 /**
- * The unclaimed-case glass: red, and actually red.
+ * The unclaimed-case glass: the nav bar's material, in red.
  *
- * It was 0x24E8544A — a 14% wash that, over a dark forest photograph, arrived as a barely
- * warmer grey. The card carrying the words "needs someone" was the quietest thing on the
- * screen, and on a phone held at arm's length in daylight it did not read as an alert at
- * all. At 0x9E it is unmistakably a red card and still glass: the backdrop moves under it,
- * which is the whole point of the material.
+ * This took three goes and the two failures are worth recording. At 0x24 (14%) — the same
+ * alpha [GlassSheer] uses for its white sheen — it arrived as a slightly warmer grey and
+ * the card saying "needs someone" was the quietest thing on the screen. At 0x9E (62%) it
+ * read as a painted red slab: legible, but no longer glass, and a solid red rectangle in a
+ * list of sheer panes looks like a different app.
  *
- * The border is lifted to match — a hairline at 25% around a solid-looking fill reads as a
- * rendering seam rather than as an edge.
+ * The asymmetry is the point. White at 12% over a dark photograph lifts it; red at 12% is
+ * darker than the ground it sits on and does nothing. Red needs roughly two and a half
+ * times the alpha to carry the same weight, which is what 0x4D is.
+ *
+ * The border does the rest of the work. A pane this sheer is identified by its edge more
+ * than by its fill, so the edge is a strong red where [GlassSheerBorder] is a 13% white
+ * hairline — the card is recognisably red from across a car park without the fill having
+ * to shout.
  */
-private val UrgentGlass = Color(0x9EB3261E)
-private val UrgentGlassBorder = Color(0x99F0836F)
+/** One step deeper, for a case somebody has been to and called urgent. */
+private val UrgentGlassRaised = Color(0x7ACC3325)
+private val UrgentGlass = Color(0x4DE0483A)
+private val UrgentGlassBorder = Color(0xB3F0836F)
 
 /**
  * Ink for a red card.
