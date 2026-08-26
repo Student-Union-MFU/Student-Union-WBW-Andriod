@@ -126,14 +126,14 @@ fun ChatScreen(
 
     // Follow the conversation only when already at the bottom. Yanking somebody back down
     // while they are reading history is the standard way to make a chat unusable.
+    // Reversed, so index 0 *is* the newest message and "at the bottom" is the top of the
+    // list's own coordinates. Everything that used to reach for `lastIndex` now reaches
+    // for zero — see the reverseLayout note on the LazyColumn.
     val atBottom by remember {
-        derivedStateOf {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            last >= listState.layoutInfo.totalItemsCount - 2
-        }
+        derivedStateOf { listState.firstVisibleItemIndex <= 1 }
     }
     LaunchedEffect(rows.size) {
-        if (rows.isNotEmpty() && atBottom) listState.animateScrollToItem(rows.lastIndex)
+        if (rows.isNotEmpty() && atBottom) listState.animateScrollToItem(0)
     }
 
     fun send() {
@@ -149,7 +149,7 @@ fun ChatScreen(
         emojiOpen = false
         // Jump to the message just sent. Without this it lands below the fold and the
         // send reads as having done nothing.
-        scope.launch { listState.animateScrollToItem((rows.size).coerceAtLeast(0)) }
+        scope.launch { listState.animateScrollToItem(0) }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -231,13 +231,31 @@ fun ChatScreen(
         //
         // Discord does the same thing for the same reason: its message list sits on the
         // app background, and only the composer and chrome are their own surfaces.
+        // Anchored at the bottom and grown upward, which is what a conversation does.
+        //
+        // It used to be an ordinary top-down list scrolled to its end. That reads correctly
+        // once it is full, and wrongly before then: a group with four messages showed them
+        // pinned to the top of an empty screen with the composer stranded far below, and
+        // every new message pushed the whole column down rather than rising off the box it
+        // was typed into.
+        //
+        // `reverseLayout` also inverts the index space: 0 is the newest and the bottom, so
+        // the rows are handed over reversed and every scroll target is 0 rather than the
+        // last index. Day dividers still land above their own day — reversing a list that
+        // already had them in order puts them back the right way once the layout flips it.
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
             state = listState,
+            reverseLayout = true,
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            // `spacedBy` needs the alignment spelled out, and it is not decoration.
+            // `reverseLayout` defaults the arrangement to Bottom, but passing any
+            // `verticalArrangement` replaces that default — and bare `spacedBy` aligns
+            // leftover space to the *top*, which put a short conversation back at the top
+            // of the screen with the reversal doing nothing visible.
+            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
         ) {
-            items(rows) { row ->
+            items(rows.asReversed()) { row ->
                 when (row) {
                     is Row_.Day -> DayDivider(row.label)
                     is Row_.Message -> MessageRow(
@@ -435,13 +453,13 @@ private fun MessageRow(row: Row_.Message, readBy: Int = 0) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(top = if (row.grouped) 0.dp else 14.dp, bottom = 1.dp),
+            .padding(top = 14.dp, bottom = 1.dp),
     ) {
-        // The gutter is always the avatar's width, grouped or not — that column is what
+        // The gutter is always the avatar's width — that column is what
         // keeps every line of every message aligned down the page. Wider than the avatar
         // itself so the text starts clear of it rather than tucked against it.
         Box(Modifier.width(52.dp), contentAlignment = Alignment.TopStart) {
-            if (!row.grouped) {
+            run {
                 Box(
                     Modifier
                         .size(38.dp)
@@ -472,7 +490,7 @@ private fun MessageRow(row: Row_.Message, readBy: Int = 0) {
             }
         }
         Column(Modifier.weight(1f).padding(end = 4.dp)) {
-            if (!row.grouped) {
+            run {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         m.authorName,
@@ -553,7 +571,16 @@ private fun PendingRow(message: PendingMessage, onRetry: (String) -> Unit) {
 /** What the column actually renders: a day divider, a message, or one still in flight. */
 private sealed interface Row_ {
     data class Day(val label: String) : Row_
-    data class Message(val message: ChatMessage, val grouped: Boolean, val mine: Boolean) : Row_
+    /**
+     * One message, always drawn whole.
+     *
+     * There used to be a `grouped` flag: a run from the same author inside five minutes
+     * dropped its avatar, its name and its time and sat tight under the one before. It
+     * saved vertical space and cost the two things the row is for — a run of four messages
+     * had one timestamp between them, and on a walk where people report where they are,
+     * "which of these was ten minutes ago" is the question being asked.
+     */
+    data class Message(val message: ChatMessage, val mine: Boolean) : Row_
     data class Pending(val message: PendingMessage) : Row_
 }
 
@@ -572,32 +599,17 @@ private sealed interface Row_ {
  */
 private fun groupMessages(source: List<ChatMessage>, pending: List<PendingMessage>): List<Row_> {
     val out = ArrayList<Row_>(source.size + pending.size + 4)
-    var lastAuthor: String? = null
     var lastDay: String? = null
-    var lastAt: Long = Long.MIN_VALUE
     for (m in source) {
         val day = m.dayKey()
         if (day.isNotEmpty() && day != lastDay) {
             out.add(Row_.Day(dayLabel(day)))
             lastDay = day
-            lastAuthor = null
         }
-        val at = m.epochSecondOrZero()
-        val grouped = m.senderId == lastAuthor && at - lastAt in 0..GroupWindowSeconds
-        out.add(Row_.Message(m, grouped = grouped, mine = false))
-        lastAuthor = m.senderId
-        lastAt = at
+        out.add(Row_.Message(m, mine = false))
     }
     pending.forEach { out.add(Row_.Pending(it)) }
     return out
-}
-
-/** Messages from one author inside this window sit tight under each other. */
-private const val GroupWindowSeconds = 5L * 60L
-
-private fun ChatMessage.epochSecondOrZero(): Long {
-    val at = createdAt ?: deviceTime ?: return 0
-    return runCatching { java.time.OffsetDateTime.parse(at).toEpochSecond() }.getOrDefault(0)
 }
 
 /**
