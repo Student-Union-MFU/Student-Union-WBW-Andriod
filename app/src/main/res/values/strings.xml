@@ -199,7 +199,6 @@
     <string name="walk_route_left">%1$s left</string>
     <string name="walk_route_complete">Route complete</string>
     <string name="walk_stat_distance">Distance</string>
-    <string name="walk_stat_steps">Steps</string>
     <string name="walk_stat_pace">Pace</string>
     <!-- Shown where a number would be, when the phone has no pedometer or the
          permission was refused. Deliberately not "0". -->

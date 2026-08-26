@@ -10,12 +10,17 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Walk tracking. The service keeps counting with the phone pocketed and the screen
          off, which is the only way an 8km hike is actually walked; from API 34 the typed
-         FOREGROUND_SERVICE_LOCATION permission is what makes that legal. ACTIVITY_RECOGNITION
-         (API 29+) is the hardware pedometer — refused or absent, the step count reads
-         "unavailable" rather than zero. -->
+         FOREGROUND_SERVICE_LOCATION permission is what makes that legal.
+
+         ACTIVITY_RECOGNITION is deliberately absent. It bought one line of the walk HUD —
+         a hardware step count that read "unavailable" on any phone without a pedometer —
+         and in exchange it put the whole app under Play's Health apps policy, which is
+         restricted to organization developer accounts and got 0.4.0 rejected outright.
+         Google's own remedy on that form is to remove the permission if the app has no
+         health features, and a charity walk's distance readout is not a health feature.
+         Distance comes from location, which is what the route is measured in anyway. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <!-- The staff check-in scanner, and nothing else. Asked for at the moment the scanner
          opens rather than on launch, because a participant account never reaches that
          screen and should never be asked. -->
