@@ -1,0 +1,43 @@
+=== APP NAME (max 30) ===
+WBW · เดินรอบดอย
+
+=== SHORT DESCRIPTION (max 80) ===
+Your trail map, group chat and emergency button for Walk Beyond the Wild.
+
+=== FULL DESCRIPTION (max 4000) ===
+Walk Beyond the Wild — เดินรอบดอย — is Mae Fah Luang University Student Union's
+walking event. This is the app participants carry on the day.
+
+THE TRAIL
+See the whole route and every base on one map, with your own position on it.
+Tap a base to find out what happens there, how far away it is, and how many
+people have reached it already. Start a walk and the route fills in behind you
+as you go, with your distance, pace and the next base ahead.
+
+YOUR GROUP
+Every participant belongs to a group. The group has its own chat — for finding
+each other, saying where you are, and asking the staff walking with you.
+
+HELP, QUICKLY
+Hold SOS for three seconds. The call goes out immediately, without waiting for a
+GPS fix, and your position follows the moment the phone has one. Your group's
+staff are asked first; if nobody answers, it escalates to the whole event. While
+you wait, the screen shows who is coming for you, along with your blood type and
+emergency contact for whoever arrives first — read from the phone, so it is still
+there on a ridge with no signal.
+
+YOUR PASS
+A QR code staff scan to check you in at each base, with your bib number, group
+and trail stamps. It works offline.
+
+SAY WHAT IT WAS LIKE
+When staff scan you in at a base, the app asks what that place was like — the
+view, and the space itself. At the end of the route it asks about the day's
+activities. The organisers read the answers.
+
+WHAT IT NEEDS
+Location, to draw your position on the trail and to send it with an emergency
+call. Camera, only for staff scanning passes. Both can be refused and the rest of
+the app still works.
+
+Built by the MFU Student Union.

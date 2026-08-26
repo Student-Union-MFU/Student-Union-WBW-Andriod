@@ -57,8 +57,8 @@ android {
         applicationId = "th.ac.mfu.su.wbw"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     signingConfigs {
@@ -191,7 +191,14 @@ dependencies {
  * be attached to a GitHub release and scanned off a poster.
  */
 gradle.taskGraph.whenReady {
-    val buildingRelease = allTasks.any { it.name == ":app:assembleRelease" || it.name == "assembleRelease" }
+    // Bundles as well as APKs. `bundleRelease` is what Play actually takes, and it was
+    // not on this list — so the one build that goes to real users was the one build that
+    // could still be produced unsigned, and the first sign of it would have been Play
+    // rejecting the upload with a message about the signature rather than about the key.
+    val releaseTasks = setOf("assembleRelease", "bundleRelease")
+    val buildingRelease = allTasks.any {
+        it.name in releaseTasks || it.name.removePrefix(":app:") in releaseTasks
+    }
     if (buildingRelease && releaseKeystore == null) {
         throw GradleException(
             "Release signing is not configured. Set WBW_STORE_FILE / WBW_STORE_PASSWORD / " +
