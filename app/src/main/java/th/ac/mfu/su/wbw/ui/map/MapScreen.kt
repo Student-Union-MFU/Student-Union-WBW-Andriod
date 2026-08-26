@@ -122,7 +122,6 @@ import th.ac.mfu.su.wbw.ui.theme.WbwForestVoid
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.glass
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
-import th.ac.mfu.su.wbw.walk.PermissionActivityRecognition
 import th.ac.mfu.su.wbw.walk.WalkStats
 import th.ac.mfu.su.wbw.walk.WalkTracker
 import kotlin.math.roundToInt
@@ -450,16 +449,13 @@ fun MapScreen(
      * what it is for, and none of these are needed to simply look at the route.
      *
      * Fine location because speed and distance come from the fix and coarse is too vague to
-     * measure a walk with; activity recognition for the pedometer; notifications because a
-     * foreground service without a visible notification is not a thing Android allows.
+     * measure a walk with; notifications because a foreground service without a visible
+     * notification is not a thing Android allows.
      */
     fun missingWalkPermissions(): Array<String> = buildList {
         if (!holds(Manifest.permission.ACCESS_FINE_LOCATION)) {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !holds(PermissionActivityRecognition)) {
-            add(PermissionActivityRecognition)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !holds(Manifest.permission.POST_NOTIFICATIONS)
@@ -1148,7 +1144,7 @@ fun MapScreen(
 }
 
 /**
- * The live readout: distance, steps, pace.
+ * The live readout: distance and pace.
  *
  * Three columns of equal width rather than content-sized ones, so a number growing a digit
  * does not shove its neighbours sideways mid-walk. Emphasis is carried by size and weight
@@ -1215,12 +1211,6 @@ private fun WalkHud(
         WalkStat(
             label = stringResource(R.string.walk_stat_distance),
             value = formatDistance(stats.distanceMetres),
-            modifier = Modifier.weight(1f),
-        )
-        WalkStat(
-            label = stringResource(R.string.walk_stat_steps),
-            // Null is "this phone cannot count steps", which is not the same claim as zero.
-            value = stats.steps?.toString() ?: stringResource(R.string.walk_unavailable),
             modifier = Modifier.weight(1f),
         )
         WalkStat(

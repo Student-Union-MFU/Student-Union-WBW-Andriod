@@ -7,14 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/**
- * Spelled out rather than referenced as `Manifest.permission.ACTIVITY_RECOGNITION` so it
- * resolves on every compileSdk — the constant only exists from API 29, while the string is
- * the stable half of the contract. Shared, because the screen asks for it and the service
- * checks it, and two copies of a permission name is how those two drift apart.
- */
-internal const val PermissionActivityRecognition = "android.permission.ACTIVITY_RECOGNITION"
-
 /** The latest position fix, flattened to what the map camera needs. */
 data class WalkFix(
     val latitude: Double,
@@ -26,15 +18,13 @@ data class WalkFix(
 /**
  * A walk in progress, or the one that just finished.
  *
- * [steps] is nullable rather than defaulting to zero, and that distinction is the whole
- * point of the type: a phone with no pedometer and a walker who has not moved are very
- * different claims, and showing "0 steps" for the first is a lie the UI would have no way
- * to detect. Null means "this device cannot tell you", and the HUD says so.
+ * Carried no step count since 0.4.1. The pedometer needed ACTIVITY_RECOGNITION, and that
+ * one permission put the app under Play's Health apps policy — organization accounts only.
+ * Distance is measured from location regardless, so nothing here depended on it.
  */
 data class WalkStats(
     val active: Boolean = false,
     val distanceMetres: Double = 0.0,
-    val steps: Int? = null,
     /** Smoothed ground speed, metres per second. */
     val speedMps: Float = 0f,
     val fix: WalkFix? = null,
@@ -54,7 +44,7 @@ data class WalkStats(
     val routeLengthMetres: Double = 0.0,
 ) {
     /** True once a walk has produced something worth showing, running or not. */
-    val hasData: Boolean get() = active || distanceMetres > 0.0 || steps != null
+    val hasData: Boolean get() = active || distanceMetres > 0.0
 
     /** 0..1 along the route, or null while it is unknown. */
     val routeFraction: Float?

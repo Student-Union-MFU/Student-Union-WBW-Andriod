@@ -9,10 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Location
 import android.os.Build
 import android.os.IBinder
@@ -31,7 +27,7 @@ import th.ac.mfu.su.wbw.ui.map.TrailRoute
 import kotlin.math.roundToInt
 
 /**
- * Records a walk: distance, steps and speed, for as long as it is running.
+ * Records a walk: distance and speed, for as long as it is running.
  *
  * A foreground service rather than screen-scoped state because of how this app is used —
  * a 5km hike is walked with the phone in a pocket and the screen off, and anything tied
@@ -44,8 +40,6 @@ import kotlin.math.roundToInt
 class WalkTrackingService : Service() {
 
     private lateinit var fused: FusedLocationProviderClient
-    private var sensors: SensorManager? = null
-    private var stepSensor: Sensor? = null
 
     /**
      * The point distance is measured from — held still until the walker has genuinely left
@@ -53,13 +47,6 @@ class WalkTrackingService : Service() {
      * of "walking" done standing at a checkpoint.
      */
     private var anchor: Location? = null
-
-    /**
-     * TYPE_STEP_COUNTER counts from the last reboot, not from now, so the first reading is
-     * an offset to subtract rather than a step total. -1 means "not yet seen one".
-     */
-    private var stepBaseline: Long = -1L
-    private var steps: Int? = null
 
     private var distanceMetres = 0.0
 
@@ -87,17 +74,6 @@ class WalkTrackingService : Service() {
         }
     }
 
-    private val stepListener = object : SensorEventListener {
-        override fun onSensorChanged(event: SensorEvent) {
-            val total = event.values.firstOrNull()?.toLong() ?: return
-            if (stepBaseline < 0) stepBaseline = total
-            steps = (total - stepBaseline).toInt().coerceAtLeast(0)
-            publish()
-        }
-
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-    }
-
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -118,7 +94,6 @@ class WalkTrackingService : Service() {
 
     override fun onDestroy() {
         runCatching { fused.removeLocationUpdates(locationCallback) }
-        runCatching { sensors?.unregisterListener(stepListener) }
         // Keep whatever was recorded on screen; only the "recording" flag drops.
         publish(active = false)
         super.onDestroy()
@@ -136,16 +111,6 @@ class WalkTrackingService : Service() {
             runCatching {
                 fused.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
             }
-        }
-
-        // Steps are best-effort in two separate ways: the permission may be refused, and
-        // plenty of hardware has no pedometer at all (emulators included). Either way
-        // `steps` stays null and the HUD says the count is unavailable rather than zero.
-        val needsRecognition = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        if (!needsRecognition || hasPermission(PermissionActivityRecognition)) {
-            sensors = getSystemService(SensorManager::class.java)
-            stepSensor = sensors?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-            stepSensor?.let { sensors?.registerListener(stepListener, it, SensorManager.SENSOR_DELAY_UI) }
         }
     }
 
@@ -193,7 +158,6 @@ class WalkTrackingService : Service() {
             WalkStats(
                 active = active,
                 distanceMetres = distanceMetres,
-                steps = steps,
                 speedMps = speedMps,
                 fix = anchor?.let { WalkFix(it.latitude, it.longitude, bearing) },
                 routeMetres = routeMetres.takeIf { it >= 0.0 },
