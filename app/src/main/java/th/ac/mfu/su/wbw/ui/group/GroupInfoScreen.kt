@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -181,8 +182,18 @@ fun GroupInfoScreen(
                 // first. The confirm step is where the price is written, because a warning
                 // nobody has asked to see is a warning nobody reads.
                 if (confirming) {
+                    // The real remaining count, not the word "once".
+                    //
+                    // The quota is a column an admin can set between 0 and 10, so a
+                    // sentence that hard-codes "once" is right for the default and wrong
+                    // for anybody who was granted another — and it is wrong in the
+                    // direction that costs them a move they actually had.
                     Text(
-                        stringResource(R.string.group_leave_warning),
+                        pluralStringResource(
+                            R.plurals.group_leave_warning,
+                            state.leaveQuota,
+                            state.leaveQuota,
+                        ),
                         color = colors.onBackdrop,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(bottom = 10.dp),
