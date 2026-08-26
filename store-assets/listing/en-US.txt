@@ -35,6 +35,11 @@ When staff scan you in at a base, the app asks what that place was like — the
 view, and the space itself. At the end of the route it asks about the day's
 activities. The organisers read the answers.
 
+YOUR AVATAR
+Pick a mark for yourself in Settings — a pine, a deer, a butterfly. They are
+drawn in the same halftone as the flower on your home screen, and yours appears
+beside your messages and next to your name in the group.
+
 WHAT IT NEEDS
 Location, to draw your position on the trail and to send it with an emergency
 call. Camera, only for staff scanning passes. Both can be refused and the rest of
