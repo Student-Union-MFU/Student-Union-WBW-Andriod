@@ -263,7 +263,7 @@ private fun DrawScope.drawBloom(
  * are asked for and how the result is fitted to its box. A frond is a leaf spray with no
  * flower head on it at all, which is why it alone has no core.
  */
-private enum class Botanical { Plant, Head, Frond }
+private enum class Botanical { Plant, Head, Frond, Mark }
 
 /**
  * A leaf spray, for decoration.
@@ -348,6 +348,60 @@ fun Frond(
     }
 }
 
+/**
+ * Any drawing, in the flower's own halftone.
+ *
+ * The bloom's renderer is not really a flower — it is a rasteriser for tapered strokes,
+ * printed through a fixed dot screen. [Petal] is that stroke: an origin, an axis, a length
+ * and a waist. A flower is a fan of them; so is a fern, and so is the outline of a deer if
+ * you are willing to draw it in strokes. This hands the same machinery an arbitrary list,
+ * so an avatar is made of the same ink as the bloom on Home rather than being a picture
+ * pasted next to one.
+ *
+ * [markKey] is what the cache is keyed on. The petal list is rebuilt on every recomposition
+ * and a list never equals the one before it, so keying on the list would rebuild the
+ * halftone every frame — the exact cost the field exists to avoid. The mark's name is
+ * stable and identifies the drawing completely.
+ */
+@Composable
+internal fun HalftoneMark(
+    petals: List<Petal>,
+    markKey: Any,
+    modifier: Modifier = Modifier,
+    ink: Color = Color.White,
+    alpha: Float = 1f,
+    gridDp: Float = 3.2f,
+) {
+    val field = remember { BloomField() }
+    Canvas(modifier) {
+        field.ensure(
+            w = size.width,
+            h = size.height,
+            stage = 0f,
+            step = gridDp.dp.toPx(),
+            centreYFraction = 0.5f,
+            kind = Botanical.Mark,
+            markPetals = petals,
+            markKey = markKey,
+        )
+        val dots = field.dots
+        var i = 0
+        val end = field.count * DotStride
+        while (i < end) {
+            val r = dots[i + 2]
+            if (r > 0.25f) {
+                drawCircle(
+                    color = ink,
+                    radius = r,
+                    center = Offset(dots[i], dots[i + 1]),
+                    alpha = (dots[i + 3] * alpha).coerceIn(0f, 1f),
+                )
+            }
+            i += DotStride
+        }
+    }
+}
+
 /** `x, y, radius, alpha, jitter` per dot, packed flat. */
 private const val DotStride = 5
 
@@ -392,16 +446,29 @@ private class BloomField {
     private var keyStep = -1f
     private var keyCentre = -1f
     private var keyKind: Botanical? = null
+    private var keyMark: Any? = null
 
-    fun ensure(w: Float, h: Float, stage: Float, step: Float, centreYFraction: Float, kind: Botanical) {
+    fun ensure(
+        w: Float,
+        h: Float,
+        stage: Float,
+        step: Float,
+        centreYFraction: Float,
+        kind: Botanical,
+        /** The drawing, for [Botanical.Mark]. Ignored by every other kind. */
+        markPetals: List<Petal>? = null,
+        /** What identifies that drawing for caching — the mark's name, not the list. */
+        markKey: Any? = null,
+    ) {
         val q = quantise(stage)
         if (w == keyW && h == keyH && q == keyStage && step == keyStep &&
-            centreYFraction == keyCentre && kind == keyKind
+            centreYFraction == keyCentre && kind == keyKind && markKey == keyMark
         ) {
             return
         }
-        keyW = w; keyH = h; keyStage = q; keyStep = step; keyCentre = centreYFraction; keyKind = kind
-        build(w, h, q, step, centreYFraction, kind)
+        keyW = w; keyH = h; keyStage = q; keyStep = step; keyCentre = centreYFraction
+        keyKind = kind; keyMark = markKey
+        build(w, h, q, step, centreYFraction, kind, markPetals)
     }
 
     private fun add(x: Float, y: Float, r: Float, alpha: Float, jitter: Float) {
@@ -413,7 +480,15 @@ private class BloomField {
         count++
     }
 
-    private fun build(w: Float, h: Float, stage: Float, step: Float, centreYFraction: Float, kind: Botanical) {
+    private fun build(
+        w: Float,
+        h: Float,
+        stage: Float,
+        step: Float,
+        centreYFraction: Float,
+        kind: Botanical,
+        markPetals: List<Petal>? = null,
+    ) {
         count = 0
         if (w <= 0f || h <= 0f || step <= 0f) return
 
@@ -423,10 +498,14 @@ private class BloomField {
             Botanical.Head -> petalsFor(stage, withLeaves = false)
             Botanical.Plant -> petalsFor(stage, withLeaves = true)
             Botanical.Frond -> frondPetals(stage)
+            // Whatever the caller drew. A mark has no stem and no core: those two belong to
+            // the flower specifically, and a deer with a flower's stalk growing out of it
+            // is not a thing anybody asked for.
+            Botanical.Mark -> markPetals.orEmpty()
         }
         val fan = PetalFan(petals)
         val withStem = kind == Botanical.Plant
-        val withCore = kind != Botanical.Frond
+        val withCore = kind == Botanical.Plant || kind == Botanical.Head
 
         // Scaled to the flower's own extent, not to its authoring canvas. The prototype
         // draws inside a 300×300 box but only ever fills about a third of it, so scaling by
@@ -438,7 +517,7 @@ private class BloomField {
         // decoration and simply fills whatever box it is given.
         val bounds = when (kind) {
             Botanical.Head -> headBounds(petals, stage)
-            Botanical.Frond -> floatArrayOf(fan.minX, fan.minY, fan.maxX, fan.maxY)
+            Botanical.Frond, Botanical.Mark -> floatArrayOf(fan.minX, fan.minY, fan.maxX, fan.maxY)
             Botanical.Plant -> null
         }
         val scale = if (bounds != null) {
@@ -737,7 +816,7 @@ fun stageLabel(stage: Int): Int = when (stage.coerceIn(0, 5)) {
  * each one carries its own tone, which is enough for the eye to sort them into layers. See
  * [PetalFan.coverAt].
  */
-private data class Petal(
+internal data class Petal(
     val cx: Float,
     val cy: Float,
     val ang: Float,

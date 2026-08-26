@@ -70,7 +70,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.ApiResult
-import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
+import th.ac.mfu.su.wbw.ui.theme.AvatarMarks
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
 @Composable
@@ -404,7 +404,7 @@ private fun AvatarPicker(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            WbwAvatars.all.forEach { (key, glyph) ->
+            AvatarMarks.all.forEach { (key, _) ->
                 val isOn = key == selected
                 Box(
                     Modifier
@@ -424,7 +424,14 @@ private fun AvatarPicker(
                         .clickableTap { if (!saving) onPick(key) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(glyph, fontSize = 24.sp)
+                    AvatarMarks.Mark(
+                        key = key,
+                        modifier = Modifier.size(38.dp),
+                        ink = colors.onBackdrop,
+                        // Finer screen than the hero's: at 38dp the default pitch puts four
+                        // fat dots across a deer's leg and the drawing stops being one.
+                        gridDp = 1.7f,
+                    )
                 }
             }
         }

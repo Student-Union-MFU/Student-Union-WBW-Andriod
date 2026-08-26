@@ -49,7 +49,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
-import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
+import th.ac.mfu.su.wbw.ui.theme.AvatarMarks
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
@@ -264,7 +264,7 @@ private fun MemberLine(member: GroupMember, isMe: Boolean) {
         // of names and a column of empty circles beside half of them would be a column of
         // absences. Chat can afford the fallback initial because the disc is load-bearing
         // there — it is what separates one speaker's run of messages from the next.
-        WbwAvatars.glyph(member.avatar)?.let { glyph ->
+        if (AvatarMarks.has(member.avatar)) {
             Box(
                 Modifier
                     .size(32.dp)
@@ -272,7 +272,12 @@ private fun MemberLine(member: GroupMember, isMe: Boolean) {
                     .background(WbwGreenDark.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(glyph, fontSize = 17.sp)
+                AvatarMarks.Mark(
+                    key = member.avatar,
+                    modifier = Modifier.size(26.dp),
+                    ink = colors.onBackdrop,
+                    gridDp = 1.4f,
+                )
             }
             Spacer(Modifier.width(11.dp))
         }

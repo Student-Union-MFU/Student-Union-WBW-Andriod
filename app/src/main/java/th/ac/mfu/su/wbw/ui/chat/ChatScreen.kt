@@ -67,7 +67,7 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
-import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
+import th.ac.mfu.su.wbw.ui.theme.AvatarMarks
 import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.WbwInkLight
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -474,18 +474,24 @@ private fun MessageRow(row: Row_.Message, readBy: Int = 0) {
                     // in the same place the letter did, so a group where half the people
                     // have chosen and half have not still reads as one column of avatars
                     // rather than as two kinds of thing.
-                    val glyph = WbwAvatars.glyph(m.avatar)
-                    Text(
-                        glyph ?: m.authorName.take(1).uppercase(),
-                        // Light, not WbwInkLight. These fills sit between 30% and 55% of
-                        // the green over a dark backdrop, so they come out mid-dark and a
-                        // near-black initial on them was around 2:1.
-                        color = colors.onBackdrop,
-                        fontWeight = FontWeight.Normal,
-                        // Emoji carry their own colour and read small at a letter's size,
-                        // so they are given a little more room than the initial.
-                        fontSize = if (glyph != null) 19.sp else 15.sp,
-                    )
+                    if (AvatarMarks.has(m.avatar)) {
+                        AvatarMarks.Mark(
+                            key = m.avatar,
+                            modifier = Modifier.size(30.dp),
+                            ink = colors.onBackdrop,
+                            gridDp = 1.5f,
+                        )
+                    } else {
+                        Text(
+                            m.authorName.take(1).uppercase(),
+                            // Light, not WbwInkLight. These fills sit between 30% and 55%
+                            // of the green over a dark backdrop, so they come out mid-dark
+                            // and a near-black initial on them was around 2:1.
+                            color = colors.onBackdrop,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 15.sp,
+                        )
+                    }
                 }
             }
         }
