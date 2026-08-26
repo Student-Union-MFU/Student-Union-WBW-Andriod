@@ -1,0 +1,57 @@
+FOREGROUND_SERVICE_LOCATION — Play Console declaration
+Task category: Background location updates → Other
+Video: store-assets/release/fgs-location-demo.mp4
+
+WHAT TO PUT IN THE "OTHER" DESCRIPTION FIELD
+---------------------------------------------------------------------------
+Recording a walk the user has started: distance travelled and progress along a
+fixed 8 km event route, shown only to that user, while their screen is off and
+the phone is in their pocket.
+
+WHY NOT THE OTHER CATEGORIES
+---------------------------------------------------------------------------
+Not "User-initiated location sharing": the service transmits nothing. Every
+fix it receives is folded into an in-memory distance total and published to the
+app's own screen. No location from this service reaches our servers or any
+third party.
+
+Not "Navigation": the app gives no directions. It draws the walker's position
+on a route that is fixed before the event and counts down the metres to the
+next checkpoint. It never tells anyone which way to go.
+
+Not "Geofencing": the app registers no geofences and takes no action on
+entering or leaving an area. Checkpoint check-ins are performed by a staff
+member scanning the participant's pass, not by their location.
+
+WHY THE PERMISSION IS NEEDED AT ALL
+---------------------------------------------------------------------------
+Walk Beyond the Wild is a one-day charity trail walk. Participants walk about
+8 km between checkpoints on the university grounds, which takes some hours,
+with the phone pocketed for nearly all of it. Location tracking scoped to a
+visible screen would stop counting the moment the screen slept and then present
+a total that silently omitted most of the walk — a wrong number shown
+confidently. The tracking has to outlive the UI or it is not worth having.
+
+HOW IT BEHAVES
+---------------------------------------------------------------------------
+- It starts only when the participant taps START WALKING. It never starts on
+  its own, at boot, or on launch.
+- While it runs it posts an ongoing, non-dismissible notification titled
+  "Recording your walk", showing the distance so far and carrying a Stop
+  action that ends the service from the notification itself.
+- It stops on STOP, on the notification's Stop action, or when the process
+  ends. It is START_NOT_STICKY: the system does not restart it, because a
+  restarted service would come back as a fresh session claiming to be the same
+  walk.
+- The app requests no background location permission. Location is granted as
+  "While using the app"; the foreground service is what makes the walk
+  continue to be recorded from there.
+
+WHAT THE VIDEO SHOWS
+---------------------------------------------------------------------------
+A single unedited screen recording, in order: the trail map; the location
+permission granted as "While using the app"; START WALKING tapped by the user;
+the walk running with distance climbing; the ongoing notification in the
+shade; the app sent to the background with the notification still counting up;
+the app reopened with the distance accrued while it was away; STOP tapped; the
+notification gone.

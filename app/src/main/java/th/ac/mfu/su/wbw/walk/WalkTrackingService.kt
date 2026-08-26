@@ -290,8 +290,18 @@ class WalkTrackingService : Service() {
         private const val SpeedSmoothing = 0.3f
         private const val BearingSmoothing = 0.25f
 
-        /** Notification text is rebuilt per 100m. */
-        private const val NotificationStepMetres = 100.0
+        /**
+         * How far the walker must go before the notification text is rebuilt.
+         *
+         * Matched to the resolution the text itself promises. `walk_notification_distance`
+         * is "%.2f km", which resolves to ten metres, so rebuilding per hundred left the
+         * notification showing multiples of 0.10 km and holding each one until the next
+         * hundred-metre boundary — 184m walked read as "0.10 km so far". With the phone
+         * pocketed that notification is the only readout there is, which is the whole
+         * reason this service outlives the screen, so it is the last place to be a
+         * hundred metres out.
+         */
+        private const val NotificationStepMetres = 10.0
     }
 }
 
