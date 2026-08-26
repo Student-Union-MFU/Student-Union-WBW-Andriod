@@ -3,6 +3,7 @@ package th.ac.mfu.su.wbw.data.remote
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -50,6 +51,17 @@ interface WbwApi {
     /** bearer — the logged-in participant's own profile. */
     @GET("me")
     suspend fun me(): ParticipantDetail
+
+    /**
+     * bearer — set the participant's own avatar.
+     *
+     * The same `PATCH /wbw/me` the web uses for `photo_url`; sending the `avatar` key takes
+     * the avatar branch. A null value clears the choice, so the body is a map rather than a
+     * typed request — kotlinx would omit a null field from a data class and the server would
+     * read that as "not sent", which means "leave it alone" rather than "remove it".
+     */
+    @PATCH("me")
+    suspend fun setAvatar(@Body body: Map<String, String?>): OkResponse
 
     /** bearer — notifications delivered to the logged-in participant. */
     @GET("notifications")

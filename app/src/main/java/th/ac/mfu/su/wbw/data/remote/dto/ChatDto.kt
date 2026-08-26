@@ -32,6 +32,8 @@ data class ChatMessage(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
+    /** The sender's avatar key, carried per message so the room draws without a second call. */
+    val avatar: String? = null,
 ) {
     /** Falls back rather than showing a raw UUID to a participant. */
     val authorName: String
@@ -94,6 +96,7 @@ data class GroupMember(
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
     @SerialName("photo_url") val photoUrl: String? = null,
+    val avatar: String? = null,
     val bib: Int? = null,
     val school: String? = null,
 )

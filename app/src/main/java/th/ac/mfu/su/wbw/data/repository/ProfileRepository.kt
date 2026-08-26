@@ -47,6 +47,16 @@ class ProfileRepository(
         apiCall { api.me() }.onSuccess { cache.write(ResponseCache.KeyMe, ParticipantDetail.serializer(), it) }
 
     /** Not cached: nothing reads groups on a screen's opening frame. */
+    /**
+     * Choose an avatar, or pass null to go back to the colour disc.
+     *
+     * Refreshes `/me` on the way out so the cache — which is what Settings and the profile
+     * read on their next open — agrees with what was just sent, rather than showing the old
+     * glyph until something else happens to refetch.
+     */
+    suspend fun setAvatar(key: String?): ApiResult<OkResponse> =
+        apiCall { api.setAvatar(mapOf("avatar" to key)) }.onSuccess { me() }
+
     suspend fun groups(): ApiResult<List<Group>> = apiCall { api.groups() }
 
     /**

@@ -49,6 +49,8 @@ import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
+import th.ac.mfu.su.wbw.ui.theme.WbwAvatars
+import th.ac.mfu.su.wbw.ui.theme.WbwGreenDark
 import th.ac.mfu.su.wbw.ui.theme.wbwColors
 
 /**
@@ -256,6 +258,25 @@ private fun MemberLine(member: GroupMember, isMe: Boolean) {
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The chosen avatar, in the same disc chat uses.
+        //
+        // Nothing where there is no choice, rather than a placeholder: the roster is a list
+        // of names and a column of empty circles beside half of them would be a column of
+        // absences. Chat can afford the fallback initial because the disc is load-bearing
+        // there — it is what separates one speaker's run of messages from the next.
+        WbwAvatars.glyph(member.avatar)?.let { glyph ->
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(WbwGreenDark.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(glyph, fontSize = 17.sp)
+            }
+            Spacer(Modifier.width(11.dp))
+        }
+
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

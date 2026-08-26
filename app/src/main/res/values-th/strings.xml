@@ -265,6 +265,9 @@
     <string name="settings_display_language">ภาษาที่แสดง</string>
     <string name="settings_lang_english">English</string>
     <string name="settings_lang_thai">ไทย</string>
+    <string name="settings_avatar">รูปประจำตัว</string>
+    <string name="settings_avatar_hint">แสดงข้างข้อความของคุณ และในรายชื่อสมาชิกกลุ่ม</string>
+    <string name="settings_avatar_failed">บันทึกไม่สำเร็จ ลองตรวจสัญญาณแล้วลองใหม่</string>
     <string name="settings_appearance">ธีม</string>
     <string name="settings_theme_light">สว่าง</string>
     <string name="settings_theme_dark">มืด</string>
