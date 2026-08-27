@@ -18,6 +18,7 @@
     <string name="login_action_submit">เข้าสู่ระบบ</string>
     <string name="login_placeholder_username">รหัสนักศึกษาของคุณ</string>
     <string name="login_placeholder_password">รหัสผ่านของคุณ</string>
+    <string name="login_session_expired">เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง</string>
 
     <!-- Notifications -->
     <string name="notifications_title">ประกาศ</string>
@@ -177,6 +178,7 @@
     <!-- Walk tracking -->
     <string name="walk_start">เริ่มเดิน</string>
     <string name="walk_stop">หยุด</string>
+    <string name="walk_resume">เดินต่อ</string>
     <string name="map_checkpoint_checked_in">เช็คอินแล้ว %1$d คน</string>
     <string name="map_checkpoint_from_me">ห่าง %1$s</string>
     <string name="action_close">ปิด</string>

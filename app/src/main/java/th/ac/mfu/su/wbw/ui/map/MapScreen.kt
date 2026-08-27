@@ -464,6 +464,13 @@ fun MapScreen(
         }
     }.toTypedArray()
 
+    // Carry on the interrupted walk, or open a new one. The choice is the walk's own
+    // state, not the caller's, so both entry points below go through here and neither has
+    // to remember which it is.
+    fun beginWalk() {
+        if (walk.interrupted) WalkTracker.resume(context) else WalkTracker.start(context)
+    }
+
     val walkPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
@@ -475,7 +482,7 @@ fun MapScreen(
         if (holds(Manifest.permission.ACCESS_FINE_LOCATION) ||
             holds(Manifest.permission.ACCESS_COARSE_LOCATION)
         ) {
-            WalkTracker.start(context)
+            beginWalk()
         }
     }
 
@@ -485,7 +492,7 @@ fun MapScreen(
             return
         }
         val missing = missingWalkPermissions()
-        if (missing.isEmpty()) WalkTracker.start(context) else walkPermissionLauncher.launch(missing)
+        if (missing.isEmpty()) beginWalk() else walkPermissionLauncher.launch(missing)
     }
 
     // While a walk is running the camera belongs to it: locked to the walker, tilted, and
@@ -908,7 +915,7 @@ fun MapScreen(
             )
 
             // The one action on this screen, so it carries a label instead of a glyph.
-            WalkButton(active = walk.active, onClick = { toggleWalk() })
+            WalkButton(active = walk.active, interrupted = walk.interrupted, onClick = { toggleWalk() })
 
             // The tapped base's card, underneath everything else in the corner.
             //
@@ -1414,8 +1421,19 @@ private fun WalkStat(label: String, value: String, modifier: Modifier = Modifier
     }
 }
 
+/**
+ * Start, stop, or pick a killed walk back up.
+ *
+ * [interrupted] only ever reads true while [active] is false, so the three states are
+ * exclusive: recording, resumable, or idle.
+ */
 @Composable
-private fun WalkButton(active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun WalkButton(
+    active: Boolean,
+    interrupted: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = wbwColors
     Row(
         modifier
@@ -1434,7 +1452,15 @@ private fun WalkButton(active: Boolean, onClick: () -> Unit, modifier: Modifier 
         )
         Spacer(Modifier.width(9.dp))
         Text(
-            stringResource(if (active) R.string.walk_stop else R.string.walk_start).uppercase(),
+            stringResource(
+                when {
+                    active -> R.string.walk_stop
+                    // Says what the tap does to the metres already on screen beside it.
+                    // "Start walking" over a HUD reading 6.2 km reads as a threat to it.
+                    interrupted -> R.string.walk_resume
+                    else -> R.string.walk_start
+                },
+            ).uppercase(),
             color = colors.onBackdrop,
             fontSize = 11.sp,
             letterSpacing = 1.8.sp,

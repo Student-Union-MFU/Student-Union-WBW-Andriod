@@ -48,6 +48,17 @@ class WalkTrackingService : Service() {
      */
     private var anchor: Location? = null
 
+    /**
+     * How far the first fix after a resume may be from the rebuilt [anchor] before that
+     * anchor is disbelieved, or null when no resume is pending.
+     *
+     * A resumed anchor is a position from *before* the process died, so the first fix
+     * measured against it spans however long the app was gone rather than the usual two
+     * seconds. This is what that gap could plausibly have been walked in; see
+     * [seedFromRestoredWalk]. Consumed by the first fix that lands.
+     */
+    private var resumeBudgetMetres: Double? = null
+
     private var distanceMetres = 0.0
 
     /**
@@ -82,13 +93,17 @@ class WalkTrackingService : Service() {
             return START_NOT_STICKY
         }
 
+        if (intent?.action == ActionResume) seedFromRestoredWalk()
+
         createChannel()
         startInForeground()
         beginTracking()
 
-        // NOT sticky. The walk's numbers live in memory, so a service restarted by the
-        // system after a process kill would come back as a fresh session claiming to be
-        // the same walk. Ending honestly beats resuming with a zeroed total.
+        // Still NOT sticky, now for a different reason than before [WalkStore] existed.
+        // The numbers survive a kill, so a restart would no longer zero them — but it
+        // would restart *recording*, unasked, which the app's FOREGROUND_SERVICE_LOCATION
+        // declaration says it never does. The walk is offered back on the map instead and
+        // waits for a tap. See [WalkTracker.resume].
         return START_NOT_STICKY
     }
 
@@ -97,6 +112,49 @@ class WalkTrackingService : Service() {
         // Keep whatever was recorded on screen; only the "recording" flag drops.
         publish(active = false)
         super.onDestroy()
+    }
+
+    /**
+     * Picks the walk back up where the dead process left it.
+     *
+     * [WalkTracker.resume] has already put the restored numbers into the flow, so they are
+     * read from there rather than passed through the intent — an intent carrying six
+     * doubles would be a second copy of the same state to keep in step with the first.
+     *
+     * The anchor is rebuilt from the stored fix so the first metres after resuming are
+     * measured from where the walker actually is. Without it the first fix would become
+     * the anchor and the walk would silently lose however far they moved while the app was
+     * dead — the same class of quiet undercount the foreground service exists to prevent.
+     *
+     * But only when that gap is short enough to be worth measuring across, and only for as
+     * far as it could have been *walked*. [WalkStore] keeps an interrupted walk for six
+     * hours so it can still be offered back, which is a different question from whether
+     * its last position is still where the walker is: a phone that died at the second base
+     * and was charged in a truck back at the first would otherwise book that whole
+     * straight line as walked on the first fix. So the anchor is rebuilt only inside
+     * [MaxResumeGapMillis], and [resumeBudgetMetres] caps what the first fix may claim
+     * from it. Past either, the anchor is left null and the first live fix becomes it —
+     * losing the gap, which is the honest direction to be wrong in.
+     */
+    private fun seedFromRestoredWalk() {
+        val restored = WalkTracker.stats.value
+        distanceMetres = restored.distanceMetres
+        routeMetres = restored.routeMetres ?: -1.0
+        // Restored whatever the gap: it only points the camera, is overwritten by the
+        // first fix taken while actually moving, and no distance is measured from it.
+        bearing = restored.fix?.bearingDegrees
+
+        // A negative gap is a clock moved backwards under the record, which says nothing
+        // about where the walker is; it falls out of the range with everything too old.
+        val gapMillis = WalkStore.ageMillis() ?: return
+        if (gapMillis !in 0..MaxResumeGapMillis) return
+        restored.fix?.let { fix ->
+            anchor = Location(ResumeProvider).apply {
+                latitude = fix.latitude
+                longitude = fix.longitude
+            }
+            resumeBudgetMetres = gapMillis / 1000.0 * MaxResumeSpeedMps
+        }
     }
 
     private fun beginTracking() {
@@ -124,7 +182,18 @@ class WalkTrackingService : Service() {
             anchor = location
         } else {
             val moved = previous.distanceTo(location)
-            if (moved >= MinMoveMetres) {
+            // Spent here whether or not it bites: this is the first fix measured against a
+            // resumed anchor, and every one after it is an ordinary two-second step.
+            val budget = resumeBudgetMetres
+            resumeBudgetMetres = null
+
+            if (budget != null && moved > budget) {
+                // Further than the gap could have been walked, so it was not walked —
+                // a lift between bases, or a phone carried ahead in somebody's bag. The
+                // anchor is abandoned and this fix starts the measuring again; the walk
+                // keeps the metres it had rather than gaining ones nobody put in.
+                anchor = location
+            } else if (moved >= MinMoveMetres) {
                 distanceMetres += moved
                 anchor = location
             }
@@ -234,6 +303,10 @@ class WalkTrackingService : Service() {
 
     companion object {
         const val ActionStop = "th.ac.mfu.su.wbw.walk.STOP"
+        const val ActionResume = "th.ac.mfu.su.wbw.walk.RESUME"
+
+        /** Provider name on the rebuilt anchor. Never read; a [Location] requires one. */
+        private const val ResumeProvider = "wbw_resume"
 
         private const val ChannelId = "wbw_walk"
         private const val NotificationId = 4101
@@ -247,6 +320,26 @@ class WalkTrackingService : Service() {
 
         /** How far from the anchor counts as having walked rather than as GPS noise. */
         private const val MinMoveMetres = 2.5f
+
+        /**
+         * How stale the stored fix may be and still be worth resuming the measurement from.
+         *
+         * Long enough to cover what actually happens — a service killed by battery
+         * management, or a phone that died and was restarted — including the moment it
+         * takes to reopen the app and tap. Past it, nobody knows where the walker went in
+         * between, and the first live fix should start afresh. See [seedFromRestoredWalk].
+         */
+        private const val MaxResumeGapMillis = 5L * 60 * 1000
+
+        /**
+         * The fastest the gap either side of a resume is treated as having been walked.
+         *
+         * A brisk walk is about 2 m/s. Anything quicker than that over the gap was
+         * travelled some other way, and this app's total is meant to mean "you walked
+         * this" — so it is a ceiling on what the first resumed fix may claim, not an
+         * estimate of anybody's pace.
+         */
+        private const val MaxResumeSpeedMps = 2.0
 
         /** Below this, a reported heading is noise, so the camera keeps the last one. */
         private const val MinBearingSpeedMps = 0.7f
