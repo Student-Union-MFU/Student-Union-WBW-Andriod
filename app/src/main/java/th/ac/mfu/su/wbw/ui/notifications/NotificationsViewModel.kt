@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.onError
@@ -56,6 +57,28 @@ class NotificationsViewModel(
     init {
         repository.cachedMine()?.let { show(it) }
         load()
+    }
+
+    /**
+     * True while the pull gesture's own fetch is in flight.
+     *
+     * Its own flag rather than [UiState.Loading], so a refresh never replaces the feed with
+     * a spinner. The announcement somebody is halfway through reading has to stay on screen
+     * while the list behind it is asked for again.
+     */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    fun refresh() {
+        if (_refreshing.value) return
+        _refreshing.value = true
+        viewModelScope.launch {
+            repository.mine().onSuccess { show(it) }
+            // A failed refresh keeps the feed it had, exactly as [load] does. The error is
+            // not reported: the participant asked for this one, so an empty pull is its own
+            // answer, and blanking a readable list to say "no signal" helps nobody.
+            _refreshing.value = false
+        }
     }
 
     fun load() {

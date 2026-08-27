@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +58,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.ParticipantDetail
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.QrCode
 import th.ac.mfu.su.wbw.ui.common.LoadingState
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.theme.Numerals
 import th.ac.mfu.su.wbw.ui.theme.PassFaint
@@ -90,7 +94,16 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) {
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    // The whole screen, and the inset that keeps the spinner out from under the status
+    // bar — the pass itself is what scrolls, but the header row above it is part of what
+    // the gesture starts on, and both states without a pass have nothing scrollable at all.
+    PullRefreshBox(
+        refreshing = refreshing,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize(),
+        indicatorInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+    ) {
         // Back and settings are drawn in every state, for the reason spelled out in
         // `HomeScreen`: they used to live inside [ProfileContent], so a failed `/wbw/me`
         // left a retry card with no way back to the trail and no way into settings — and

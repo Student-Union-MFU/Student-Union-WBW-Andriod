@@ -19,6 +19,14 @@ data class GroupInfoUiState(
     val members: List<GroupMember> = emptyList(),
     val count: Int = 0,
     val loading: Boolean = true,
+    /**
+     * The pull gesture's own fetch, as distinct from [loading].
+     *
+     * [loading] empties the screen for a spinner; this one leaves the roster exactly where
+     * it is and turns the indicator over the top of it. A refresh is asked for by somebody
+     * already reading the list.
+     */
+    val refreshing: Boolean = false,
     val error: String? = null,
 
     /** This device's own user id, so the roster can mark which row is you. */
@@ -75,6 +83,27 @@ class GroupInfoViewModel(
         // wrong only if the session changed. The quota is not; see [quotaKnown].
         profile.cachedMe()?.let { me -> _state.update { it.copy(meId = me.id) } }
         load()
+    }
+
+    /** The same two calls as [load], without taking the roster off the screen for them. */
+    fun refresh() {
+        if (_state.value.refreshing) return
+        _state.update { it.copy(refreshing = true) }
+        viewModelScope.launch {
+            when (val r = chat.members(groupId)) {
+                is ApiResult.Success -> _state.update {
+                    it.copy(members = r.data.members, count = r.data.count, error = null)
+                }
+                // Kept quiet, unlike [load]'s. The list on screen is still the group.
+                is ApiResult.Error -> Unit
+            }
+            (profile.me() as? ApiResult.Success)?.let { r ->
+                _state.update {
+                    it.copy(meId = r.data.id, leaveQuota = r.data.leaveQuota, quotaKnown = true)
+                }
+            }
+            _state.update { it.copy(refreshing = false) }
+        }
     }
 
     fun load() {

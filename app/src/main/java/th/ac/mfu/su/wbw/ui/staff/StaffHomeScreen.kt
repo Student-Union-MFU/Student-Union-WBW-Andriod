@@ -57,6 +57,7 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -86,6 +87,7 @@ fun StaffHomeScreen(
 ) {
     val colors = wbwColors
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
 
     // Driven from the screen, so the held connection lives exactly as long as somebody is
     // looking at it — the same bargain the chat and the participant's own SOS watch make.
@@ -194,63 +196,72 @@ fun StaffHomeScreen(
 
         val shown = if (showClosed) state.recentlyClosed else state.open
 
-        when {
-            state.loading && state.cases.isEmpty() -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    color = colors.onBackdropMuted,
-                    strokeWidth = 2.5.dp,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-
-            shown.isEmpty() -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Outlined.CheckCircle,
-                        null,
-                        tint = colors.onBackdropMuted,
-                        modifier = Modifier.size(30.dp),
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    // Says what it means. "No data" on this screen would be ambiguous
-                    // between "nobody needs help" and "the feed is not working", and those
-                    // are opposite things to a person on duty. The closed panel gets its
-                    // own line: an empty one there means nothing has finished lately,
-                    // which is not the same claim at all.
-                    Text(
-                        stringResource(
-                            if (showClosed) R.string.staff_closed_empty else R.string.staff_empty,
-                        ),
+        // A pull on top of the long poll. The feed is already live; this is for the moment
+        // somebody standing over a case wants to be told so, rather than trusting a
+        // connection they cannot see. See [StaffHomeViewModel.refresh].
+        PullRefreshBox(
+            refreshing = refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when {
+                state.loading && state.cases.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
                         color = colors.onBackdropMuted,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
-            }
 
-            else -> LazyColumn(
-                contentPadding = contentPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(shown, key = { it.id }) { case ->
-                    // A closed case has nothing left to do, so both actions are inert
-                    // rather than absent — the card decides what to draw from its own
-                    // state, and passing it live callbacks would be a lie about that.
-                    if (showClosed) {
-                        CaseCard(case = case, onAck = {}, onReport = {}, onClose = {})
-                    } else {
-                        CaseCard(
-                            case = case,
-                            onAck = { viewModel.ack(case.id) },
-                            onReport = { viewModel.report(case.id, it) },
-                            onClose = { viewModel.resolve(case.id) },
+                shown.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.CheckCircle,
+                            null,
+                            tint = colors.onBackdropMuted,
+                            modifier = Modifier.size(30.dp),
                         )
+                        Spacer(Modifier.height(12.dp))
+                        // Says what it means. "No data" on this screen would be ambiguous
+                        // between "nobody needs help" and "the feed is not working", and those
+                        // are opposite things to a person on duty. The closed panel gets its
+                        // own line: an empty one there means nothing has finished lately,
+                        // which is not the same claim at all.
+                        Text(
+                            stringResource(
+                                if (showClosed) R.string.staff_closed_empty else R.string.staff_empty,
+                            ),
+                            color = colors.onBackdropMuted,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+
+                else -> LazyColumn(
+                    contentPadding = contentPadding,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(shown, key = { it.id }) { case ->
+                        // A closed case has nothing left to do, so both actions are inert
+                        // rather than absent — the card decides what to draw from its own
+                        // state, and passing it live callbacks would be a lie about that.
+                        if (showClosed) {
+                            CaseCard(case = case, onAck = {}, onReport = {}, onClose = {})
+                        } else {
+                            CaseCard(
+                                case = case,
+                                onAck = { viewModel.ack(case.id) },
+                                onReport = { viewModel.report(case.id, it) },
+                                onClose = { viewModel.resolve(case.id) },
+                            )
+                        }
                     }
                 }
             }

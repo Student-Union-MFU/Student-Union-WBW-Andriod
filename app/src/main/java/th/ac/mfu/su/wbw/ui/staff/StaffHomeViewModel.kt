@@ -48,6 +48,29 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
     /** Newest row seen, echoed to the server verbatim. Blank asks for everything. */
     private var since: String = ""
 
+    /**
+     * True while the pull gesture's own pass is in flight.
+     *
+     * The feed is already live — [watch] holds a long poll open — so this gesture is not
+     * how the console stays current. It is there for the moment the responder does not
+     * trust that: standing over a case, wanting to know *now* whether anything has changed,
+     * rather than waiting out a backoff they cannot see.
+     */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    fun refresh() {
+        if (_refreshing.value) return
+        _refreshing.value = true
+        viewModelScope.launch {
+            when (val r = staff.sosFeed(since, 0)) {
+                is ApiResult.Success -> merge(r.data)
+                is ApiResult.Error -> Unit
+            }
+            _refreshing.value = false
+        }
+    }
+
     fun ack(id: Long) {
         viewModelScope.launch {
             // A failure is deliberately quiet. Ack is not the response — walking there is —
