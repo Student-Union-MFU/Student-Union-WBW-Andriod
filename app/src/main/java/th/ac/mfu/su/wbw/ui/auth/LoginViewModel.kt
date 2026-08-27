@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.onError
@@ -18,6 +19,12 @@ data class LoginUiState(
     val password: String = "",
     val loading: Boolean = false,
     val error: String? = null,
+    /**
+     * The participant was signed out by the server, not by themselves. A boolean rather
+     * than a message: the wording is a string resource and belongs on the screen with the
+     * rest of them, not assembled in here off an application context.
+     */
+    val expired: Boolean = false,
 ) {
     val canSubmit: Boolean get() = username.isNotBlank() && password.isNotBlank() && !loading
 }
@@ -27,6 +34,14 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state = _state.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            authRepository.sessionExpired.collectLatest { expired ->
+                _state.update { it.copy(expired = expired) }
+            }
+        }
+    }
+
     fun onUsername(v: String) = _state.update { it.copy(username = v, error = null) }
     fun onPassword(v: String) = _state.update { it.copy(password = v, error = null) }
 
@@ -35,6 +50,9 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         val s = _state.value
         if (!s.canSubmit) return
         _state.update { it.copy(loading = true, error = null) }
+        // Cleared on the attempt, not on the result: whatever this returns is a better
+        // answer to "why am I here" than the expiry notice, including a second failure.
+        authRepository.acknowledgeExpiry()
         viewModelScope.launch {
             authRepository.login(s.username, s.password)
                 .onError { msg -> _state.update { it.copy(loading = false, error = msg) } }

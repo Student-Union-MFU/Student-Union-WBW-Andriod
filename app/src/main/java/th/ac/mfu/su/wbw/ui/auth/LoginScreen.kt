@@ -189,9 +189,14 @@ fun LoginScreen(
                     )
                 }
 
-                if (state.error != null) {
+                // A failed attempt outranks the expiry notice. Both can be true at once —
+                // the session ran out and then the password was mistyped — and of the two
+                // only one is about what the participant just did.
+                val notice = state.error
+                    ?: stringResource(R.string.login_session_expired).takeIf { state.expired }
+                if (notice != null) {
                     Text(
-                        text = state.error!!,
+                        text = notice,
                         // DangerDark, not the themed pair: this sits on the backdrop, and
                         // the light-theme oxblood disappears into the artwork.
                         color = DangerDark,

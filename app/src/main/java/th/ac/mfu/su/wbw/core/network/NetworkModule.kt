@@ -60,9 +60,15 @@ object NetworkModule {
      */
     private val LongPollPathSuffixes = listOf("/chat/sync", "/me/sos/active")
 
-    fun createApi(sessions: SessionStore): WbwApi {
+    /**
+     * [onUnauthorized] is called when the server rejects a token this client sent — see
+     * [AuthInterceptor]. It is a parameter rather than something the module reaches for
+     * itself because the reaction to an expired session is the auth layer's business, not
+     * the HTTP layer's: this only knows a 401 happened.
+     */
+    fun createApi(sessions: SessionStore, onUnauthorized: () -> Unit): WbwApi {
         val client = OkHttpClient.Builder()
-            .addInterceptor(AuthInterceptor(sessions))
+            .addInterceptor(AuthInterceptor(sessions, onUnauthorized))
             .addInterceptor { chain ->
                 val request = chain.request()
                 if (LongPollPathSuffixes.any { request.url.encodedPath.endsWith(it) }) {

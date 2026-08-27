@@ -1,6 +1,10 @@
 package th.ac.mfu.su.wbw.di
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import th.ac.mfu.su.wbw.core.network.NetworkModule
 import th.ac.mfu.su.wbw.data.local.AppSettings
 import th.ac.mfu.su.wbw.data.local.ResponseCache
@@ -35,7 +39,22 @@ class AppContainer(context: Context) {
      */
     val responseCache: ResponseCache = ResponseCache(context.applicationContext)
 
-    private val api: WbwApi by lazy { NetworkModule.createApi(sessionStore) }
+    /**
+     * Outlives every screen, on purpose. A session can be refused by the answer to a
+     * request whose caller is already gone — a screen closed mid-flight, or the walk
+     * tracking service posting from the background with no UI at all — and signing out has
+     * to finish regardless of who is still there to see it.
+     */
+    private val authScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val api: WbwApi by lazy {
+        // `authRepository` is resolved inside the lambda, not captured here: it is built
+        // from `api`, so touching it while `api` is still being constructed would deadlock
+        // on the lazy. By the time a response can arrive, both exist.
+        NetworkModule.createApi(sessionStore) {
+            authScope.launch { authRepository.onTokenRejected() }
+        }
+    }
 
     /**
      * Deliberately a second client, not the one above — it must never carry the
