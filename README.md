@@ -6,6 +6,31 @@ to the same Go backend (`su-server`) as the web dashboard, using the `/wbw` rout
 
 > Not to be confused with `../su_mobile` (a separate Flutter app for the steps/leaderboard side).
 
+## Download
+
+<img src="store-assets/download-qr.png" alt="QR code to download the WBW app" width="220" align="right">
+
+**[ดาวน์โหลดแอป · Download the app](https://play.googleapis.com/download/playconsole/AOTCm0Tp65IQUCV_knCZoUlTlC2jFjpjXZoSn_QDVgBj-qwazh22WrMP19w8bvl5YWOfrKILS5zelVbExCNVKCi0DW5F_JO23sXLV_ZDJn4je595nk_QI1T83t0I5sHJtC9i_wCIwwcI312BWTzcv_Uo_Mr9i6c81ybRFt9DWOpwXwJsTdFDGBoj8O2urtXJR6Bq06E)**
+&nbsp;·&nbsp; scan the QR, or open the link on the phone.
+
+- **versionName 0.4.1 / versionCode 5**, minSdk 26 (Android 8.0+), 39.5 MB.
+- The link is Play's **app-sharing** download for that upload. It needs no Google account —
+  it answers `200 application/vnd.android.package-archive` to anyone — and it serves this
+  exact build: `sha256 1a10d8a5d51ef44becf4239975423bcda075ecceeddd72a0e8dd3f00588d6256`.
+- Mirror, same bytes and same hash: [`wbw-0.4.1-universal.apk`](https://github.com/Student-Union-MFU/Student-Union-WBW-Andriod/releases/download/v0.4.1/wbw-0.4.1-universal.apk) on the v0.4.1 release.
+- Being the Play build, it carries the **Play App Signing** certificate. It will therefore
+  **not install over** an earlier side-loaded `wbw.apk`, which was signed with the local
+  release key — Android answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Uninstall the old
+  build first; that takes its data with it.
+- The browser doing the download needs Android's **"install unknown apps"** permission.
+
+<br clear="right">
+
+> The URL above is tied to **this upload**. A new bundle gets a new link and a new QR —
+> regenerate `store-assets/download-qr.png` when the version changes, or the poster will go
+> on pointing at 0.4.1. Note also that a `…/playconsole/…` URL copied out of the Console's
+> own UI is *not* this link: those are session-bound and answer HTTP 400 to everyone else.
+
 ## Features (current scaffold)
 
 - **Auth** — login + registration against `POST /wbw/auth/{login,register}`, JWT bearer token
