@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,6 +97,18 @@ import th.ac.mfu.su.wbw.ui.theme.wbwColors
 fun SosButton(
     onFire: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * A smaller pill, for the staff console's header.
+     *
+     * Size only — the hold length, the haptics, the sweep and the shape are untouched,
+     * because they are what the gesture *is*. Staff carry this on a screen that is already
+     * a list of other people's emergencies, so it sits on the line about them rather than
+     * over the cases, and at that scale a map-sized pill would be the loudest thing on a
+     * console whose whole job is to make one red alert stand out.
+     *
+     * Still a thumb-sized target: the padding shrinks, the touch area stays past 40dp.
+     */
+    compact: Boolean = false,
 ) {
     val colors = wbwColors
     val haptics = LocalHapticFeedback.current
@@ -174,16 +187,19 @@ fun SosButton(
                     },
                 )
             }
-            .padding(horizontal = 18.dp, vertical = 14.dp),
+            .padding(
+                horizontal = if (compact) 14.dp else 18.dp,
+                vertical = if (compact) 10.dp else 14.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             Icons.Outlined.Emergency,
             stringResource(R.string.sos_button_hint),
             tint = colors.danger,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(if (compact) 17.dp else 22.dp),
         )
-        Spacer(Modifier.width(9.dp))
+        Spacer(Modifier.width(if (compact) 7.dp else 9.dp))
 
         // One Text rather than the three the vertical pill needed — laid out along the
         // reading axis, the letters are a word again and the type system can space them.
@@ -194,12 +210,21 @@ fun SosButton(
         Text(
             stringResource(R.string.sos_button_label),
             color = colors.danger,
-            fontSize = 16.sp,
+            fontSize = if (compact) 13.sp else 16.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.6.sp,
+            letterSpacing = if (compact) 1.3.sp else 1.6.sp,
         )
     }
 }
+
+/**
+ * The staff account's own identity, for the card whoever reaches them reads.
+ *
+ * Both fields are already resolved strings rather than a [th.ac.mfu.su.wbw.data.local.Session]:
+ * the role has to be run through the console's own label map to be readable, and doing
+ * that here would put a second copy of it in a second file.
+ */
+data class SosStaffIdentity(val name: String, val role: String)
 
 /**
  * What the map shows once an emergency is open: the whole screen.
@@ -232,6 +257,14 @@ fun SosFullScreen(
     onCancel: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    /**
+     * Set on the staff console, where [me] is always null.
+     *
+     * The two are exclusive rather than merged: a staff account has no participant profile
+     * and never will, so this is not a partial version of [me] — it is the only identity
+     * the shell holds for the person raising the case.
+     */
+    staff: SosStaffIdentity? = null,
 ) {
     val colors = wbwColors
 
@@ -376,164 +409,16 @@ fun SosFullScreen(
                     .border(1.dp, Color.White.copy(alpha = 0.13f), RoundedCornerShape(22.dp))
                     .padding(20.dp),
             ) {
-                // Title, name and blood type in one Box rather than a Row above a Column.
+                // Two possible occupants, and they are not the same card.
                 //
-                // The blood block is two lines of large type, so as a Row sibling it set the
-                // height of the whole title row — and the title, being one short line, sat
-                // at the top of it with 40-odd dp of nothing underneath before the name.
-                // Floating it at the top-right corner instead lets the title and the name
-                // sit at their own natural spacing, which is what they should have had all
-                // along; the block is decoration hanging in the corner, not a column the
-                // rest of the card has to make room for vertically.
-                Box(Modifier.fillMaxWidth()) {
-                    // End padding, so a long name runs out of room before it reaches the
-                    // blood group rather than sliding underneath it.
-                    Column(Modifier.padding(end = 86.dp)) {
-                        Text(
-                            stringResource(R.string.sos_card_title),
-                            color = colors.onBackdrop,
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            me?.fullName?.takeIf { it.isNotBlank() }
-                                ?: stringResource(R.string.sos_vital_missing),
-                            color = colors.onBackdrop,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-
-                    // Top right, big, with a small label under it — a bare "A+" is ambiguous
-                    // enough to be a size or a grade, and this is not a card to be clever on.
-                    // It is the single fact a medic wants before any of the rest of it.
-                    Column(
-                        Modifier.align(Alignment.TopEnd),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            me?.bloodType?.takeIf { it.isNotBlank() }
-                                ?: stringResource(R.string.sos_blood_unknown),
-                            color = colors.danger,
-                            fontSize = if (me?.bloodType.isNullOrBlank()) 20.sp else 34.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 36.sp,
-                        )
-                        // Nudged up: a 34sp line box carries more leading under the glyph
-                        // than the glyph needs, so the label was drifting away from the
-                        // letter it belongs to and landing level with the name instead.
-                        Text(
-                            stringResource(R.string.sos_vital_blood).uppercase(),
-                            color = colors.onBackdropMuted,
-                            fontSize = 9.sp,
-                            letterSpacing = 1.2.sp,
-                            modifier = Modifier.offset(y = (-6).dp),
-                        )
-                    }
-                }
-
-                // Major and school on one muted line. Neither is much use alone and both
-                // are context rather than instruction, so they read as a subtitle to the
-                // name instead of earning a labelled row each.
-                listOfNotNull(
-                    me?.major?.takeIf { it.isNotBlank() },
-                    me?.schoolName?.takeIf { it.isNotBlank() },
-                ).joinToString(" · ").takeIf { it.isNotBlank() }?.let { line ->
-                    Text(
-                        line,
-                        color = colors.onBackdropMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 3.dp),
-                    )
-                }
-
-                // The participant's own number, above the two identifiers rather than
-                // below them. It belongs with the name: who this is and how to reach them
-                // is one thought, and bib and group are a different one — they identify
-                // this person to the *event*, which is what a staff member needs after
-                // they have already tried phoning.
-                Spacer(Modifier.height(12.dp))
-                VitalRow(stringResource(R.string.sos_vital_phone), me?.contactPhone, last = true)
-
-                Spacer(Modifier.height(14.dp))
-
-                // Bib and group side by side — one question asked twice ("which walker,
-                // and who with"), and the two numbers a staff member says out loud on
-                // radio, so they are set as numbers rather than buried in rows.
-                Row(Modifier.fillMaxWidth()) {
-                    Stat(stringResource(R.string.sos_vital_bib), me?.bib?.toString(), Modifier.weight(1f))
-                    Stat(stringResource(R.string.sos_vital_group), me?.groupNumber?.toString(), Modifier.weight(1f))
-                }
-
-                // ===== Emergency contact, as its own section =====
-                //
-                // Ruled off and titled rather than continuing the list. Every row above is
-                // about the participant; these two are about somebody who is not here, and
-                // a staff member skim-reading in a hurry must not dial the casualty's own number
-                // thinking it is the next of kin's. The heading is the whole safeguard.
-                Spacer(Modifier.height(18.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.16f)))
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    stringResource(R.string.sos_vital_contact).uppercase(),
-                    color = colors.danger,
-                    fontSize = 10.sp,
-                    letterSpacing = 1.6.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(4.dp))
-                VitalRow(stringResource(R.string.sos_contact_name), me?.emergencyContactName)
-                VitalRow(
-                    stringResource(R.string.sos_contact_phone),
-                    me?.emergencyContactPhone,
-                    emphasis = true,
-                    last = true,
-                )
-
-                // ===== The code a staff member actually scans =====
-                //
-                // The same `qr_token` the pass carries, so a staff member who reaches an
-                // emergency can pull the participant's full record — including the
-                // allergies and medication that `/me` never sends to this device — with the
-                // scanner they already use at every checkpoint. It saves them reading
-                // anything above off a cracked screen in the rain.
-                //
-                // Pure black on pure white, as on the pass: contrast is the whole job and a
-                // scanner has no opinion about the design system. No token, no block — a
-                // participant whose row predates the column checks in by bib, and an empty
-                // white square would suggest a code that failed to load.
-                me?.qrToken?.takeIf { it.isNotBlank() }?.let { token ->
-                    val label = stringResource(R.string.profile_qr_label)
-                    Spacer(Modifier.height(18.dp))
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.16f)))
-                    Spacer(Modifier.height(16.dp))
-                    Column(
-                        Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            Modifier
-                                .size(132.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color.White)
-                                .semantics { contentDescription = label },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            QrCode(
-                                content = token,
-                                foreground = Color(0xFF16241A),
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                        Spacer(Modifier.height(9.dp))
-                        Text(
-                            stringResource(R.string.sos_qr_hint).uppercase(),
-                            color = colors.onBackdropMuted,
-                            fontSize = 9.sp,
-                            letterSpacing = 1.2.sp,
-                        )
-                    }
-                }
+                // The participant one is a medical handover: name, blood group, next of
+                // kin, and a code that pulls the full record. None of it exists for a
+                // staff account — there is no `participant_profile` row to read it from —
+                // and drawing that layout with "Not given" in every slot would be worse
+                // than useless, because it looks like a record that failed to load rather
+                // than one that was never there. The staff card says the true, smaller
+                // thing instead.
+                if (staff != null) StaffVitals(staff) else ParticipantVitals(me)
             }
 
             Spacer(Modifier.height(28.dp))
@@ -588,6 +473,223 @@ fun SosFullScreen(
             }
         }
     }
+}
+
+/**
+ * The participant half of the emergency card — everything `/me` carries.
+ *
+ * Lifted out of [SosFullScreen] unchanged when the staff console gained its own SOS. It is
+ * a whole handover document rather than a few rows, and leaving it inline meant the one
+ * decision above it — which card this is — was buried a hundred and fifty lines deep in the
+ * screen that has to make it.
+ */
+@Composable
+private fun ColumnScope.ParticipantVitals(me: ParticipantDetail?) {
+    val colors = wbwColors
+    // Title, name and blood type in one Box rather than a Row above a Column.
+    //
+    // The blood block is two lines of large type, so as a Row sibling it set the
+    // height of the whole title row — and the title, being one short line, sat
+    // at the top of it with 40-odd dp of nothing underneath before the name.
+    // Floating it at the top-right corner instead lets the title and the name
+    // sit at their own natural spacing, which is what they should have had all
+    // along; the block is decoration hanging in the corner, not a column the
+    // rest of the card has to make room for vertically.
+    Box(Modifier.fillMaxWidth()) {
+        // End padding, so a long name runs out of room before it reaches the
+        // blood group rather than sliding underneath it.
+        Column(Modifier.padding(end = 86.dp)) {
+            Text(
+                stringResource(R.string.sos_card_title),
+                color = colors.onBackdrop,
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                me?.fullName?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.sos_vital_missing),
+                color = colors.onBackdrop,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        // Top right, big, with a small label under it — a bare "A+" is ambiguous
+        // enough to be a size or a grade, and this is not a card to be clever on.
+        // It is the single fact a medic wants before any of the rest of it.
+        Column(
+            Modifier.align(Alignment.TopEnd),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                me?.bloodType?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.sos_blood_unknown),
+                color = colors.danger,
+                fontSize = if (me?.bloodType.isNullOrBlank()) 20.sp else 34.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 36.sp,
+            )
+            // Nudged up: a 34sp line box carries more leading under the glyph
+            // than the glyph needs, so the label was drifting away from the
+            // letter it belongs to and landing level with the name instead.
+            Text(
+                stringResource(R.string.sos_vital_blood).uppercase(),
+                color = colors.onBackdropMuted,
+                fontSize = 9.sp,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.offset(y = (-6).dp),
+            )
+        }
+    }
+
+    // Major and school on one muted line. Neither is much use alone and both
+    // are context rather than instruction, so they read as a subtitle to the
+    // name instead of earning a labelled row each.
+    listOfNotNull(
+        me?.major?.takeIf { it.isNotBlank() },
+        me?.schoolName?.takeIf { it.isNotBlank() },
+    ).joinToString(" · ").takeIf { it.isNotBlank() }?.let { line ->
+        Text(
+            line,
+            color = colors.onBackdropMuted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 3.dp),
+        )
+    }
+
+    // The participant's own number, above the two identifiers rather than
+    // below them. It belongs with the name: who this is and how to reach them
+    // is one thought, and bib and group are a different one — they identify
+    // this person to the *event*, which is what a staff member needs after
+    // they have already tried phoning.
+    Spacer(Modifier.height(12.dp))
+    VitalRow(stringResource(R.string.sos_vital_phone), me?.contactPhone, last = true)
+
+    Spacer(Modifier.height(14.dp))
+
+    // Bib and group side by side — one question asked twice ("which walker,
+    // and who with"), and the two numbers a staff member says out loud on
+    // radio, so they are set as numbers rather than buried in rows.
+    Row(Modifier.fillMaxWidth()) {
+        Stat(stringResource(R.string.sos_vital_bib), me?.bib?.toString(), Modifier.weight(1f))
+        Stat(stringResource(R.string.sos_vital_group), me?.groupNumber?.toString(), Modifier.weight(1f))
+    }
+
+    // ===== Emergency contact, as its own section =====
+    //
+    // Ruled off and titled rather than continuing the list. Every row above is
+    // about the participant; these two are about somebody who is not here, and
+    // a staff member skim-reading in a hurry must not dial the casualty's own number
+    // thinking it is the next of kin's. The heading is the whole safeguard.
+    Spacer(Modifier.height(18.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.16f)))
+    Spacer(Modifier.height(14.dp))
+    Text(
+        stringResource(R.string.sos_vital_contact).uppercase(),
+        color = colors.danger,
+        fontSize = 10.sp,
+        letterSpacing = 1.6.sp,
+        fontWeight = FontWeight.Medium,
+    )
+    Spacer(Modifier.height(4.dp))
+    VitalRow(stringResource(R.string.sos_contact_name), me?.emergencyContactName)
+    VitalRow(
+        stringResource(R.string.sos_contact_phone),
+        me?.emergencyContactPhone,
+        emphasis = true,
+        last = true,
+    )
+
+    // ===== The code a staff member actually scans =====
+    //
+    // The same `qr_token` the pass carries, so a staff member who reaches an
+    // emergency can pull the participant's full record — including the
+    // allergies and medication that `/me` never sends to this device — with the
+    // scanner they already use at every checkpoint. It saves them reading
+    // anything above off a cracked screen in the rain.
+    //
+    // Pure black on pure white, as on the pass: contrast is the whole job and a
+    // scanner has no opinion about the design system. No token, no block — a
+    // participant whose row predates the column checks in by bib, and an empty
+    // white square would suggest a code that failed to load.
+    me?.qrToken?.takeIf { it.isNotBlank() }?.let { token ->
+        val label = stringResource(R.string.profile_qr_label)
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.16f)))
+        Spacer(Modifier.height(16.dp))
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier
+                    .size(132.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .semantics { contentDescription = label },
+                contentAlignment = Alignment.Center,
+            ) {
+                QrCode(
+                    content = token,
+                    foreground = Color(0xFF16241A),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.height(9.dp))
+            Text(
+                stringResource(R.string.sos_qr_hint).uppercase(),
+                color = colors.onBackdropMuted,
+                fontSize = 9.sp,
+                letterSpacing = 1.2.sp,
+            )
+        }
+    }
+}
+
+/**
+ * The staff half: who this account is, and the honest admission that there is no more.
+ *
+ * Short on purpose. Everything the participant card exists to hand over — blood group,
+ * allergies, next of kin — lives in `participant_profile` and `health_details`, and a staff
+ * account has a row in neither. What is left is genuinely useful and genuinely all there
+ * is: the name that goes out over the radio, and the role that says who is missing from
+ * their post.
+ *
+ * The last line is not filler. Somebody who arrives at a staff member holding this screen
+ * will look for the medical block they have seen on every participant's phone that day,
+ * and telling them it is not here is faster than letting them hunt for it.
+ */
+@Composable
+private fun ColumnScope.StaffVitals(staff: SosStaffIdentity) {
+    val colors = wbwColors
+
+    Text(
+        stringResource(R.string.sos_staff_card_title),
+        color = colors.onBackdrop,
+        style = MaterialTheme.typography.titleLarge,
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        staff.name,
+        color = colors.onBackdrop,
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Bold,
+    )
+    Text(
+        staff.role,
+        color = colors.onBackdropMuted,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(top = 3.dp),
+    )
+
+    Spacer(Modifier.height(16.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.16f)))
+    Spacer(Modifier.height(14.dp))
+    Text(
+        stringResource(R.string.sos_staff_no_record),
+        color = colors.onBackdropMuted,
+        fontSize = 13.sp,
+    )
 }
 
 /**

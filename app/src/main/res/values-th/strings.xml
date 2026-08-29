@@ -171,6 +171,8 @@
     <string name="sos_vital_phone">เบอร์โทร</string>
     <string name="sos_vital_missing">ไม่ได้ระบุ</string>
     <string name="sos_cancel_refused">เจ้าหน้าที่กำลังไปหาคุณแล้ว กรุณาโทรบอกแทนการยกเลิก</string>
+    <string name="sos_staff_card_title">เจ้าหน้าที่ปฏิบัติงาน</string>
+    <string name="sos_staff_no_record">บัญชีนี้ไม่มีข้อมูลผู้เข้าร่วม จึงไม่มีข้อมูลสุขภาพเก็บอยู่ในเครื่องนี้</string>
     <string name="map_mode_2d">มุมมอง 2 มิติ</string>
     <string name="map_route_start">จุดเริ่มต้น</string>
     <string name="map_route_finish">จุดสิ้นสุด</string>

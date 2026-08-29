@@ -40,7 +40,24 @@ data class StaffUiState(
  * As everywhere else in this app the loop is driven by the screen rather than started here,
  * so a held connection lives exactly as long as somebody is looking at it.
  */
-class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
+class StaffHomeViewModel(
+    private val staff: StaffRepository,
+    /**
+     * This account's own `user_id`, so its own emergency can be kept out of its own feed.
+     *
+     * A staff member's SOS has no `group_id` — the insert reads it from `participant_profile`
+     * and there is no row — so `staffVisibility`'s `OR s.group_id IS NULL` sends it to every
+     * staff account, the raiser included. Left in, it would sit in their own list offering
+     * them an "on my way" button for themselves; taking it makes `acked_at` non-null, which
+     * turns their own cancel into a 409 telling them to phone the responder, who is them.
+     *
+     * Filtered here rather than server-side on purpose: the server is right to send it. The
+     * case genuinely is visible to this account, [th.ac.mfu.su.wbw.ui.map.SosFullScreen]
+     * over the console is how this account sees it, and that is the screen that can stand
+     * it down.
+     */
+    private val selfId: String,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(StaffUiState())
     val state: StateFlow<StaffUiState> = _state.asStateFlow()
@@ -175,7 +192,10 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
         if (incoming.isEmpty()) return
         _state.update { current ->
             val byId = current.cases.associateBy { it.id }.toMutableMap()
-            incoming.forEach { byId[it.id] = it }
+            // This account's own case is dropped rather than displayed — see [selfId].
+            // Dropped on the way in, so it is out of `waiting` and out of both panels
+            // without three call sites having to remember the same exclusion.
+            incoming.filterNot { it.participantId == selfId }.forEach { byId[it.id] = it }
             val ordered = byId.values.sortedWith(
                 compareBy<SosStaffCase> { it.resolved }
                     .thenBy { it.acknowledged }
@@ -183,6 +203,10 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
             )
             current.copy(cases = ordered)
         }
+        // From the whole page, including the row just filtered out: the cursor is the
+        // server's place in the feed, not this screen's. Advancing it from what survived
+        // the filter would re-request this account's own case on every poll for as long as
+        // it is the newest thing in the feed.
         incoming.maxByOrNull { it.updatedAt }?.let { since = it.cursor }
     }
 
@@ -191,8 +215,9 @@ class StaffHomeViewModel(private val staff: StaffRepository) : ViewModel() {
         private const val InitialBackoffMillis = 1_000L
         private const val MaxBackoffMillis = 30_000L
 
-        val Factory = viewModelFactory {
-            initializer { StaffHomeViewModel(appContainer.staffRepository) }
+        /** Keyed to the signed-in account, because the feed is filtered by it — see [selfId]. */
+        fun factoryFor(selfId: String) = viewModelFactory {
+            initializer { StaffHomeViewModel(appContainer.staffRepository, selfId) }
         }
     }
 }

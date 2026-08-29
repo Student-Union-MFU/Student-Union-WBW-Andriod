@@ -187,6 +187,8 @@
     <string name="sos_vital_phone">Phone</string>
     <string name="sos_vital_missing">Not given</string>
     <string name="sos_cancel_refused">A staff member is already on the way. Please call them instead of cancelling.</string>
+    <string name="sos_staff_card_title">Staff on duty</string>
+    <string name="sos_staff_no_record">This account has no participant record, so there is no medical information stored on this phone.</string>
     <string name="map_mode_2d">2D view</string>
     <string name="map_route_start">Start</string>
     <string name="map_route_finish">Finish</string>
