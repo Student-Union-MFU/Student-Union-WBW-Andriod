@@ -42,6 +42,16 @@ data class WalkStats(
     val routeMetres: Double? = null,
     /** The route's full length, so a consumer can turn [routeMetres] into a fraction. */
     val routeLengthMetres: Double = 0.0,
+
+    /**
+     * True when these numbers came back off disk after the process died mid-walk.
+     *
+     * The distinction the map needs is not "is there a walk" but "was it *ended*". A walk
+     * the user stopped is finished and its total is a result; a walk the system killed is
+     * unfinished and its total is a position to carry on from. Only the second is offered
+     * a resume, and only [WalkStore.load] ever sets this.
+     */
+    val interrupted: Boolean = false,
 ) {
     /** True once a walk has produced something worth showing, running or not. */
     val hasData: Boolean get() = active || distanceMetres > 0.0
@@ -82,9 +92,11 @@ const val RouteCompleteSlackMetres = 40.0
  * Binding the service to the composable would tie the walk to the thing it is specifically
  * meant to survive.
  *
- * The state lives in memory only. A foreground service makes the process very unlikely to
- * be killed mid-walk, but if it is, the walk is gone — there is no backend endpoint to
- * record it against yet, so nothing is persisted rather than half-persisted.
+ * The state is mirrored to [WalkStore] as it changes, so a process killed mid-walk does
+ * not take the walk with it. There is still no backend endpoint to record a walk against;
+ * this is local only, and it exists because the alternative was a participant who walked
+ * six kilometres and had nothing to show for it. What comes back off disk is offered as a
+ * resume rather than silently continued — see [resume].
  */
 object WalkTracker {
 
@@ -94,11 +106,51 @@ object WalkTracker {
     /** Called only by [WalkTrackingService]. */
     internal fun publish(stats: WalkStats) {
         _stats.value = stats
+        WalkStore.save(stats)
+    }
+
+    /**
+     * Seeds the walk from disk at process start.
+     *
+     * Called from [th.ac.mfu.su.wbw.WbwApplication] before any screen exists, so the map's
+     * first frame already carries whatever the last process was in the middle of. Does
+     * nothing if a walk is somehow already live — the disk copy is by definition older
+     * than anything in memory.
+     */
+    fun restore() {
+        if (_stats.value.hasData) return
+        WalkStore.load()?.let { _stats.value = it }
+    }
+
+    /**
+     * Carries on the walk that was interrupted, keeping the metres already recorded.
+     *
+     * A separate entry point from [start] on purpose. Restarting the service by itself
+     * would be the app resuming a location service without being asked, which is precisely
+     * what the FOREGROUND_SERVICE_LOCATION declaration filed with Play says this app never
+     * does: tracking begins when the participant taps, never on launch and never on boot.
+     * So the walk comes back on screen by itself, and the recording does not start again
+     * until they say so.
+     */
+    fun resume(context: Context) {
+        val restored = _stats.value
+        if (!restored.hasData) {
+            start(context)
+            return
+        }
+        _stats.value = restored.copy(active = true, interrupted = false)
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, WalkTrackingService::class.java).setAction(WalkTrackingService.ActionResume),
+        )
     }
 
     /** Clears the previous walk's numbers and starts recording a new one. */
     fun start(context: Context) {
         _stats.value = WalkStats(active = true)
+        // A new walk is not the old one continued, so the stored copy goes with it —
+        // otherwise a crash ten metres in would offer to resume the *previous* walk.
+        WalkStore.clear()
         ContextCompat.startForegroundService(
             context,
             Intent(context, WalkTrackingService::class.java),

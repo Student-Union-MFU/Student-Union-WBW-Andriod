@@ -63,19 +63,32 @@ data class SosUiState(
  */
 class SosViewModel(
     private val sos: SosRepository,
-    private val profile: ProfileRepository,
+    /**
+     * Null on the staff shell, where there is no profile to fetch.
+     *
+     * `GET /wbw/me` is scoped `WHERE u.role = 'participant'` on the server, so a staff
+     * account gets a 404 from it — the account is real, the participant row is not. The
+     * emergency itself is a different matter: `POST /wbw/me/sos` carries no role gate at
+     * all and `sos_event.participant_id` references `wbw_user`, so a staff member can
+     * raise a case perfectly well. Only the *card* under it has no data behind it.
+     *
+     * Null rather than a flag, so there is nothing here to call by accident.
+     */
+    private val profile: ProfileRepository?,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(SosUiState(me = profile.cachedMe()))
+    private val _state = MutableStateFlow(SosUiState(me = profile?.cachedMe()))
     val state: StateFlow<SosUiState> = _state.asStateFlow()
 
     init {
         // Refreshed once in the background so a profile edited on the website reaches the
         // emergency card, but the cached copy above is what the first frame draws — this
         // screen must never wait on the network to be able to show somebody's blood type.
-        viewModelScope.launch {
-            val result = profile.me()
-            if (result is ApiResult.Success) _state.update { it.copy(me = result.data) }
+        profile?.let { repo ->
+            viewModelScope.launch {
+                val result = repo.me()
+                if (result is ApiResult.Success) _state.update { it.copy(me = result.data) }
+            }
         }
     }
 
@@ -228,6 +241,18 @@ class SosViewModel(
 
         val Factory = viewModelFactory {
             initializer { SosViewModel(appContainer.sosRepository, appContainer.profileRepository) }
+        }
+
+        /**
+         * The staff shell's, without the profile half — see the [profile] parameter.
+         *
+         * Everything else is shared deliberately rather than forked: the hold, the
+         * idempotency key, the late position, the cancel window and the watch loop are the
+         * server's contract, not the participant's, and a second copy of them would be a
+         * second thing to keep correct.
+         */
+        val StaffFactory = viewModelFactory {
+            initializer { SosViewModel(appContainer.sosRepository, null) }
         }
     }
 }

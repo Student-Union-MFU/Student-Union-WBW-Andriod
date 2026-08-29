@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +58,7 @@ import kotlinx.coroutines.delay
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
@@ -73,6 +77,7 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val unread by viewModel.hasUnreadNotifications.collectAsStateWithLifecycle()
     val conditions by viewModel.trailConditions.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
 
     // Fires on every entry into composition, which for a NavHost destination means every
     // time Home is returned to — including on the way back from the announcements list.
@@ -95,15 +100,31 @@ fun HomeScreen(
     // one state in which a participant is most likely to want to sign out and back in, or
     // just change a setting while waiting for signal on a hill, was the one state that
     // made it unreachable. The same is true of announcements, which are served from cache.
-    when (val s = state) {
-        is UiState.Loading -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
-            LoadingState()
+    // Pull to refresh, over the whole screen rather than over one pane of it.
+    //
+    // Home is the one screen with nothing to scroll — greeting, bloom, count, and the
+    // bloom takes whatever height is left — so there is no list here whose top edge the
+    // gesture could belong to. [PullRefreshBox] carries the whole page instead.
+    //
+    // The inset is not decoration: this box reaches the top of the display while
+    // everything drawn inside it starts below the notch, so without it the spinner would
+    // come to rest half behind the status bar.
+    PullRefreshBox(
+        refreshing = refreshing,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize(),
+        indicatorInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
+    ) {
+        when (val s = state) {
+            is UiState.Loading -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
+                LoadingState()
+            }
+            is UiState.Error -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
+                ErrorState(message = s.message, onRetry = viewModel::load)
+            }
+            is UiState.Success ->
+                HomeContent(s.data, progress, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
         }
-        is UiState.Error -> HomeChrome(contentPadding, onOpenSettings, onOpenNotifications, unread) {
-            ErrorState(message = s.message, onRetry = viewModel::load)
-        }
-        is UiState.Success ->
-            HomeContent(s.data, progress, contentPadding, onOpenSettings, onOpenNotifications, unread, conditions)
     }
 }
 

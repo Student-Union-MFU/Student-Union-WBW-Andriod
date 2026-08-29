@@ -18,6 +18,7 @@
     <string name="login_action_submit">เข้าสู่ระบบ</string>
     <string name="login_placeholder_username">รหัสนักศึกษาของคุณ</string>
     <string name="login_placeholder_password">รหัสผ่านของคุณ</string>
+    <string name="login_session_expired">เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง</string>
 
     <!-- Notifications -->
     <string name="notifications_title">ประกาศ</string>
@@ -170,6 +171,8 @@
     <string name="sos_vital_phone">เบอร์โทร</string>
     <string name="sos_vital_missing">ไม่ได้ระบุ</string>
     <string name="sos_cancel_refused">เจ้าหน้าที่กำลังไปหาคุณแล้ว กรุณาโทรบอกแทนการยกเลิก</string>
+    <string name="sos_staff_card_title">เจ้าหน้าที่ปฏิบัติงาน</string>
+    <string name="sos_staff_no_record">บัญชีนี้ไม่มีข้อมูลผู้เข้าร่วม จึงไม่มีข้อมูลสุขภาพเก็บอยู่ในเครื่องนี้</string>
     <string name="map_mode_2d">มุมมอง 2 มิติ</string>
     <string name="map_route_start">จุดเริ่มต้น</string>
     <string name="map_route_finish">จุดสิ้นสุด</string>
@@ -177,6 +180,7 @@
     <!-- Walk tracking -->
     <string name="walk_start">เริ่มเดิน</string>
     <string name="walk_stop">หยุด</string>
+    <string name="walk_resume">เดินต่อ</string>
     <string name="map_checkpoint_checked_in">เช็คอินแล้ว %1$d คน</string>
     <string name="map_checkpoint_from_me">ห่าง %1$s</string>
     <string name="action_close">ปิด</string>

@@ -3,6 +3,14 @@ package th.ac.mfu.su.wbw.ui.staff
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.border
@@ -48,6 +56,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +66,11 @@ import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.local.Session
 import th.ac.mfu.su.wbw.data.remote.dto.SosOutcome
 import th.ac.mfu.su.wbw.data.remote.dto.SosStaffCase
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
+import th.ac.mfu.su.wbw.ui.map.SosButton
+import th.ac.mfu.su.wbw.ui.map.SosFullScreen
+import th.ac.mfu.su.wbw.ui.map.SosStaffIdentity
+import th.ac.mfu.su.wbw.ui.map.SosViewModel
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -71,6 +85,13 @@ import th.ac.mfu.su.wbw.ui.theme.wbwColors
  * between a responder and the only information on it that matters. Nothing here is a
  * summary of something else.
  *
+ * **The console also carries the staff member's own SOS.** It is the same hold, the same
+ * endpoint and the same case a participant raises — `POST /wbw/me/sos` has no role gate on
+ * it, and `sos_event.participant_id` references `wbw_user` rather than a participant row —
+ * so a staff member who is hurt reaches the same people by the same route. It lives here
+ * rather than on the map tab because this is the screen a staff account opens on and the
+ * one it sits on all day, and because being on duty is not the same as being safe.
+ *
  * Which cases arrive is the server's decision, not a filter offered here: a staff member
  * sees their own checkpoint, cases with no checkpoint at all, checkpoints nobody is assigned
  * to, and anything whose position is too coarse to attribute — with admin, medical and
@@ -82,177 +103,301 @@ fun StaffHomeScreen(
     session: Session,
     contentPadding: PaddingValues,
     onOpenSettings: () -> Unit,
-    viewModel: StaffHomeViewModel = viewModel(factory = StaffHomeViewModel.Factory),
+    // Keyed to the signed-in account: the feed excludes this account's own emergency, and
+    // which account that is has to reach the view model to be excluded.
+    viewModel: StaffHomeViewModel = viewModel(factory = StaffHomeViewModel.factoryFor(session.userId)),
 ) {
     val colors = wbwColors
+    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+
+    // This account's *own* emergency, which is a different thing from the feed above it.
+    //
+    // [SosViewModel.StaffFactory] rather than the participant factory: same repository,
+    // same idempotency key, same watch loop, but no `/me` fetch behind it — see the note on
+    // its `profile` parameter.
+    val sosViewModel: SosViewModel = viewModel(factory = SosViewModel.StaffFactory)
+    val sos by sosViewModel.state.collectAsStateWithLifecycle()
 
     // Driven from the screen, so the held connection lives exactly as long as somebody is
     // looking at it — the same bargain the chat and the participant's own SOS watch make.
     LaunchedEffect(Unit) { viewModel.watch() }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 18.dp),
-    ) {
-        // The greeting and the settings button share one row, and the role pill sits on
-        // its own beneath.
-        //
-        // They used to be a two-line column with the button centred against the whole of
-        // it, which put the button's midpoint level with the *gap* between the greeting
-        // and the pill — so the name rode visibly above it and nothing on the row lined
-        // up with anything else. Centring works when both sides are one line; when one
-        // side is a stack, the thing to align to is its first line.
-        Row(
-            Modifier.fillMaxWidth().padding(top = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    // The second watch is for this account's own case, not for the feed. It keeps running
+    // when there is no case, because one can be raised from another device on the same
+    // login — and because a staff member who raises one and then locks the phone must come
+    // back to a screen that still says somebody is coming.
+    LaunchedEffect(Unit) { sosViewModel.watch() }
+
+    // A failed raise is the one SOS error worth interrupting somebody for: it means the
+    // hold they just completed did *not* reach anybody, and the honest answer is to say so
+    // rather than to leave the console looking exactly as it did before.
+    LaunchedEffect(sos.error) {
+        sos.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            sosViewModel.dismissError()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 18.dp),
         ) {
-            // The username, because it is the only name this shell has. A staff account
-            // has no `participant_profile`, so there is no first name to greet them by
-            // and no request that would fetch one — see [StaffScaffold].
-            Text(
-                stringResource(R.string.staff_greeting, session.username),
-                style = MaterialTheme.typography.displaySmall,
-                color = colors.onBackdrop,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(12.dp))
-            Box(
-                Modifier
-                    .size(42.dp)
-                    .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
-                    .clip(CircleShape)
-                    .padding(10.dp),
+            // The greeting and the settings button share one row, and the role pill sits on
+            // its own beneath.
+            //
+            // They used to be a two-line column with the button centred against the whole of
+            // it, which put the button's midpoint level with the *gap* between the greeting
+            // and the pill — so the name rode visibly above it and nothing on the row lined
+            // up with anything else. Centring works when both sides are one line; when one
+            // side is a stack, the thing to align to is its first line.
+            Row(
+                Modifier.fillMaxWidth().padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    Icons.Outlined.Settings,
-                    stringResource(R.string.settings_title),
-                    tint = colors.onBackdrop,
-                    modifier = Modifier.fillMaxSize().clickableNoRipple(onOpenSettings),
+                // The username, because it is the only name this shell has. A staff account
+                // has no `participant_profile`, so there is no first name to greet them by
+                // and no request that would fetch one — see [StaffScaffold].
+                Text(
+                    stringResource(R.string.staff_greeting, session.username),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = colors.onBackdrop,
+                    modifier = Modifier.weight(1f),
                 )
-            }
-        }
-
-        Spacer(Modifier.height(6.dp))
-
-        // The line under the greeting is the count of emergencies nobody has claimed yet —
-        // the single most important number on this screen, and it was set at 12sp beside a
-        // 9sp pill, which is caption treatment for a figure that means somebody is waiting
-        // for help. It is now the size of a thing you are meant to read from arm's length,
-        // and it says what it is counting rather than assuming the reader knows.
-        // One line, one size.
-        //
-        // The role was a bordered pill at 11sp beside a 15sp status, which read as two
-        // unrelated objects that happened to share a row — a badge, and then a sentence.
-        // They are one statement: who you are and what is waiting for you. Same size, a
-        // middot between them, and the border gone; the role stays muted and the count
-        // takes the weight and the colour, so the sentence still has an emphasis without
-        // being two components.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val waiting = state.waiting > 0
-            Text(
-                (StaffRoleLabels[session.role.lowercase()]?.let { stringResource(it) }
-                    ?: session.role) + "  ·  ",
-                color = colors.onBackdropMuted,
-                fontSize = 15.sp,
-            )
-            Text(
-                if (waiting) {
-                    stringResource(R.string.staff_waiting_count, state.waiting)
-                } else {
-                    stringResource(R.string.staff_all_clear)
-                },
-                color = if (waiting) colors.danger else colors.onBackdropMuted,
-                fontSize = 15.sp,
-                fontWeight = if (waiting) FontWeight.SemiBold else FontWeight.Normal,
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Two panels, not one scrolling list.
-        //
-        // Open and closed cases were stacked in a single column under a "closed recently"
-        // heading, which meant the thing a responder is on this screen for — what still
-        // needs somebody — got shorter the more cases had been dealt with, and eventually
-        // sat above a growing pile of finished ones. They are separate views now, and the
-        // console opens on the live one.
-        //
-        // The count rides on the tab rather than being discovered by scrolling to the end
-        // of a list: "3 open" is the number somebody is actually asking for.
-        var showClosed by rememberSaveable { mutableStateOf(false) }
-        PanelSwitch(
-            showClosed = showClosed,
-            openCount = state.open.size,
-            closedCount = state.recentlyClosed.size,
-            onSelect = { showClosed = it },
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        val shown = if (showClosed) state.recentlyClosed else state.open
-
-        when {
-            state.loading && state.cases.isEmpty() -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    color = colors.onBackdropMuted,
-                    strokeWidth = 2.5.dp,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-
-            shown.isEmpty() -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.width(12.dp))
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .glass(CircleShape, fill = GlassSheer, border = GlassSheerBorder, elevation = 0.dp)
+                        .clip(CircleShape)
+                        .padding(10.dp),
+                ) {
                     Icon(
-                        Icons.Outlined.CheckCircle,
-                        null,
-                        tint = colors.onBackdropMuted,
-                        modifier = Modifier.size(30.dp),
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    // Says what it means. "No data" on this screen would be ambiguous
-                    // between "nobody needs help" and "the feed is not working", and those
-                    // are opposite things to a person on duty. The closed panel gets its
-                    // own line: an empty one there means nothing has finished lately,
-                    // which is not the same claim at all.
-                    Text(
-                        stringResource(
-                            if (showClosed) R.string.staff_closed_empty else R.string.staff_empty,
-                        ),
-                        color = colors.onBackdropMuted,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
+                        Icons.Outlined.Settings,
+                        stringResource(R.string.settings_title),
+                        tint = colors.onBackdrop,
+                        modifier = Modifier.fillMaxSize().clickableNoRipple(onOpenSettings),
                     )
                 }
             }
 
-            else -> LazyColumn(
-                contentPadding = contentPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+            Spacer(Modifier.height(6.dp))
+
+            // The line under the greeting is the count of emergencies nobody has claimed yet —
+            // the single most important number on this screen, and it was set at 12sp beside a
+            // 9sp pill, which is caption treatment for a figure that means somebody is waiting
+            // for help. It is now the size of a thing you are meant to read from arm's length,
+            // and it says what it is counting rather than assuming the reader knows.
+            // One line, one size.
+            //
+            // The role was a bordered pill at 11sp beside a 15sp status, which read as two
+            // unrelated objects that happened to share a row — a badge, and then a sentence.
+            // They are one statement: who you are and what is waiting for you. Same size, a
+            // middot between them, and the border gone; the role stays muted and the count
+            // takes the weight and the colour, so the sentence still has an emphasis without
+            // being two components.
+            //
+            // The count is **not** red any more, now that the SOS pill shares this row.
+            // Red was the right emphasis when this line was alone; beside a red pill twelve
+            // dp away it is the same collision the pill was kept off the cards to avoid —
+            // two reds on one line, at the moment there is least time to tell them apart.
+            // Weight carries the emphasis instead, and the row's one red is the control
+            // that means "me", which is the thing on it that must never be misread.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically) {
+                    val waiting = state.waiting > 0
+                    // The role gives way first. It is the half a reader already knows —
+                    // they are the one wearing it — and the count is the half that changed.
+                    // Without this the role takes the whole line in Thai and pushes the
+                    // number that matters off the end of it.
+                    Text(
+                        (StaffRoleLabels[session.role.lowercase()]?.let { stringResource(it) }
+                            ?: session.role) + "  ·  ",
+                        color = colors.onBackdropMuted,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(
+                        if (waiting) {
+                            stringResource(R.string.staff_waiting_count, state.waiting)
+                        } else {
+                            stringResource(R.string.staff_all_clear)
+                        },
+                        color = colors.onBackdrop,
+                        fontSize = 15.sp,
+                        fontWeight = if (waiting) FontWeight.SemiBold else FontWeight.Normal,
+                        maxLines = 1,
+                    )
+                }
+
+                // On this row, and not floating over the list.
+                //
+                // The participant's map puts the SOS on its own edge, away from the controls
+                // pressed most often, and the equivalent here would be a red pill hovering over
+                // the case cards. That is exactly where it must not be: those cards already
+                // carry red — the alert line, the blood group, the verdict buttons — so a red
+                // control floating among them is one more red thing to disambiguate at the
+                // moment there is least time for it, and it would sit on top of the actions a
+                // responder is reaching for.
+                //
+                // This row is the one part of the console that is about *this* staff member
+                // rather than about other people's emergencies: who you are, and what is
+                // waiting for you. Their own way of asking for help belongs on it. It is also
+                // in the fixed header, so it neither scrolls away nor covers anything, and it
+                // is findable at a glance whatever the list is doing.
+                //
+                // Unweighted, so it is measured at its own width before the line beside it
+                // is given what is left. The text can lose a few characters to a long role
+                // label; the emergency control cannot lose pixels to one.
+                //
+                // It is also now the only red on this row — see the note on the count.
+                Spacer(Modifier.width(12.dp))
+                SosButton(
+                    onFire = { sosViewModel.raise(context) },
+                    compact = true,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Two panels, not one scrolling list.
+            //
+            // Open and closed cases were stacked in a single column under a "closed recently"
+            // heading, which meant the thing a responder is on this screen for — what still
+            // needs somebody — got shorter the more cases had been dealt with, and eventually
+            // sat above a growing pile of finished ones. They are separate views now, and the
+            // console opens on the live one.
+            //
+            // The count rides on the tab rather than being discovered by scrolling to the end
+            // of a list: "3 open" is the number somebody is actually asking for.
+            var showClosed by rememberSaveable { mutableStateOf(false) }
+            PanelSwitch(
+                showClosed = showClosed,
+                openCount = state.open.size,
+                closedCount = state.recentlyClosed.size,
+                onSelect = { showClosed = it },
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            val shown = if (showClosed) state.recentlyClosed else state.open
+
+            // A pull on top of the long poll. The feed is already live; this is for the moment
+            // somebody standing over a case wants to be told so, rather than trusting a
+            // connection they cannot see. See [StaffHomeViewModel.refresh].
+            PullRefreshBox(
+                refreshing = refreshing,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                items(shown, key = { it.id }) { case ->
-                    // A closed case has nothing left to do, so both actions are inert
-                    // rather than absent — the card decides what to draw from its own
-                    // state, and passing it live callbacks would be a lie about that.
-                    if (showClosed) {
-                        CaseCard(case = case, onAck = {}, onReport = {}, onClose = {})
-                    } else {
-                        CaseCard(
-                            case = case,
-                            onAck = { viewModel.ack(case.id) },
-                            onReport = { viewModel.report(case.id, it) },
-                            onClose = { viewModel.resolve(case.id) },
+                when {
+                    state.loading && state.cases.isEmpty() -> Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            color = colors.onBackdropMuted,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(26.dp),
                         )
                     }
+
+                    shown.isEmpty() -> Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Outlined.CheckCircle,
+                                null,
+                                tint = colors.onBackdropMuted,
+                                modifier = Modifier.size(30.dp),
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            // Says what it means. "No data" on this screen would be ambiguous
+                            // between "nobody needs help" and "the feed is not working", and those
+                            // are opposite things to a person on duty. The closed panel gets its
+                            // own line: an empty one there means nothing has finished lately,
+                            // which is not the same claim at all.
+                            Text(
+                                stringResource(
+                                    if (showClosed) R.string.staff_closed_empty else R.string.staff_empty,
+                                ),
+                                color = colors.onBackdropMuted,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+
+                    else -> LazyColumn(
+                        contentPadding = contentPadding,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(shown, key = { it.id }) { case ->
+                            // A closed case has nothing left to do, so both actions are inert
+                            // rather than absent — the card decides what to draw from its own
+                            // state, and passing it live callbacks would be a lie about that.
+                            if (showClosed) {
+                                CaseCard(case = case, onAck = {}, onReport = {}, onClose = {})
+                            } else {
+                                CaseCard(
+                                    case = case,
+                                    onAck = { viewModel.ack(case.id) },
+                                    onReport = { viewModel.report(case.id, it) },
+                                    onClose = { viewModel.resolve(case.id) },
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+        }
+
+        // The emergency, over the console.
+        //
+        // Full screen, exactly as it is for a participant, and for the same reason: while
+        // this account has a case open there is nothing else on this screen worth a tap.
+        // The feed underneath keeps running — the long poll is not stopped — so whatever
+        // arrives while a staff member is waiting for help is already there when they
+        // stand down.
+        //
+        // It arrives rather than appearing: the one moment this screen has to feel like it
+        // did something is the moment after a three-second hold.
+        AnimatedVisibility(
+            visible = sos.active,
+            enter = fadeIn(tween(220)) +
+                scaleIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    initialScale = 0.92f,
+                ),
+            exit = fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.96f),
+        ) {
+            // Held, so the screen keeps its contents through the exit animation.
+            sos.case?.let { open ->
+                SosFullScreen(
+                    case = open,
+                    // No participant profile behind this account, and none coming — the
+                    // card renders the staff variant from `staff` instead.
+                    me = null,
+                    cancelRefused = sos.cancelRefused,
+                    onCancel = { sosViewModel.cancel() },
+                    contentPadding = contentPadding,
+                    staff = SosStaffIdentity(
+                        name = session.username,
+                        role = StaffRoleLabels[session.role.lowercase()]
+                            ?.let { stringResource(it) } ?: session.role,
+                    ),
+                )
             }
         }
     }

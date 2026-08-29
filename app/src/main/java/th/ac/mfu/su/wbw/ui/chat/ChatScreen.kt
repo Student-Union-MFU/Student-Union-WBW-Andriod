@@ -65,6 +65,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.remote.dto.ChatMessage
+import th.ac.mfu.su.wbw.ui.common.PullEdge
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.AvatarMarks
@@ -105,6 +107,7 @@ fun ChatScreen(
 ) {
     val colors = wbwColors
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val rows = remember(state.messages, state.pending) { groupMessages(state.messages, state.pending) }
     // The read cursor is only worth showing on the newest thing you said — a receipt under
     // every one of your messages is noise, and the server only tells you the high-water mark
@@ -243,30 +246,46 @@ fun ChatScreen(
         // the rows are handed over reversed and every scroll target is 0 rather than the
         // last index. Day dividers still land above their own day — reversing a list that
         // already had them in order puts them back the right way once the layout flips it.
-        LazyColumn(
-            Modifier.weight(1f).fillMaxWidth(),
-            state = listState,
-            reverseLayout = true,
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
-            // `spacedBy` needs the alignment spelled out, and it is not decoration.
-            // `reverseLayout` defaults the arrangement to Bottom, but passing any
-            // `verticalArrangement` replaces that default — and bare `spacedBy` aligns
-            // leftover space to the *top*, which put a short conversation back at the top
-            // of the screen with the reversal doing nothing visible.
-            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
+        // Pull *up* to refresh, not down.
+        //
+        // The list is `reverseLayout`, so the newest message is at the bottom and that is
+        // where a reader already is; the over-scroll available to them there is a drag
+        // upward. A refresh at the top would mean scrolling back through the whole
+        // conversation to reach the gesture — away from the only messages it could bring
+        // — and the spinner would appear at the oldest end of a thread it had just added
+        // to the newest. So the indicator rises off the bottom edge, out of the composer,
+        // which is the same direction a new message arrives from.
+        PullRefreshBox(
+            refreshing = refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            edge = PullEdge.Bottom,
         ) {
-            items(rows.asReversed()) { row ->
-                when (row) {
-                    is Row_.Day -> DayDivider(row.label)
-                    is Row_.Message -> MessageRow(
-                        row = row,
-                        readBy = if (row.message.id == lastMineId && state.readCount > 0) {
-                            state.readCount
-                        } else {
-                            0
-                        },
-                    )
-                    is Row_.Pending -> PendingRow(row.message, onRetry = { viewModel.retry(it) })
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                state = listState,
+                reverseLayout = true,
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
+                // `spacedBy` needs the alignment spelled out, and it is not decoration.
+                // `reverseLayout` defaults the arrangement to Bottom, but passing any
+                // `verticalArrangement` replaces that default — and bare `spacedBy` aligns
+                // leftover space to the *top*, which put a short conversation back at the top
+                // of the screen with the reversal doing nothing visible.
+                verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
+            ) {
+                items(rows.asReversed()) { row ->
+                    when (row) {
+                        is Row_.Day -> DayDivider(row.label)
+                        is Row_.Message -> MessageRow(
+                            row = row,
+                            readBy = if (row.message.id == lastMineId && state.readCount > 0) {
+                                state.readCount
+                            } else {
+                                0
+                            },
+                        )
+                        is Row_.Pending -> PendingRow(row.message, onRetry = { viewModel.retry(it) })
+                    }
                 }
             }
         }

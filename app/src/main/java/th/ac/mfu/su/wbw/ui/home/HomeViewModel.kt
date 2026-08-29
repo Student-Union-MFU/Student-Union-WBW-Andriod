@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -96,6 +97,48 @@ class HomeViewModel(
         _progress.value = progressRepo.cached()
         load()
         _trailConditions.value = conditions.cached()
+    }
+
+    /**
+     * True while the pull-to-refresh gesture's own request is in flight.
+     *
+     * Separate from [UiState.Loading], which is the state of the *screen*: this one is the
+     * state of the spinner the participant is holding open with their thumb, and Home is
+     * never blanked for it — everything on the screen stays exactly where it is while the
+     * numbers behind it are re-fetched.
+     */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    /**
+     * Everything Home shows, asked again at once.
+     *
+     * Home is four independent requests — the profile, the bases, the announcements mark
+     * and the weather — and a pull is one gesture about all of them, so they go out
+     * together and the spinner stays until the slowest is back. Sequentially this would be
+     * four round trips deep on a network where each of them can be a second.
+     *
+     * The conditions call is forced past its ten-minute cache: see
+     * [ConditionsRepository.trailConditions]. The others read the network anyway.
+     */
+    fun refresh() {
+        if (_refreshing.value) return
+        _refreshing.value = true
+        viewModelScope.launch {
+            val profile = async { repository.me() }
+            val bases = async { progressRepo.progress() }
+            val announcements = async { notifications.mine() }
+            val weather = async { conditions.trailConditions(force = true) }
+
+            profile.await().onSuccess { _state.value = UiState.Success(HomeUiModel.from(it)) }
+            bases.await().onSuccess { _progress.value = it }
+            announcements.await().onSuccess { newestUnreadId.value = newestUnread(it) }
+            weather.await()?.let { _trailConditions.value = it }
+            // Errors are all deliberately dropped. A refresh that failed leaves the screen
+            // as it was, which is the same bargain [load] makes and for the same reason:
+            // out on the hill the numbers already on screen are the true ones.
+            _refreshing.value = false
+        }
     }
 
     fun load() {

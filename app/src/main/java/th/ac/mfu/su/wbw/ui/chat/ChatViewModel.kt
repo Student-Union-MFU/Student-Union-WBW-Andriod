@@ -91,6 +91,19 @@ class ChatViewModel(
     /** The highest message id this device has seen — the long-poll's cursor. */
     private var lastId: Long = 0
 
+    /**
+     * True while the pull-up gesture's own pass is in flight.
+     *
+     * [sync] already keeps this screen live, so this is not how messages normally arrive.
+     * It is for when that loop has fallen into its backoff — thirty seconds is a long time
+     * to stare at a conversation you have been told is offline — and for the moment
+     * somebody simply wants to be sure. It runs alongside the loop rather than restarting
+     * it: both fold through [apply], which is keyed by message id, so the worst a race can
+     * do is merge the same message twice.
+     */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     init {
         // Seeded from cache before the first frame, so a returning participant opens on the
         // conversation rather than on an empty column with a spinner over it.
@@ -137,6 +150,23 @@ class ChatViewModel(
                 }
                 if (groupId == null || _state.value.messages.isEmpty()) lastId = 0
             }
+        }
+    }
+
+    /** One immediate, non-holding pass. `wait = 0` so it answers now rather than parking. */
+    fun refresh() {
+        if (_refreshing.value) return
+        val groupId = _state.value.groupId ?: return
+        _refreshing.value = true
+        viewModelScope.launch {
+            when (val result = chat.sync(groupId, lastId, 0)) {
+                is ApiResult.Success -> apply(groupId, result.data)
+                // Left to the loop to report. It is the thing that knows whether the
+                // connection is really gone, and the muted "offline" line it drives is
+                // already the right place to say so.
+                is ApiResult.Error -> Unit
+            }
+            _refreshing.value = false
         }
     }
 

@@ -48,6 +48,7 @@ import th.ac.mfu.su.wbw.data.remote.dto.Notification
 import th.ac.mfu.su.wbw.ui.common.EmptyState
 import th.ac.mfu.su.wbw.ui.common.ErrorState
 import th.ac.mfu.su.wbw.ui.common.LoadingState
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.common.UiState
 import th.ac.mfu.su.wbw.ui.theme.GlassCard
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
@@ -89,6 +90,7 @@ fun NotificationsScreen(
 ) {
     val colors = wbwColors
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 18.dp)) {
         // Outside the list, like the pass's back button: a way out that scrolls away is
@@ -123,15 +125,24 @@ fun NotificationsScreen(
         )
         Spacer(Modifier.height(14.dp))
 
-        when (val s = state) {
-            is UiState.Loading -> LoadingState()
-            is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
-            is UiState.Success ->
-                if (s.data.items.isEmpty()) {
-                    EmptyState(message = stringResource(R.string.notifications_empty))
-                } else {
-                    Feed(s.data, contentPadding)
-                }
+        // Below the title rather than around the whole screen, so the spinner arrives at
+        // the top of the feed — the edge the gesture is actually pulling — instead of over
+        // the heading, which is not part of what a refresh changes.
+        PullRefreshBox(
+            refreshing = refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when (val s = state) {
+                is UiState.Loading -> LoadingState()
+                is UiState.Error -> ErrorState(message = s.message, onRetry = viewModel::load)
+                is UiState.Success ->
+                    if (s.data.items.isEmpty()) {
+                        EmptyState(message = stringResource(R.string.notifications_empty))
+                    } else {
+                        Feed(s.data, contentPadding)
+                    }
+            }
         }
     }
 }

@@ -70,12 +70,16 @@ private fun routeOrder(route: String?): Int = when (route) {
  *
  *  - **Alerts** — the live emergency console, `GET /wbw/staff/sos`. The one staff duty that
  *    is fully built end to end, and the one that is worthless if it is not on the screen
- *    somebody is already looking at.
+ *    somebody is already looking at. It also carries this account's **own** SOS, in its
+ *    header: `POST /wbw/me/sos` has no role gate and `sos_event.participant_id` references
+ *    `wbw_user`, so a staff member who is hurt raises the same case by the same route as
+ *    anyone else. Being on duty is not the same as being safe.
  *  - **Map** — the same trail map participants get, with its emergency layer switched off
- *    (`emergency = false`): the SOS button and its watch belong to a participant, and staff
- *    answer emergencies on the Alerts tab rather than raise them. What is left needs
- *    nothing from `/me`, and knowing where the route runs is as much a staff need as a
- *    walker's.
+ *    (`emergency = false`). Not because staff cannot raise one — they can, from Alerts —
+ *    but because one account must not hold two SOS view models and two watches over one
+ *    case. The map's copy is the one to drop: Alerts is the screen a staff account opens
+ *    on and sits on all day. What is left needs nothing from `/me`, and knowing where the
+ *    route runs is as much a staff need as a walker's.
  *
  * Beside the bar, where a participant's phone keeps their pass, is the check-in scanner —
  * `POST /wbw/staff/checkin`. A destination rather than a third tab: it is something a staff

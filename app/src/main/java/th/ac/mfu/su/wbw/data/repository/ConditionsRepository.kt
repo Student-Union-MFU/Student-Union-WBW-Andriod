@@ -65,11 +65,19 @@ class ConditionsRepository(
      */
     fun cached(): TrailConditions? = cache.read(ResponseCache.KeyConditions, TrailConditions.serializer())
 
-    suspend fun trailConditions(): TrailConditions? {
+    /**
+     * @param force skip the ten-minute cache and go to the network.
+     *
+     * For the pull-to-refresh gesture only. Somebody who has deliberately dragged the
+     * screen down is asking about the weather *now*; answering out of a cache they cannot
+     * see would show them a spinner and then the same number they were already looking at.
+     * Every other caller wants the cache — see [CacheTtlMillis].
+     */
+    suspend fun trailConditions(force: Boolean = false): TrailConditions? {
         // On disk rather than in a field, so the ten minutes survive the process being
         // killed in a pocket — which, on a walk, is most of how this app is used.
         val age = cache.ageMillis(ResponseCache.KeyConditions)
-        if (age != null && age < CacheTtlMillis) cached()?.let { return it }
+        if (!force && age != null && age < CacheTtlMillis) cached()?.let { return it }
 
         // Concurrently: two hosts, no ordering between them, and the card wants both
         // before it draws. Sequentially this would be two round trips deep instead of one.

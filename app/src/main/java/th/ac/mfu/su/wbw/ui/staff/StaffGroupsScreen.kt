@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.remote.dto.Group
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -84,31 +85,37 @@ fun StaffGroupsScreen(
         )
         Spacer(Modifier.height(16.dp))
 
-        when {
-            state.loading && state.groups.isEmpty() -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    color = colors.onBackdropMuted,
-                    strokeWidth = 2.5.dp,
-                    modifier = Modifier.size(28.dp),
+        PullRefreshBox(
+            refreshing = state.refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            when {
+                state.loading && state.groups.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        color = colors.onBackdropMuted,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+
+                state.error != null && state.groups.isEmpty() -> Text(
+                    state.error!!,
+                    color = colors.danger,
+                    fontSize = 13.sp,
                 )
-            }
 
-            state.error != null && state.groups.isEmpty() -> Text(
-                state.error!!,
-                color = colors.danger,
-                fontSize = 13.sp,
-            )
-
-            else -> LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(state.groups, key = { it.groupId }) { group ->
-                    GroupRow(group = group, onClick = { onOpenGroup(group) })
+                else -> LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(state.groups, key = { it.groupId }) { group ->
+                        GroupRow(group = group, onClick = { onOpenGroup(group) })
+                    }
                 }
             }
         }

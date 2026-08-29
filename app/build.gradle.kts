@@ -57,8 +57,8 @@ android {
         applicationId = "th.ac.mfu.su.wbw"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 7
+        versionName = "0.4.3"
     }
 
     signingConfigs {
@@ -109,6 +109,33 @@ android {
             // (`Backend.susProd` in wbw-ios-fontend/WBW/Config.swift). The trailing
             // slash matters: Retrofit resolves the @GET paths relative to it, and
             // without it the last segment is replaced instead of appended.
+            buildConfigField("String", "API_BASE_URL", "\"https://api.studentunion.social/wbw/\"")
+        }
+
+        /**
+         * The hand-out build: byte-for-byte the `release` app, under its own applicationId.
+         *
+         * It exists for one reason. Once `th.ac.mfu.su.wbw` was uploaded to Play, Google
+         * holds that package name against the Play App Signing certificate, and Play
+         * Protect blocks any copy of it signed with a different key — which is every APK
+         * this machine can produce. `th.ac.mfu.su.wbw.direct` is a package Google has no
+         * record of, so a locally-signed build of it installs the way any unlisted app
+         * does: the "unknown sources" prompt, and nothing further.
+         *
+         * The cost is that Android treats this as a separate app. It cannot update, or be
+         * updated by, the Play build; a phone with both has two of them, with two sets of
+         * data. Prefer the Play track wherever the audience can be reached through it —
+         * this is for people who cannot be.
+         *
+         * `initWith` copies `release` wholesale, so the two cannot drift on minify,
+         * ProGuard or signing. Only the identity below differs, and `API_BASE_URL` is
+         * restated because build-config fields are not inherited.
+         */
+        create("direct") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".direct"
+            versionNameSuffix = "-direct"
+            signingConfig = signingConfigs.findByName("release")
             buildConfigField("String", "API_BASE_URL", "\"https://api.studentunion.social/wbw/\"")
         }
     }

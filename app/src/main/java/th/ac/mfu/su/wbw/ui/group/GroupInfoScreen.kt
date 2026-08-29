@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import th.ac.mfu.su.wbw.R
 import th.ac.mfu.su.wbw.data.remote.dto.GroupMember
+import th.ac.mfu.su.wbw.ui.common.PullRefreshBox
 import th.ac.mfu.su.wbw.ui.theme.GlassSheer
 import th.ac.mfu.su.wbw.ui.theme.GlassSheerBorder
 import th.ac.mfu.su.wbw.ui.theme.glass
@@ -120,41 +121,49 @@ fun GroupInfoScreen(
             }
         }
 
-        when {
-            state.loading && state.members.isEmpty() -> Box(
-                Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    color = colors.onBackdropMuted,
-                    strokeWidth = 2.5.dp,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
+        // The roster only, not the leave button below it: pulling on the way out of a
+        // group is not a request to re-read who is in it.
+        PullRefreshBox(
+            refreshing = state.refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.weight(1f),
+        ) {
+            when {
+                state.loading && state.members.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        color = colors.onBackdropMuted,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
 
-            state.members.isEmpty() -> Box(
-                Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    state.error ?: stringResource(R.string.chat_members_empty),
-                    color = if (state.error != null) colors.danger else colors.onBackdropMuted,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
+                state.members.isEmpty() -> Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        state.error ?: stringResource(R.string.chat_members_empty),
+                        color = if (state.error != null) colors.danger else colors.onBackdropMuted,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
 
-            else -> LazyColumn(
-                Modifier.weight(1f),
-                // Enough of a gap that the cards read as separate people.
-                //
-                // 2dp put a hairline between two glass panes of the same colour, which at a
-                // glance is one long pane with lines ruled across it — a roster is a list of
-                // people, and each of them should look like one entry.
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(state.members, key = { it.userId }) { m ->
-                    MemberLine(member = m, isMe = m.userId == state.meId)
+                else -> LazyColumn(
+                    Modifier.fillMaxSize(),
+                    // Enough of a gap that the cards read as separate people.
+                    //
+                    // 2dp put a hairline between two glass panes of the same colour, which at a
+                    // glance is one long pane with lines ruled across it — a roster is a list of
+                    // people, and each of them should look like one entry.
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(state.members, key = { it.userId }) { m ->
+                        MemberLine(member = m, isMe = m.userId == state.meId)
+                    }
                 }
             }
         }
